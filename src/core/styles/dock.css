@@ -1,4 +1,6 @@
+/* ========================= */
 /* DOCK */
+/* ========================= */
 .nav-wrap {
   position: fixed;
   bottom: 10px;
@@ -24,6 +26,8 @@
 
 /* NAV ITEM */
 .nav-item2 {
+  position: relative;
+
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -33,55 +37,72 @@
   color: #9ca3af;
 
   height: 60px;
-  border-radius: 18px;
+  border-radius: 20px;
 
-  cursor: pointer;
   transition: all 0.25s ease;
-
-  position: relative;
-
-  background: rgba(255,255,255,0.35);
-  border: 1px solid rgba(0,0,0,0.06);
-
-  z-index: 1; /* 🔥 important */
+  cursor: pointer;
 }
 
 .nav-item2 svg {
   margin-bottom: 4px;
 }
 
-/* ACTIVE */
+/* 🔥 ACTIVE TILE (ORIGINAL STYLE) */
 .nav-item2.active {
-  background: white;
+  background: #ffffff;
   color: #0f7a3b;
 
-  transform: translateY(-14px); /* 🔥 reduced from -18 */
+  transform: translateY(-20px);
 
   height: 72px;
 
-  z-index: 2; /* 🔥 keeps above neighbors but BELOW popup */
+  border-radius: 22px;
 
   box-shadow:
     0 10px 25px rgba(0,0,0,0.14),
     0 4px 10px rgba(0,0,0,0.06);
 }
 
+/* 🔥 RESTORE BOTTOM LINE */
+.nav-item2.active::after {
+  content: "";
+  position: absolute;
+
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+
+  width: 70%;
+  height: 6px;
+
+  background: #0f7a3b;
+
+  border-radius: 0 0 16px 16px;
+}
+
+/* EMPTY */
+.nav-item2.empty {
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* ========================= */
 /* POPUP */
+/* ========================= */
+
+/* 🔥 FIX OVERLAP WITHOUT CHANGING STYLE */
 .popup-wrap {
   position: fixed;
-
-  bottom: 120px; /* 🔥 moved higher */
-
+  bottom: 105px; /* slight lift only */
   left: 0;
   right: 0;
 
   display: flex;
   justify-content: center;
 
-  z-index: 200; /* 🔥 ABOVE EVERYTHING */
+  z-index: 200;
 }
 
-/* CARD */
 .popup-card {
   background: white;
   border-radius: 18px;
@@ -121,10 +142,4 @@
   inset: 0;
   background: rgba(0,0,0,0.25);
   z-index: 150;
-}
-
-/* EMPTY */
-.nav-item2.empty {
-  pointer-events: none;
-  opacity: 0;
 }
