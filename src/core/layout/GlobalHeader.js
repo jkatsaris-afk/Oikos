@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Settings, Moon, User } from "lucide-react";
 
-/* 🔥 MODE CONFIG IMPORT */
+/* MODE CONFIG */
 import { getModeConfig } from "../theme/modeConfig";
 
 export default function GlobalHeader({ mode }) {
@@ -24,9 +24,7 @@ export default function GlobalHeader({ mode }) {
   return (
     <div style={styles.header}>
 
-      {/* =========================
-          LEFT (LOGO)
-      ========================= */}
+      {/* LEFT (LOGO) */}
       <div style={styles.left}>
         <img
           src={getModeConfig(mode).logo}
@@ -35,12 +33,10 @@ export default function GlobalHeader({ mode }) {
         />
       </div>
 
-      {/* =========================
-          RIGHT (CONTROLS + TIME)
-      ========================= */}
+      {/* RIGHT (CONTROLS) */}
       <div style={styles.right}>
 
-        {/* DISPLAY ONLY BUTTONS */}
+        {/* DISPLAY ONLY */}
         {isDisplayMode && (
           <>
             <button style={styles.iconBtn}>
@@ -53,7 +49,12 @@ export default function GlobalHeader({ mode }) {
           </>
         )}
 
-        {/* TIME */}
+        {/* SETTINGS */}
+        <button style={styles.iconBtn}>
+          <Settings size={20} />
+        </button>
+
+        {/* 🔥 CLOCK LAST */}
         <div style={styles.time}>
           {time.toLocaleTimeString([], {
             hour: "2-digit",
@@ -63,11 +64,6 @@ export default function GlobalHeader({ mode }) {
             {time.toLocaleDateString()}
           </div>
         </div>
-
-        {/* SETTINGS (NEXT TO TIME) */}
-        <button style={styles.iconBtn}>
-          <Settings size={20} />
-        </button>
 
       </div>
 
@@ -112,6 +108,7 @@ const styles = {
   time: {
     fontSize: 16,
     fontWeight: 600,
+    textAlign: "right",
   },
 
   date: {
