@@ -11,11 +11,9 @@ export default function TemplatePage({
   return (
     <div className="template-page">
 
-      {/* HEADER (can turn on/off later) */}
       {showHeader && (
         <div className="template-header">
 
-          {/* LEFT */}
           <div className="template-header-left">
             {showBack && (
               <button className="template-btn" onClick={onBack}>
@@ -24,12 +22,10 @@ export default function TemplatePage({
             )}
           </div>
 
-          {/* CENTER */}
           <div className="template-header-title">
             {title}
           </div>
 
-          {/* RIGHT */}
           <div className="template-header-right">
             {rightAction ? (
               rightAction
@@ -43,7 +39,6 @@ export default function TemplatePage({
         </div>
       )}
 
-      {/* CONTENT */}
       <div className="template-content">
         {children}
       </div>
