@@ -1,6 +1,6 @@
 import {
   Home,
-  UserPlus,
+  Grid,
   Users,
   Shield,
   Flag
@@ -9,9 +9,6 @@ import { useState } from "react";
 
 export default function DockLayout({ children }) {
   const [showSignupMenu, setShowSignupMenu] = useState(false);
-
-  // 🔥 current path (used for active state only)
-  const currentPath = window.location.pathname;
 
   const goTo = (path) => {
     setShowSignupMenu(false);
@@ -37,7 +34,10 @@ export default function DockLayout({ children }) {
       {/* POPUP */}
       {showSignupMenu && (
         <div className="popup-wrap popup-signup">
-          <div className="popup-card" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="popup-card"
+            onClick={(e) => e.stopPropagation()}
+          >
 
             <PopupItem
               icon={<Users size={20} />}
@@ -61,30 +61,38 @@ export default function DockLayout({ children }) {
         </div>
       )}
 
-      {/* 🔥 DOCK (5 SLOT GRID) */}
+      {/* DOCK */}
       <div className="nav-wrap">
 
-        {/* SLOT 1 — HOME (CURRENT PAGE, NO NAV) */}
+        {/* HOME (CURRENT SCREEN) */}
         <NavItem
           icon={<Home size={22} />}
           label="Home"
-          active={true} // 🔥 always active = current screen
+          active={true}
           onClick={() => {
-            // 🔥 DO NOTHING (home = current screen)
             setShowSignupMenu(false);
           }}
         />
 
-        {/* SLOT 2 — ADD */}
+        {/* 🔥 TILE STORE (PERMANENT TILE) */}
         <NavItem
-          icon={<UserPlus size={22} />}
+          icon={<Grid size={22} />}
+          label="Store"
+          active={false}
+          onClick={() => {
+            console.log("Tile Store coming soon");
+          }}
+        />
+
+        {/* ADD / POPUP */}
+        <NavItem
+          icon={<Users size={22} />}
           label="Add"
           active={showSignupMenu}
           onClick={() => setShowSignupMenu(prev => !prev)}
         />
 
-        {/* EMPTY SLOTS */}
-        <EmptySlot />
+        {/* EMPTY */}
         <EmptySlot />
         <EmptySlot />
 
