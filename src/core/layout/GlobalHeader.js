@@ -23,15 +23,7 @@ export default function GlobalHeader({ mode }) {
       {/* LEFT SIDE */}
       <div style={styles.left}>
 
-        {/* TIME */}
-        <div style={styles.time}>
-          {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          <div style={styles.date}>
-            {time.toLocaleDateString()}
-          </div>
-        </div>
-
-        {/* SETTINGS */}
+        {/* 🔥 SETTINGS FIRST */}
         <button style={styles.iconBtn}>
           <Settings size={20} />
         </button>
@@ -48,6 +40,14 @@ export default function GlobalHeader({ mode }) {
             </button>
           </>
         )}
+
+        {/* 🔥 CLOCK AFTER BUTTONS */}
+        <div style={styles.time}>
+          {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          <div style={styles.date}>
+            {time.toLocaleDateString()}
+          </div>
+        </div>
 
       </div>
 
