@@ -1,3 +1,6 @@
+/* ========================= */
+/* DOCK WRAPPER */
+/* ========================= */
 .nav-wrap {
   position: fixed;
   bottom: 10px;
@@ -21,6 +24,9 @@
   z-index: 100;
 }
 
+/* ========================= */
+/* NAV ITEM (🔥 OUTLINE ADDED) */
+/* ========================= */
 .nav-item2 {
   display: flex;
   flex-direction: column;
@@ -31,32 +37,47 @@
   color: #9ca3af;
 
   height: 60px;
-  border-radius: 20px;
+  border-radius: 18px;
 
-  transition: all 0.25s ease;
   cursor: pointer;
+  transition: all 0.25s ease;
+
   position: relative;
+
+  /* 🔥 NEW — MATCH POPUP CARD STYLE */
+  background: rgba(255,255,255,0.35);
+  border: 1px solid rgba(0,0,0,0.06);
 }
 
+/* ICON */
 .nav-item2 svg {
   margin-bottom: 4px;
 }
 
+/* HOVER */
+.nav-item2:hover {
+  background: rgba(255,255,255,0.75);
+  border-color: rgba(0,0,0,0.12);
+}
+
+/* ACTIVE */
 .nav-item2.active {
-  background: #ffffff;
+  background: white;
   color: #0f7a3b;
 
-  transform: translateY(-24px) scale(1.04);
+  transform: translateY(-18px) scale(1.03);
 
   height: 76px;
+  border-radius: 22px;
 
-  border-radius: 24px;
+  border: 1px solid rgba(0,0,0,0.12);
 
   box-shadow:
     0 10px 25px rgba(0,0,0,0.14),
     0 4px 10px rgba(0,0,0,0.06);
 }
 
+/* ACTIVE BAR */
 .nav-item2.active::after {
   content: "";
   position: absolute;
@@ -69,10 +90,10 @@
   height: 6px;
 
   background: #0f7a3b;
-
   border-radius: 0 0 16px 16px;
 }
 
+/* PRESS */
 .nav-item2:active {
   transform: scale(0.96);
 }
@@ -81,10 +102,12 @@
 .nav-item2.empty {
   pointer-events: none;
   opacity: 0;
+  border: none;
+  background: transparent;
 }
 
 /* ========================= */
-/* POPUP */
+/* POPUP (UNCHANGED STYLE) */
 /* ========================= */
 .popup-backdrop {
   position: fixed;
