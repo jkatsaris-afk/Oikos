@@ -1,22 +1,19 @@
-import ThemeProvider from "../../../core/theme/ThemeProvider";
 import churchBg from "../../../assets/backgrounds/Church-Background.png";
 
 export default function ChurchDashboardPage() {
   return (
-    <ThemeProvider mode="church">
-      <div style={styles.wrapper}>
+    <div style={styles.wrapper}>
 
-        {/* BACKGROUND */}
-        <div style={styles.background} />
+      {/* BACKGROUND */}
+      <div style={styles.background} />
 
-        {/* CONTENT */}
-        <div style={styles.content}>
-          <h1>Church Dashboard</h1>
-          <p>Church mode is active</p>
-        </div>
-
+      {/* CONTENT */}
+      <div style={styles.content}>
+        <h1>Church Dashboard</h1>
+        <p>Church mode is active</p>
       </div>
-    </ThemeProvider>
+
+    </div>
   );
 }
 
@@ -30,12 +27,10 @@ const styles = {
   background: {
     position: "fixed",
     inset: 0,
-
     backgroundImage: `url(${churchBg})`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
-
     zIndex: 0,
   },
 
