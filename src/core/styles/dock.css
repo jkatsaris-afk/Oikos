@@ -26,7 +26,7 @@
 }
 
 /* ========================= */
-/* BASE TILE (FIXED READABILITY) */
+/* BASE TILE */
 /* ========================= */
 
 .nav-item2 {
@@ -38,8 +38,6 @@
   justify-content: center;
 
   font-size: 11px;
-
-  /* 🔥 DARKER TEXT */
   color: #1f2937;
 
   height: 56px;
@@ -50,7 +48,6 @@
   cursor: pointer;
   transition: all 0.25s ease;
 
-  /* 🔥 LESS GLASS (MORE SOLID) */
   background: rgba(255,255,255,0.85);
   backdrop-filter: blur(6px);
 
@@ -91,7 +88,7 @@
 }
 
 /* ========================= */
-/* 🔥 HOME TILE */
+/* HOME TILE */
 /* ========================= */
 
 .nav-item2.home {
@@ -109,7 +106,7 @@
 }
 
 /* ========================= */
-/* 🔥 MORE + STORE */
+/* MORE + STORE */
 /* ========================= */
 
 .nav-item2.more,
@@ -139,6 +136,69 @@
 }
 
 /* ========================= */
+/* OLD POPUP (SAFE TO KEEP) */
+/* ========================= */
+
+.popup-wrap {
+  position: fixed;
+  bottom: 105px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 200;
+}
+
+.popup-card {
+  background: white;
+  border-radius: 18px;
+  padding: 16px;
+  width: 260px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+}
+
+.popup-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 14px;
+  border-radius: 12px;
+
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.popup-item:hover {
+  background: #f4f4f4;
+}
+
+.popup-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  z-index: 150;
+}
+
+/* ========================= */
+/* STORE PAGE */
+/* ========================= */
+
+.store-page-full {
+  width: 100%;
+  height: 100%;
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+/* ========================= */
 /* OVERFLOW PANEL */
 /* ========================= */
 
@@ -152,7 +212,8 @@
 .overflow-panel {
   position: fixed;
 
-  bottom: 95px;
+  bottom: 120px; /* moved up from dock */
+
   left: 12px;
   right: 12px;
 
@@ -172,6 +233,27 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ========================= */
+/* OVERFLOW HEADER */
+/* ========================= */
+
+.overflow-header {
+  font-size: 18px;
+  font-weight: 700;
+
+  padding: 4px 4px 12px 4px;
+
+  color: #111;
+
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+
+  margin-bottom: 10px;
+}
+
+/* ========================= */
+/* OVERFLOW GRID */
+/* ========================= */
 
 .overflow-grid {
   display: grid;
