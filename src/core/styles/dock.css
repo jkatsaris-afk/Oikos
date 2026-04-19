@@ -7,7 +7,8 @@
   height: 72px;
   padding: 6px;
 
-  background: rgba(255,255,255,0.65);
+  /* 🔥 MODE TINT (WAS WHITE) */
+  background: rgba(var(--color-primary-rgb), 0.08);
   backdrop-filter: blur(10px);
 
   border-radius: 28px;
@@ -22,6 +23,8 @@
 }
 
 .nav-item2 {
+  position: relative;
+
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -39,12 +42,18 @@
   transition: all 0.25s ease;
 
   background: rgba(255,255,255,0.4);
+  backdrop-filter: blur(10px);
+
   border: 1px solid rgba(0,0,0,0.05);
 }
 
+/* ========================= */
+/* DEFAULT ACTIVE (OTHER APPS) */
+/* ========================= */
+
 .nav-item2.active {
-  background: white;
-  color: #0f7a3b;
+  background: rgba(255,255,255,0.85);
+  color: #444;
 
   transform: translateY(-14px);
 
@@ -56,6 +65,7 @@
     0 4px 10px rgba(0,0,0,0.06);
 }
 
+/* DEFAULT BAR */
 .nav-item2.active::after {
   content: "";
   position: absolute;
@@ -66,9 +76,29 @@
   width: 70%;
   height: 5px;
 
-  background: #0f7a3b;
+  background: rgba(0,0,0,0.15);
   border-radius: 0 0 12px 12px;
 }
+
+/* ========================= */
+/* 🔥 HOME TILE (MODE COLOR) */
+/* ========================= */
+
+.nav-item2.home.active {
+  color: var(--color-primary);
+
+  /* GLASS WITH MODE TINT */
+  background: rgba(var(--color-primary-rgb), 0.12);
+}
+
+/* MODE COLOR BAR */
+.nav-item2.home.active::after {
+  background: var(--color-primary);
+}
+
+/* ========================= */
+/* EMPTY */
+/* ========================= */
 
 .nav-item2.empty {
   pointer-events: none;
@@ -156,7 +186,8 @@
   left: 12px;
   right: 12px;
 
-  background: rgba(255,255,255,0.85);
+  /* 🔥 MATCH DOCK GLASS WITH MODE TINT */
+  background: rgba(var(--color-primary-rgb), 0.10);
   backdrop-filter: blur(12px);
 
   border-radius: 28px;
