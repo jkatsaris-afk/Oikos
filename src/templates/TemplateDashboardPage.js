@@ -22,12 +22,35 @@ export default function TemplateDashboardPage() {
 
         {/* TILE GRID */}
         <div className="tile-grid">
-          {["Weather", "Calendar", "Chores", "Family", "Tasks", "Notes"].map((t) => (
-            <div key={t} className="tile">
-              <div className="title">{t}</div>
-              <div className="sub">Preview content</div>
-            </div>
-          ))}
+          <div className="tile">
+            <div className="title">Weather</div>
+            <div className="sub">72° Sunny</div>
+          </div>
+
+          <div className="tile">
+            <div className="title">Calendar</div>
+            <div className="sub">3 events today</div>
+          </div>
+
+          <div className="tile">
+            <div className="title">Chores</div>
+            <div className="sub">5 tasks remaining</div>
+          </div>
+
+          <div className="tile">
+            <div className="title">Family</div>
+            <div className="sub">All home</div>
+          </div>
+
+          <div className="tile">
+            <div className="title">Tasks</div>
+            <div className="sub">2 urgent</div>
+          </div>
+
+          <div className="tile">
+            <div className="title">Notes</div>
+            <div className="sub">Tap to view</div>
+          </div>
         </div>
 
       </div>
