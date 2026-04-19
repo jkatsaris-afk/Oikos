@@ -7,12 +7,12 @@ export default function TemplateDashboardPage() {
       <div>
 
         <div className="card">
-          <div className="title">Oikos Template</div>
-          <div className="sub">Dock Layout is working</div>
+          <div className="title">Oikos Display</div>
+          <div className="sub">Template Home Page</div>
         </div>
 
         <div className="card">
-          <div className="title">Widgets</div>
+          <div className="title">Dashboard Widgets</div>
 
           <div className="inner-tile">
             <div className="title">Weather</div>
@@ -22,6 +22,11 @@ export default function TemplateDashboardPage() {
           <div className="inner-tile">
             <div className="title">Calendar</div>
             <div className="sub">3 events today</div>
+          </div>
+
+          <div className="inner-tile">
+            <div className="title">Chores</div>
+            <div className="sub">5 tasks remaining</div>
           </div>
 
         </div>
