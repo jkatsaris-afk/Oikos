@@ -15,10 +15,6 @@ export default function DockLayout({ children }) {
 
   const { tiles } = useUserTiles();
 
-  /* =========================
-     BUILD INSTALLED TILE LIST
-     🔥 FIX: remove home + store
-  ========================= */
   const installedTiles = tiles
     .filter(t => t.installed && t.id !== "home" && t.id !== "store")
     .sort((a, b) => a.order - b.order)
@@ -27,9 +23,6 @@ export default function DockLayout({ children }) {
       ...tileRegistry[t.id],
     }));
 
-  /* =========================
-     STORE TILE (FOR OVERFLOW)
-  ========================= */
   const storeTile = {
     id: "store",
     label: "Store",
@@ -38,35 +31,27 @@ export default function DockLayout({ children }) {
 
   const MAX_SLOTS = 5;
 
-  /* =========================
-     🔥 STRUCTURE
-     Home + 3 tiles + More
-  ========================= */
   const visibleTiles = installedTiles.slice(0, 3);
-  let overflowTiles = installedTiles.slice(3);
 
-  /* 🔥 ALWAYS INCLUDE STORE IN OVERFLOW */
-  overflowTiles = [...overflowTiles, storeTile];
+  /* 🔥 STORE FIRST IN OVERFLOW */
+  let overflowTiles = [
+    storeTile,
+    ...installedTiles.slice(3),
+  ];
 
   const showMore = overflowTiles.length > 0;
 
   return (
     <div className="app-container">
 
-      {/* =========================
-          CONTENT AREA
-      ========================= */}
       <div className="content-area">
 
         {activeTile === "home" && children}
-
         {activeTile === "store" && <TileStorePage />}
 
       </div>
 
-      {/* =========================
-          OVERFLOW PANEL
-      ========================= */}
+      {/* OVERFLOW */}
       {showOverflow && (
         <div
           className="overflow-backdrop"
@@ -107,12 +92,10 @@ export default function DockLayout({ children }) {
         </div>
       )}
 
-      {/* =========================
-          DOCK
-      ========================= */}
+      {/* DOCK */}
       <div className="nav-wrap">
 
-        {/* 🔥 HOME TILE (SYSTEM) */}
+        {/* HOME */}
         <div
           className={`nav-item2 home ${
             activeTile === "home" ? "active" : ""
@@ -126,7 +109,7 @@ export default function DockLayout({ children }) {
           <span>Home</span>
         </div>
 
-        {/* 🔥 USER PINNED TILES (MAX 3) */}
+        {/* USER TILES */}
         {visibleTiles.map(tile => {
           const Icon = tile.icon;
 
@@ -147,7 +130,7 @@ export default function DockLayout({ children }) {
           );
         })}
 
-        {/* 🔥 MORE BUTTON */}
+        {/* MORE */}
         {showMore && (
           <div
             className={`nav-item2 more ${
@@ -160,7 +143,7 @@ export default function DockLayout({ children }) {
           </div>
         )}
 
-        {/* 🔥 EMPTY SLOTS TO KEEP 5 GRID */}
+        {/* EMPTY */}
         {Array.from({
           length: MAX_SLOTS - (1 + visibleTiles.length + (showMore ? 1 : 0))
         }).map((_, i) => (
