@@ -4,24 +4,24 @@
 
 .nav-wrap {
   position: fixed;
-  bottom: 16px; /* 🔥 slight lift */
-  left: 20px;   /* 🔥 MORE SIDE SPACE */
-  right: 20px;  /* 🔥 MORE SIDE SPACE */
+  bottom: 16px;
+  left: 20px;
+  right: 20px;
 
-  height: 72px;
-  padding: 6px;
+  height: 80px; /* 🔥 was 72 */
+  padding: 8px; /* 🔥 slightly more breathing room */
 
   background: rgba(var(--color-primary-rgb), 0.08);
   backdrop-filter: blur(14px);
 
-  border-radius: 32px; /* 🔥 slightly rounder */
+  border-radius: 32px;
 
   display: grid;
   grid-template-columns: repeat(5, 1fr);
 
   align-items: center;
 
-  box-shadow: 0 12px 30px rgba(0,0,0,0.12); /* 🔥 more float */
+  box-shadow: 0 12px 30px rgba(0,0,0,0.12);
   z-index: 100;
 }
 
@@ -37,10 +37,10 @@
   align-items: center;
   justify-content: center;
 
-  font-size: 11px;
+  font-size: 12px; /* 🔥 slightly bigger */
   color: #1f2937;
 
-  height: 56px;
+  height: 60px; /* 🔥 was 56 */
   margin: 4px;
 
   border-radius: 16px;
@@ -64,7 +64,7 @@
 
   transform: translateY(-14px);
 
-  height: 68px;
+  height: 72px; /* 🔥 was 68 */
   border-radius: 20px;
 
   box-shadow:
@@ -148,9 +148,9 @@
 .overflow-panel {
   position: fixed;
 
-  bottom: 120px;
-  left: 20px;  /* 🔥 MATCH DOCK */
-  right: 20px; /* 🔥 MATCH DOCK */
+  bottom: 130px; /* 🔥 adjusted for taller dock */
+  left: 20px;
+  right: 20px;
 
   background: rgba(var(--color-primary-rgb), 0.08);
   backdrop-filter: blur(14px);
@@ -199,5 +199,5 @@
 }
 
 .overflow-item {
-  height: 70px;
+  height: 72px; /* 🔥 match tile size */
 }
