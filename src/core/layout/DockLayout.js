@@ -1,4 +1,4 @@
-import logo from "../../resources/logo.png";
+import logo from "../../assets/logos/Display-Home-Logo.png";
 import {
   Home,
   Calendar,
@@ -24,7 +24,7 @@ export default function DockLayout({ children }) {
   const goTo = (path) => {
     setShowSignupMenu(false);
     setShowLoginMenu(false);
-    navigate(path); // 🔥 FIXED (no page reload)
+    navigate(path);
   };
 
   return (
@@ -135,7 +135,6 @@ export default function DockLayout({ children }) {
           onClick={() => goTo("/scoreboard")}
         />
 
-        {/* SIGN UP */}
         <NavItem
           icon={<UserPlus size={22} />}
           label="Sign Up"
@@ -151,7 +150,6 @@ export default function DockLayout({ children }) {
           }}
         />
 
-        {/* LOGIN */}
         <NavItem
           icon={<LogIn size={22} />}
           label="Login"
