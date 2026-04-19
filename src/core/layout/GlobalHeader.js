@@ -20,10 +20,19 @@ export default function GlobalHeader({ mode }) {
   return (
     <div style={styles.header}>
 
-      {/* LEFT SIDE */}
+      {/* 🔥 LEFT SIDE (LOGO NOW HERE) */}
       <div style={styles.left}>
+        <img
+          src={getModeLogo(mode)}
+          alt="logo"
+          style={styles.logo}
+        />
+      </div>
 
-        {/* 🔥 SETTINGS FIRST */}
+      {/* 🔥 RIGHT SIDE (BUTTONS + TIME) */}
+      <div style={styles.right}>
+
+        {/* SETTINGS */}
         <button style={styles.iconBtn}>
           <Settings size={20} />
         </button>
@@ -41,7 +50,7 @@ export default function GlobalHeader({ mode }) {
           </>
         )}
 
-        {/* 🔥 CLOCK AFTER BUTTONS */}
+        {/* TIME */}
         <div style={styles.time}>
           {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           <div style={styles.date}>
@@ -49,15 +58,6 @@ export default function GlobalHeader({ mode }) {
           </div>
         </div>
 
-      </div>
-
-      {/* RIGHT SIDE */}
-      <div style={styles.right}>
-        <img
-          src={getModeLogo(mode)}
-          alt="logo"
-          style={styles.logo}
-        />
       </div>
 
     </div>
@@ -105,6 +105,11 @@ const styles = {
   left: {
     display: "flex",
     alignItems: "center",
+  },
+
+  right: {
+    display: "flex",
+    alignItems: "center",
     gap: 12,
   },
 
@@ -125,11 +130,6 @@ const styles = {
     padding: 6,
     cursor: "pointer",
     color: "#fff",
-  },
-
-  right: {
-    display: "flex",
-    alignItems: "center",
   },
 
   logo: {
