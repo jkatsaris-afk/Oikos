@@ -1,6 +1,6 @@
 import {
   Home,
-  Grid,
+  UserPlus,
   Users,
   Shield,
   Flag
@@ -8,10 +8,12 @@ import {
 import { useState } from "react";
 
 export default function DockLayout({ children }) {
-  const [showMenu, setShowMenu] = useState(false);
+  const [showSignupMenu, setShowSignupMenu] = useState(false);
+
+  const currentPath = window.location.pathname;
 
   const goTo = (path) => {
-    setShowMenu(false);
+    setShowSignupMenu(false);
     window.location.href = path;
   };
 
@@ -24,20 +26,17 @@ export default function DockLayout({ children }) {
       </div>
 
       {/* BACKDROP */}
-      {showMenu && (
+      {showSignupMenu && (
         <div
           className="popup-backdrop"
-          onClick={() => setShowMenu(false)}
+          onClick={() => setShowSignupMenu(false)}
         />
       )}
 
-      {/* POPUP */}
-      {showMenu && (
-        <div className="popup-wrap">
-          <div
-            className="popup-card"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* 🔥 POPUP (ORIGINAL STYLE RESTORED) */}
+      {showSignupMenu && (
+        <div className="popup-wrap popup-signup">
+          <div className="popup-card" onClick={(e) => e.stopPropagation()}>
 
             <PopupItem
               icon={<Users size={20} />}
@@ -61,7 +60,7 @@ export default function DockLayout({ children }) {
         </div>
       )}
 
-      {/* DOCK */}
+      {/* 🔥 DOCK (HOME + ADD + EMPTY SLOTS) */}
       <div className="nav-wrap">
 
         {/* HOME */}
@@ -69,15 +68,15 @@ export default function DockLayout({ children }) {
           icon={<Home size={22} />}
           label="Home"
           active={true}
-          onClick={() => setShowMenu(false)}
+          onClick={() => setShowSignupMenu(false)}
         />
 
-        {/* 🔥 TILE STORE (TEST POPUP HERE) */}
+        {/* 🔥 ADD (RESTORED) */}
         <NavItem
-          icon={<Grid size={22} />}
-          label="Store"
-          active={showMenu}
-          onClick={() => setShowMenu(prev => !prev)}
+          icon={<UserPlus size={22} />}
+          label="Add"
+          active={showSignupMenu}
+          onClick={() => setShowSignupMenu(prev => !prev)}
         />
 
         {/* EMPTY */}
@@ -93,7 +92,10 @@ export default function DockLayout({ children }) {
 /* NAV ITEM */
 function NavItem({ icon, label, active, onClick }) {
   return (
-    <div className={`nav-item2 ${active ? "active" : ""}`} onClick={onClick}>
+    <div
+      className={`nav-item2 ${active ? "active" : ""}`}
+      onClick={onClick}
+    >
       {icon}
       <span>{label}</span>
     </div>
