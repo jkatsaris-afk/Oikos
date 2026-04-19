@@ -88,11 +88,10 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
 
-    /* 🔥 WHITE GLASS (NOT FLAT) */
+    /* WHITE GLASS */
     background: "rgba(255,255,255,0.85)",
     backdropFilter: "blur(12px)",
 
-    /* 🔥 DEPTH */
     borderBottom: "1px solid rgba(0,0,0,0.06)",
     boxShadow: "0 4px 12px rgba(0,0,0,0.04)",
 
@@ -133,10 +132,15 @@ const styles = {
 
   logo: {
     height: 28,
+    width: "auto",
     objectFit: "contain",
 
-    /* 🔥 subtle lift */
-    filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.15))",
+    /* 🔥 CRISP FIXES */
+    imageRendering: "crisp-edges",
+    WebkitFontSmoothing: "antialiased",
+
+    /* ❌ REMOVE blur effects */
+    filter: "none",
   },
 
   accentLine: {
