@@ -35,7 +35,6 @@ export default function GlobalHeader({ mode }) {
       {/* RIGHT (CONTROLS) */}
       <div style={styles.right}>
 
-        {/* DISPLAY ONLY BUTTONS */}
         {isDisplayMode && (
           <>
             <button style={styles.iconBtn}>
@@ -48,12 +47,11 @@ export default function GlobalHeader({ mode }) {
           </>
         )}
 
-        {/* SETTINGS */}
         <button style={styles.iconBtn}>
           <Settings size={20} />
         </button>
 
-        {/* CLOCK (LAST) */}
+        {/* CLOCK LAST */}
         <div style={styles.time}>
           {time.toLocaleTimeString([], {
             hour: "2-digit",
@@ -66,7 +64,7 @@ export default function GlobalHeader({ mode }) {
 
       </div>
 
-      {/* 🔥 MODE ACCENT LINE */}
+      {/* MODE ACCENT LINE */}
       <div style={styles.accentLine} />
 
     </div>
@@ -90,14 +88,15 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
 
-    /* 🔥 DARK GLASS */
-    background: "rgba(15, 23, 42, 0.65)",
-    backdropFilter: "blur(16px)",
+    /* 🔥 WHITE GLASS (NOT FLAT) */
+    background: "rgba(255,255,255,0.85)",
+    backdropFilter: "blur(12px)",
 
-    /* 🔥 SEPARATION */
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    /* 🔥 DEPTH */
+    borderBottom: "1px solid rgba(0,0,0,0.06)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.04)",
 
-    color: "#fff",
+    color: "#1f2937",
     zIndex: 200,
   },
 
@@ -120,27 +119,26 @@ const styles = {
 
   date: {
     fontSize: 11,
-    opacity: 0.7,
+    opacity: 0.6,
   },
 
   iconBtn: {
-    background: "rgba(255,255,255,0.15)",
+    background: "rgba(0,0,0,0.05)",
     border: "none",
     borderRadius: 10,
     padding: 6,
     cursor: "pointer",
-    color: "#fff",
+    color: "#1f2937",
   },
 
   logo: {
     height: 28,
     objectFit: "contain",
 
-    /* 🔥 FIX BLENDING */
-    filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
+    /* 🔥 subtle lift */
+    filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.15))",
   },
 
-  /* 🔥 MODE COLOR LINE */
   accentLine: {
     position: "absolute",
     bottom: 0,
@@ -148,6 +146,6 @@ const styles = {
     right: 0,
     height: 2,
     background: "var(--color-primary)",
-    opacity: 0.6,
+    opacity: 0.5,
   },
 };
