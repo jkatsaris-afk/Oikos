@@ -3,17 +3,18 @@ import {
   UserPlus,
   Users,
   Shield,
-  Flag
+  Flag,
+  Grid
 } from "lucide-react";
 import { useState } from "react";
 
 export default function DockLayout({ children }) {
   const [showSignupMenu, setShowSignupMenu] = useState(false);
-
-  const currentPath = window.location.pathname;
+  const [showStore, setShowStore] = useState(false);
 
   const goTo = (path) => {
     setShowSignupMenu(false);
+    setShowStore(false);
     window.location.href = path;
   };
 
@@ -25,6 +26,24 @@ export default function DockLayout({ children }) {
         {children}
       </div>
 
+      {/* 🔥 TILE STORE OVERLAY */}
+      {showStore && (
+        <div className="store-overlay">
+          <div className="store-page">
+
+            <div className="store-header">
+              <span>Tile Store</span>
+              <button onClick={() => setShowStore(false)}>Close</button>
+            </div>
+
+            <div className="store-content">
+              Tile Store is working 👍
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* BACKDROP */}
       {showSignupMenu && (
         <div
@@ -33,34 +52,20 @@ export default function DockLayout({ children }) {
         />
       )}
 
-      {/* 🔥 POPUP (ORIGINAL STYLE RESTORED) */}
+      {/* POPUP */}
       {showSignupMenu && (
         <div className="popup-wrap popup-signup">
           <div className="popup-card" onClick={(e) => e.stopPropagation()}>
 
-            <PopupItem
-              icon={<Users size={20} />}
-              label="Player"
-              onClick={() => goTo("/signup")}
-            />
-
-            <PopupItem
-              icon={<Shield size={20} />}
-              label="Coach"
-              onClick={() => goTo("/coach-signup")}
-            />
-
-            <PopupItem
-              icon={<Flag size={20} />}
-              label="Referee"
-              onClick={() => goTo("/ref-signup")}
-            />
+            <PopupItem icon={<Users size={20} />} label="Player" onClick={() => goTo("/signup")} />
+            <PopupItem icon={<Shield size={20} />} label="Coach" onClick={() => goTo("/coach-signup")} />
+            <PopupItem icon={<Flag size={20} />} label="Referee" onClick={() => goTo("/ref-signup")} />
 
           </div>
         </div>
       )}
 
-      {/* 🔥 DOCK (HOME + ADD + EMPTY SLOTS) */}
+      {/* DOCK */}
       <div className="nav-wrap">
 
         {/* HOME */}
@@ -68,19 +73,35 @@ export default function DockLayout({ children }) {
           icon={<Home size={22} />}
           label="Home"
           active={true}
-          onClick={() => setShowSignupMenu(false)}
+          onClick={() => {
+            setShowSignupMenu(false);
+            setShowStore(false);
+          }}
         />
 
-        {/* 🔥 ADD (RESTORED) */}
+        {/* 🔥 TILE STORE */}
+        <NavItem
+          icon={<Grid size={22} />}
+          label="Store"
+          active={showStore}
+          onClick={() => {
+            setShowSignupMenu(false);
+            setShowStore(true);
+          }}
+        />
+
+        {/* ADD */}
         <NavItem
           icon={<UserPlus size={22} />}
           label="Add"
           active={showSignupMenu}
-          onClick={() => setShowSignupMenu(prev => !prev)}
+          onClick={() => {
+            setShowStore(false);
+            setShowSignupMenu(prev => !prev);
+          }}
         />
 
         {/* EMPTY */}
-        <EmptySlot />
         <EmptySlot />
         <EmptySlot />
 
@@ -92,10 +113,7 @@ export default function DockLayout({ children }) {
 /* NAV ITEM */
 function NavItem({ icon, label, active, onClick }) {
   return (
-    <div
-      className={`nav-item2 ${active ? "active" : ""}`}
-      onClick={onClick}
-    >
+    <div className={`nav-item2 ${active ? "active" : ""}`} onClick={onClick}>
       {icon}
       <span>{label}</span>
     </div>
