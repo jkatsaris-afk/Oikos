@@ -8,6 +8,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+// 🔥 TILE STORE IMPORT
+import TileStorePage from "../../store/pages/TileStorePage";
+
 export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showPopup, setShowPopup] = useState(false);
@@ -20,7 +23,7 @@ export default function DockLayout({ children }) {
   return (
     <div className="app-container">
 
-      {/* CONTENT */}
+      {/* CONTENT AREA */}
       <div className="content-area">
 
         {activeTile === "home" && children}
@@ -87,15 +90,6 @@ export default function DockLayout({ children }) {
         <EmptySlot />
 
       </div>
-    </div>
-  );
-}
-
-function TileStorePage() {
-  return (
-    <div className="store-page-full">
-      <h2>Tile Store</h2>
-      <p>This is replacing the dashboard 👍</p>
     </div>
   );
 }
