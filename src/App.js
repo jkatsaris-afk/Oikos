@@ -1,22 +1,21 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
-// 🔥 Lazy loader (safe fallback)
+// 🔥 IMPORT DOCK LAYOUT (NEW)
+import DockLayout from "./core/layout/DockLayout";
+
+// 🔥 Helper for lazy pages
 const load = (path) =>
   lazy(() =>
     import(`${path}`).catch(() => ({
-      default: () => (
-        <div style={{ padding: 20 }}>
-          Page not built yet: {path}
-        </div>
-      ),
+      default: () => <div style={{ padding: 20 }}>Page not built yet: {path}</div>,
     }))
   );
 
 // =========================
-// TEMPLATE (DIRECT IMPORT — KEEP THIS)
+// TEMPLATE
 // =========================
-import TemplateDashboard from "./templates/TemplateDashboardPage";
+const TemplateDashboard = load("./templates/TemplateDashboardPage");
 
 // =========================
 // DISPLAY
@@ -76,60 +75,64 @@ export default function App() {
   return (
     <Router>
       <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
-        <Routes>
 
-          {/* ROOT */}
-          <Route path="/" element={<Navigate to="/home" />} />
+        {/* 🔥 DOCK WRAPS EVERYTHING */}
+        <DockLayout>
 
-          {/* TEMPLATE (DEV SANDBOX) */}
-          <Route path="/temp" element={<TemplateDashboard />} />
+          <Routes>
 
-          {/* DISPLAY */}
-          <Route path="/home" element={<DisplayHomeDashboard />} />
-          <Route path="/business" element={<DisplayBusinessDashboard />} />
-          <Route path="/edu" element={<DisplayEduDashboard />} />
-          <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
+            {/* ROOT */}
+            <Route path="/" element={<Navigate to="/home" />} />
 
-          {/* OLD DISPLAY REDIRECTS */}
-          <Route path="/display/home" element={<Navigate to="/home" />} />
-          <Route path="/display/business" element={<Navigate to="/business" />} />
-          <Route path="/display/edu" element={<Navigate to="/edu" />} />
-          <Route path="/display/nightstand" element={<Navigate to="/nightstand" />} />
+            {/* TEMPLATE */}
+            <Route path="/temp" element={<TemplateDashboard />} />
 
-          {/* DISPLAY MANAGER */}
-          <Route path="/display-manager" element={<DisplayManagerDashboard />} />
-          <Route path="/display-manager/devices" element={<DisplayDevices />} />
-          <Route path="/display-manager/devices/:deviceId" element={<DisplayDeviceDetail />} />
+            {/* DISPLAY CLEAN URLS */}
+            <Route path="/home" element={<DisplayHomeDashboard />} />
+            <Route path="/business" element={<DisplayBusinessDashboard />} />
+            <Route path="/edu" element={<DisplayEduDashboard />} />
+            <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
 
-          {/* CHURCH */}
-          <Route path="/church" element={<ChurchDashboard />} />
+            {/* OLD DISPLAY REDIRECTS */}
+            <Route path="/display/home" element={<Navigate to="/home" />} />
+            <Route path="/display/business" element={<Navigate to="/business" />} />
+            <Route path="/display/edu" element={<Navigate to="/edu" />} />
+            <Route path="/display/nightstand" element={<Navigate to="/nightstand" />} />
 
-          {/* CAMPUS */}
-          <Route path="/campus" element={<CampusDashboard />} />
+            {/* DISPLAY MANAGER */}
+            <Route path="/display-manager" element={<DisplayManagerDashboard />} />
+            <Route path="/display-manager/devices" element={<DisplayDevices />} />
+            <Route path="/display-manager/devices/:deviceId" element={<DisplayDeviceDetail />} />
 
-          {/* SPORTS */}
-          <Route path="/sports" element={<SportsDashboard />} />
+            {/* CHURCH */}
+            <Route path="/church" element={<ChurchDashboard />} />
 
-          {/* FARM */}
-          <Route path="/farm" element={<FarmDashboard />} />
+            {/* CAMPUS */}
+            <Route path="/campus" element={<CampusDashboard />} />
 
-          {/* ACCOUNT */}
-          <Route path="/account" element={<AccountDashboard />} />
+            {/* SPORTS */}
+            <Route path="/sports" element={<SportsDashboard />} />
 
-          {/* ADMIN */}
-          <Route path="/master-admin" element={<AdminDashboard />} />
-          <Route path="/master-admin/payments" element={<PaymentManager />} />
+            {/* FARM */}
+            <Route path="/farm" element={<FarmDashboard />} />
 
-          {/* BILLING */}
-          <Route path="/billing" element={<BillingOverview />} />
+            {/* ACCOUNT */}
+            <Route path="/account" element={<AccountDashboard />} />
 
-          {/* FALLBACK */}
-          <Route
-            path="*"
-            element={<div style={{ padding: 20 }}>404 - Page not found</div>}
-          />
+            {/* ADMIN */}
+            <Route path="/master-admin" element={<AdminDashboard />} />
+            <Route path="/master-admin/payments" element={<PaymentManager />} />
 
-        </Routes>
+            {/* BILLING */}
+            <Route path="/billing" element={<BillingOverview />} />
+
+            {/* FALLBACK */}
+            <Route path="*" element={<div style={{ padding: 20 }}>404 - Page not found</div>} />
+
+          </Routes>
+
+        </DockLayout>
+
       </Suspense>
     </Router>
   );
