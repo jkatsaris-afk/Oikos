@@ -1,16 +1,38 @@
 import TemplatePage from "../../templates/TemplatePage";
+import { tileRegistry } from "../../core/tiles/tileRegistry";
+import useUserTiles from "../../core/tiles/useUserTiles";
 
 export default function TileStorePage() {
-  return (
-    <TemplatePage
-      title="Tile Store"
-      showUninstall={false} // 🔥 cannot uninstall
-    >
+  const { tiles, setTiles } = useUserTiles();
 
-      <div>
-        <h2>Tile Store</h2>
-        <p>This is your Tile Store page 👍</p>
-      </div>
+  const toggleInstall = (id) => {
+    setTiles(prev =>
+      prev.map(t =>
+        t.id === id ? { ...t, installed: !t.installed } : t
+      )
+    );
+  };
+
+  return (
+    <TemplatePage title="Tile Store">
+
+      {Object.values(tileRegistry).map(tile => {
+        const userTile = tiles.find(t => t.id === tile.id);
+
+        return (
+          <div key={tile.id} style={{ marginBottom: 12 }}>
+
+            <span>{tile.label}</span>
+
+            {!tile.system && (
+              <button onClick={() => toggleInstall(tile.id)}>
+                {userTile?.installed ? "Remove" : "Install"}
+              </button>
+            )}
+
+          </div>
+        );
+      })}
 
     </TemplatePage>
   );
