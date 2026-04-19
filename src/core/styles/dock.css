@@ -17,14 +17,16 @@
   justify-content: space-between;
   align-items: center;
 
-  padding: 0 10px;
+  padding: 6px;
 
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 
   z-index: 100;
 }
 
-/* NAV ITEM */
+/* ========================= */
+/* NAV ITEM (THIS IS THE FIX) */
+/* ========================= */
 .nav-item2 {
   flex: 1;
 
@@ -35,6 +37,7 @@
 
   font-size: 11px;
   font-weight: 500;
+
   color: #666;
 
   cursor: pointer;
@@ -42,6 +45,13 @@
 
   user-select: none;
   position: relative;
+
+  /* 🔥 NEW */
+  height: 100%;
+  border-radius: 16px;
+
+  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.35);
 }
 
 /* ICON */
@@ -52,21 +62,24 @@
 
 /* HOVER */
 .nav-item2:hover {
-  color: #333;
-}
-
-.nav-item2:hover svg {
-  transform: scale(1.08);
+  background: rgba(255,255,255,0.7);
+  border-color: rgba(0,0,0,0.1);
 }
 
 /* ACTIVE */
 .nav-item2.active {
   color: #0f7a3b;
-  transform: translateY(-6px);
+  transform: translateY(-4px);
+
+  background: white;
+  border-color: rgba(0,0,0,0.15);
+
+  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
 }
 
+/* ACTIVE ICON */
 .nav-item2.active svg {
-  transform: scale(1.12);
+  transform: scale(1.1);
 }
 
 /* ACTIVE DOT */
@@ -83,6 +96,8 @@
 /* EMPTY SLOT */
 .nav-item2.empty {
   pointer-events: none;
+  background: transparent;
+  border: none;
 }
 
 /* ========================= */
@@ -100,61 +115,63 @@
 /* ========================= */
 .popup-container {
   position: fixed;
-  bottom: 100px;
+  bottom: 95px;
   left: 0;
   right: 0;
 
   display: flex;
   justify-content: center;
-  align-items: flex-end;
 
   z-index: 110;
 }
 
 /* ========================= */
-/* POPUP CARD */
+/* POPUP CARD (RESTORED STYLE) */
 /* ========================= */
 .popup-card {
   background: white;
   border-radius: 18px;
 
-  padding: 14px;
-  width: 260px;
+  padding: 16px;
+  width: 280px;
 
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 
-  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  box-shadow: 0 25px 50px rgba(0,0,0,0.25);
 
-  animation: popupSlideUp 0.2s ease;
+  animation: popupSlideUp 0.18s ease-out;
 }
 
 /* ========================= */
-/* POPUP ITEM */
+/* POPUP ITEM (MATCH FOOTBALL STYLE) */
 /* ========================= */
 .popup-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 
-  padding: 12px;
-  border-radius: 10px;
+  padding: 14px;
+  border-radius: 12px;
 
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
 
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
+/* ICON SIZE */
 .popup-item svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
+/* HOVER */
 .popup-item:hover {
-  background: #f5f5f5;
+  background: #f4f4f4;
+  transform: translateX(4px);
 }
 
 /* ========================= */
@@ -162,24 +179,11 @@
 /* ========================= */
 @keyframes popupSlideUp {
   from {
-    transform: translateY(20px);
+    transform: translateY(25px);
     opacity: 0;
   }
   to {
     transform: translateY(0);
     opacity: 1;
-  }
-}
-
-/* ========================= */
-/* MOBILE */
-/* ========================= */
-@media (max-width: 480px) {
-  .nav-wrap {
-    height: 64px;
-  }
-
-  .nav-item2 {
-    font-size: 10px;
   }
 }
