@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-// 🔥 TILE STORE IMPORT
 import TileStorePage from "../../store/pages/TileStorePage";
 
 export default function DockLayout({ children }) {
@@ -20,10 +19,42 @@ export default function DockLayout({ children }) {
     window.location.href = path;
   };
 
+  /* =========================
+     🔥 USER TILES (TEMP FOR NOW)
+     Later this comes from DB
+  ========================= */
+  const userTiles = [
+    {
+      id: "home",
+      icon: <Home size={22} />,
+      label: "Home",
+    },
+    {
+      id: "add",
+      icon: <UserPlus size={22} />,
+      label: "Add",
+    },
+  ];
+
+  /* =========================
+     🔥 STORE TILE (ALWAYS LAST)
+  ========================= */
+  const storeTile = {
+    id: "store",
+    icon: <Grid size={22} />,
+    label: "Store",
+  };
+
+  /* =========================
+     🔥 FINAL TILE LIST
+     (store always last)
+  ========================= */
+  const tiles = [...userTiles.filter(t => t.id !== "store"), storeTile];
+
   return (
     <div className="app-container">
 
-      {/* CONTENT AREA */}
+      {/* CONTENT */}
       <div className="content-area">
 
         {activeTile === "home" && children}
@@ -53,47 +84,62 @@ export default function DockLayout({ children }) {
         </div>
       )}
 
-      {/* DOCK */}
+      {/* 🔥 DOCK */}
       <div className="nav-wrap">
 
-        <NavItem
-          icon={<Home size={22} />}
-          label="Home"
-          active={activeTile === "home"}
-          onClick={() => {
-            setShowPopup(false);
-            setActiveTile("home");
-          }}
-        />
+        {tiles.map((tile, index) => {
 
-        <NavItem
-          icon={<Grid size={22} />}
-          label="Store"
-          active={activeTile === "store"}
-          onClick={() => {
-            setShowPopup(false);
-            setActiveTile("store");
-          }}
-        />
+          const isActive =
+            tile.id === "home"
+              ? activeTile === "home"
+              : tile.id === "store"
+              ? activeTile === "store"
+              : tile.id === "add"
+              ? showPopup
+              : activeTile === tile.id;
 
-        <NavItem
-          icon={<UserPlus size={22} />}
-          label="Add"
-          active={showPopup}
-          onClick={() => {
-            setActiveTile("home");
-            setShowPopup(prev => !prev);
-          }}
-        />
+          return (
+            <NavItem
+              key={tile.id}
+              icon={tile.icon}
+              label={tile.label}
+              active={isActive}
+              onClick={() => {
+                if (tile.id === "home") {
+                  setShowPopup(false);
+                  setActiveTile("home");
+                }
 
-        <EmptySlot />
-        <EmptySlot />
+                else if (tile.id === "store") {
+                  setShowPopup(false);
+                  setActiveTile("store");
+                }
+
+                else if (tile.id === "add") {
+                  setActiveTile("home");
+                  setShowPopup(prev => !prev);
+                }
+
+                else {
+                  setShowPopup(false);
+                  setActiveTile(tile.id);
+                }
+              }}
+            />
+          );
+        })}
+
+        {/* 🔥 FILL EMPTY SLOTS TO 5 */}
+        {Array.from({ length: 5 - tiles.length }).map((_, i) => (
+          <EmptySlot key={`empty-${i}`} />
+        ))}
 
       </div>
     </div>
   );
 }
 
+/* NAV ITEM */
 function NavItem({ icon, label, active, onClick }) {
   return (
     <div className={`nav-item2 ${active ? "active" : ""}`} onClick={onClick}>
@@ -103,10 +149,12 @@ function NavItem({ icon, label, active, onClick }) {
   );
 }
 
+/* EMPTY */
 function EmptySlot() {
   return <div className="nav-item2 empty" />;
 }
 
+/* POPUP ITEM */
 function PopupItem({ icon, label, onClick }) {
   return (
     <div className="popup-item" onClick={onClick}>
