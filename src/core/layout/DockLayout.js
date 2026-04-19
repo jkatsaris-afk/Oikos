@@ -33,19 +33,19 @@ export default function DockLayout({ children }) {
           >
 
             <PopupItem
-              icon={<Grid size={18} />}
+              icon={<Grid />}
               label="Tile Store"
               onClick={() => setShowMenu(false)}
             />
 
             <PopupItem
-              icon={<Calendar size={18} />}
+              icon={<Calendar />}
               label="Calendar"
               onClick={() => setShowMenu(false)}
             />
 
             <PopupItem
-              icon={<CheckSquare size={18} />}
+              icon={<CheckSquare />}
               label="Chores"
               onClick={() => setShowMenu(false)}
             />
@@ -65,7 +65,7 @@ export default function DockLayout({ children }) {
           onClick={() => console.log("Home")}
         />
 
-        {/* SLOT 2 (POPUP BUTTON) */}
+        {/* SLOT 2 */}
         <NavItem
           icon={<Plus size={22} />}
           label="Add"
