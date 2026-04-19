@@ -4,21 +4,19 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "react-router-dom"; // 🔥 ADD
+import { useLocation } from "react-router-dom"; // 🔥 ADD THIS
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
 import useUserTiles from "../tiles/useUserTiles";
 
-import GlobalHeader from "./GlobalHeader"; // 🔥 ADD
-
 export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
 
-  const location = useLocation(); // 🔥 ADD
+  const location = useLocation(); // 🔥 ADD THIS
 
-  // 🔥 MODE DETECTION (MATCH APP)
+  // 🔥 ADD MODE DETECTION BACK
   let mode = "home";
   if (location.pathname.startsWith("/church")) mode = "church";
   else if (location.pathname.startsWith("/campus")) mode = "campus";
@@ -27,7 +25,7 @@ export default function DockLayout({ children }) {
   const { tiles } = useUserTiles();
 
   const installedTiles = tiles
-    .filter(t => t.installed)
+    .filter(t => t.installed && t.id !== "home" && t.id !== "store")
     .sort((a, b) => a.order - b.order)
     .map(t => ({
       ...t,
@@ -40,34 +38,24 @@ export default function DockLayout({ children }) {
     icon: Grid,
   };
 
-  const MAX_SLOTS = 5;
+  const visibleTiles = installedTiles.slice(0, 3);
 
-  let visibleTiles = [];
-  let overflowTiles = [];
-
-  if (installedTiles.length <= MAX_SLOTS - 1) {
-    visibleTiles = installedTiles;
-  } else {
-    visibleTiles = installedTiles.slice(0, MAX_SLOTS - 2);
-    overflowTiles = installedTiles.slice(MAX_SLOTS - 2);
-  }
+  let overflowTiles = [
+    storeTile,
+    ...installedTiles.slice(3),
+  ];
 
   const showMore = overflowTiles.length > 0;
 
   return (
     <div className="app-container">
 
-      {/* 🔥 GLOBAL HEADER */}
-      <GlobalHeader mode={mode} />
-
       <div className="content-area">
-
         {activeTile === "home" && children}
         {activeTile === "store" && <TileStorePage />}
-
       </div>
 
-      {/* OVERFLOW PANEL */}
+      {/* OVERFLOW */}
       {showOverflow && (
         <div
           className="overflow-backdrop"
@@ -83,7 +71,6 @@ export default function DockLayout({ children }) {
             </div>
 
             <div className="overflow-grid">
-
               {overflowTiles.map(tile => {
                 const Icon = tile.icon;
 
@@ -92,6 +79,8 @@ export default function DockLayout({ children }) {
                     key={tile.id}
                     className={`nav-item2 overflow-item ${
                       activeTile === tile.id ? "active" : ""
+                    } ${tile.id === "home" ? "home" : ""} ${
+                      tile.id === "store" ? "store" : ""
                     }`}
                     onClick={() => {
                       setShowOverflow(false);
@@ -103,7 +92,6 @@ export default function DockLayout({ children }) {
                   </div>
                 );
               })}
-
             </div>
 
           </div>
@@ -113,13 +101,28 @@ export default function DockLayout({ children }) {
       {/* DOCK */}
       <div className="nav-wrap">
 
+        <div
+          className={`nav-item2 home ${
+            activeTile === "home" ? "active" : ""
+          }`}
+          onClick={() => {
+            setShowOverflow(false);
+            setActiveTile("home");
+          }}
+        >
+          <Home size={22} />
+          <span>Home</span>
+        </div>
+
         {visibleTiles.map(tile => {
           const Icon = tile.icon;
 
           return (
             <div
               key={tile.id}
-              className={`nav-item2 ${activeTile === tile.id ? "active" : ""}`}
+              className={`nav-item2 ${
+                activeTile === tile.id ? "active" : ""
+              }`}
               onClick={() => {
                 setShowOverflow(false);
                 setActiveTile(tile.id);
@@ -133,7 +136,9 @@ export default function DockLayout({ children }) {
 
         {showMore && (
           <div
-            className={`nav-item2 ${showOverflow ? "active" : ""}`}
+            className={`nav-item2 more ${
+              showOverflow ? "active" : ""
+            }`}
             onClick={() => setShowOverflow(prev => !prev)}
           >
             <MoreHorizontal size={22} />
@@ -141,19 +146,8 @@ export default function DockLayout({ children }) {
           </div>
         )}
 
-        <div
-          className={`nav-item2 ${activeTile === "store" ? "active" : ""}`}
-          onClick={() => {
-            setShowOverflow(false);
-            setActiveTile("store");
-          }}
-        >
-          <Grid size={22} />
-          <span>Store</span>
-        </div>
-
         {Array.from({
-          length: MAX_SLOTS - (visibleTiles.length + (showMore ? 1 : 0) + 1)
+          length: 5 - (1 + visibleTiles.length + (showMore ? 1 : 0))
         }).map((_, i) => (
           <div key={`empty-${i}`} className="nav-item2 empty" />
         ))}
