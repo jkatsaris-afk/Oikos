@@ -4,19 +4,21 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "react-router-dom"; // 🔥 ADD THIS
+import { useLocation } from "react-router-dom"; // 🔥 ADD
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
 import useUserTiles from "../tiles/useUserTiles";
 
+import GlobalHeader from "./GlobalHeader"; // 🔥 ADD
+
 export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
 
-  const location = useLocation(); // 🔥 ADD THIS
+  const location = useLocation(); // 🔥 ADD
 
-  // 🔥 ADD MODE DETECTION BACK
+  // 🔥 MODE DETECTION (KEEP THIS)
   let mode = "home";
   if (location.pathname.startsWith("/church")) mode = "church";
   else if (location.pathname.startsWith("/campus")) mode = "campus";
@@ -49,6 +51,9 @@ export default function DockLayout({ children }) {
 
   return (
     <div className="app-container">
+
+      {/* 🔥 ADD HEADER BACK */}
+      <GlobalHeader mode={mode} />
 
       <div className="content-area">
         {activeTile === "home" && children}
