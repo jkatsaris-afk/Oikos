@@ -5,7 +5,11 @@ import { Settings, Moon, User } from "lucide-react";
 import ChurchLogo from "../../assets/logos/Church-Logo.png";
 import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
-import DisplayLogo from "../../assets/logos/Display-Logo.png";
+
+/* DISPLAY MODE LOGOS */
+import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
+import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
+import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
 
 export default function GlobalHeader({ mode }) {
   const [time, setTime] = useState(new Date());
@@ -38,7 +42,7 @@ export default function GlobalHeader({ mode }) {
       {/* RIGHT SIDE */}
       <div style={styles.right}>
 
-        {/* DISPLAY ONLY BUTTONS FIRST */}
+        {/* DISPLAY ONLY BUTTONS */}
         {isDisplayMode && (
           <>
             <button style={styles.iconBtn}>
@@ -51,7 +55,7 @@ export default function GlobalHeader({ mode }) {
           </>
         )}
 
-        {/* 🔥 TIME */}
+        {/* TIME */}
         <div style={styles.time}>
           {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           <div style={styles.date}>
@@ -59,7 +63,7 @@ export default function GlobalHeader({ mode }) {
           </div>
         </div>
 
-        {/* 🔥 SETTINGS NEXT TO TIME */}
+        {/* SETTINGS */}
         <button style={styles.iconBtn}>
           <Settings size={20} />
         </button>
@@ -71,19 +75,29 @@ export default function GlobalHeader({ mode }) {
 }
 
 /* ========================= */
-/* MODE LOGO */
+/* MODE → LOGO */
 /* ========================= */
 
 function getModeLogo(mode) {
   switch (mode) {
     case "church":
       return ChurchLogo;
+
     case "campus":
       return CampusLogo;
+
     case "sports":
       return SportsLogo;
+
+    case "business":
+      return DisplayBusinessLogo;
+
+    case "education":
+      return DisplayEduLogo;
+
+    case "home":
     default:
-      return DisplayLogo;
+      return DisplayHomeLogo;
   }
 }
 
