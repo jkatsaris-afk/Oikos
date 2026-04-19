@@ -86,7 +86,7 @@
   width: 70%;
   height: 5px;
 
-  background: var(--color-primary);
+ background: var(--color-primary-dark);
 
   border-radius: 0 0 12px 12px;
 }
