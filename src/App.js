@@ -10,6 +10,11 @@ const load = (path) =>
   );
 
 // =========================
+// TEMPLATE ✅ ADDED
+// =========================
+const TemplateDashboard = load("./templates/TemplateDashboardPage");
+
+// =========================
 // DISPLAY
 // =========================
 const DisplayHomeDashboard = load("./platforms/display/modes/home/pages/DisplayHomeDashboardPage");
@@ -71,6 +76,9 @@ export default function App() {
 
           {/* ROOT */}
           <Route path="/" element={<Navigate to="/display/home" />} />
+
+          {/* TEMPLATE ✅ ADDED */}
+          <Route path="/temp" element={<TemplateDashboard />} />
 
           {/* DISPLAY */}
           <Route path="/display/home" element={<DisplayHomeDashboard />} />
