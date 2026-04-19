@@ -11,6 +11,7 @@
   padding: 20px;
   padding-bottom: 110px;
 }
+
 /* ========================= */
 /* TEMPLATE PAGE */
 /* ========================= */
@@ -20,56 +21,65 @@
   height: 100%;
 }
 
-/* HEADER */
-.template-header {
-  height: 56px;
+/* 🔥 NEW TOP BAR (replaces header) */
+.template-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
 
-  padding: 0 12px;
-
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(10px);
-
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding: 16px 12px 8px 12px;
 }
 
-/* HEADER SECTIONS */
-.template-header-left,
-.template-header-right {
-  width: 60px;
+/* 🔥 BIG TITLE */
+.template-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* ACTIONS (right side icons) */
+.template-actions {
   display: flex;
-  align-items: center;
+  gap: 8px;
 }
 
-.template-header-right {
-  justify-content: flex-end;
-}
-
-.template-header-title {
-  font-size: 16px;
-  font-weight: 600;
-  text-align: center;
-  flex: 1;
-}
-
-/* BUTTON */
-.template-btn {
-  background: none;
-  border: none;
-  padding: 6px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.template-btn:hover {
+/* ICON BUTTON */
+.template-icon-btn {
   background: rgba(0,0,0,0.05);
+  border: none;
+
+  padding: 8px;
+  border-radius: 10px;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.template-icon-btn:hover {
+  background: rgba(0,0,0,0.1);
+}
+
+/* DANGER BUTTON (uninstall) */
+.template-icon-btn.danger {
+  color: #c0392b;
+}
+
+.template-icon-btn.danger:hover {
+  background: rgba(192,57,43,0.1);
 }
 
 /* CONTENT */
 .template-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 12px;
+}
+
+/* ========================= */
+/* 🔒 KEEP OLD HEADER (SAFE BACKUP) */
+/* ========================= */
+/* Not used anymore, but kept so nothing breaks if referenced elsewhere */
+
+.template-header {
+  height: 56px;
+  display: none; /* 🔥 disable instead of deleting */
 }
