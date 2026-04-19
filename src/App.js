@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 // 🔥 IMPORT DOCK LAYOUT
 import DockLayout from "./core/layout/DockLayout";
 
-// 🔥 IMPORT THEME PROVIDER (NEW)
+// 🔥 IMPORT THEME PROVIDER
 import ThemeProvider from "./core/theme/ThemeProvider";
 
 // 🔥 Helper for lazy pages
@@ -72,14 +72,17 @@ const PaymentManager = load("./master-admin/pages/PaymentManagerPage");
 const BillingOverview = load("./billing/pages/BillingOverviewPage");
 
 /* =========================
-   🔥 MODE DETECTOR (NEW)
+   🔥 MODE DETECTOR
 ========================= */
 function ModeWrapper({ children }) {
   const location = useLocation();
+  const hostname = window.location.hostname;
 
-  let mode = "home"; // 🔥 fallback
+  let mode = "home";
 
-  if (location.pathname.startsWith("/business")) mode = "business";
+  // 🔥 DOMAIN FIRST
+  if (hostname.includes("oikoschurch")) mode = "church";
+  else if (location.pathname.startsWith("/business")) mode = "business";
   else if (location.pathname.startsWith("/edu")) mode = "education";
   else if (location.pathname.startsWith("/nightstand")) mode = "nightstand";
   else if (location.pathname.startsWith("/church")) mode = "church";
@@ -94,6 +97,19 @@ function ModeWrapper({ children }) {
   );
 }
 
+/* =========================
+   🔥 ROOT DOMAIN ROUTER (FIX)
+========================= */
+function HomeOrChurch() {
+  const hostname = window.location.hostname;
+
+  if (hostname.includes("oikoschurch")) {
+    return <Navigate to="/church" replace />;
+  }
+
+  return <Navigate to="/home" replace />;
+}
+
 // =========================
 // APP
 // =========================
@@ -102,21 +118,21 @@ export default function App() {
     <Router>
       <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
 
-        {/* 🔥 MODE + THEME WRAPPER */}
+        {/* MODE + THEME */}
         <ModeWrapper>
 
-          {/* 🔥 DOCK WRAPS EVERYTHING */}
+          {/* DOCK */}
           <DockLayout>
 
             <Routes>
 
-              {/* ROOT */}
-              <Route path="/" element={<Navigate to="/home" />} />
+              {/* 🔥 ROOT FIXED */}
+              <Route path="/" element={<HomeOrChurch />} />
 
               {/* TEMPLATE */}
               <Route path="/temp" element={<TemplateDashboard />} />
 
-              {/* DISPLAY CLEAN URLS */}
+              {/* DISPLAY */}
               <Route path="/home" element={<DisplayHomeDashboard />} />
               <Route path="/business" element={<DisplayBusinessDashboard />} />
               <Route path="/edu" element={<DisplayEduDashboard />} />
