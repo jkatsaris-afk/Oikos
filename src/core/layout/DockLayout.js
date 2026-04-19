@@ -1,47 +1,45 @@
 import {
   Home,
+  Grid,
   UserPlus,
   Users,
   Shield,
-  Flag,
-  Grid
+  Flag
 } from "lucide-react";
 import { useState } from "react";
 
 export default function DockLayout({ children }) {
-  const [showSignupMenu, setShowSignupMenu] = useState(false);
-  const [activeTile, setActiveTile] = useState("home"); // 🔥 controls screen
+  const [activeTile, setActiveTile] = useState("home");
+  const [showPopup, setShowPopup] = useState(false);
 
   const goTo = (path) => {
-    setShowSignupMenu(false);
+    setShowPopup(false);
     window.location.href = path;
   };
 
   return (
     <div className="app-container">
 
-      {/* 🔥 CONTENT AREA SWITCH */}
+      {/* CONTENT */}
       <div className="content-area">
 
         {activeTile === "home" && children}
 
-        {activeTile === "store" && (
-          <TileStorePage />
-        )}
+        {activeTile === "store" && <TileStorePage />}
 
       </div>
 
       {/* BACKDROP */}
-      {showSignupMenu && (
+      {showPopup && (
         <div
           className="popup-backdrop"
-          onClick={() => setShowSignupMenu(false)}
+          onClick={() => setShowPopup(false)}
         />
       )}
 
-      {/* POPUP (ADD) */}
-      {showSignupMenu && (
-        <div className="popup-wrap popup-signup">
+      {/* POPUP */}
+      {showPopup && (
+        <div className="popup-wrap">
           <div className="popup-card" onClick={(e) => e.stopPropagation()}>
 
             <PopupItem icon={<Users size={20} />} label="Player" onClick={() => goTo("/signup")} />
@@ -52,43 +50,39 @@ export default function DockLayout({ children }) {
         </div>
       )}
 
-      {/* 🔥 DOCK */}
+      {/* DOCK */}
       <div className="nav-wrap">
 
-        {/* HOME */}
         <NavItem
           icon={<Home size={22} />}
           label="Home"
           active={activeTile === "home"}
           onClick={() => {
-            setShowSignupMenu(false);
+            setShowPopup(false);
             setActiveTile("home");
           }}
         />
 
-        {/* STORE */}
         <NavItem
           icon={<Grid size={22} />}
           label="Store"
           active={activeTile === "store"}
           onClick={() => {
-            setShowSignupMenu(false);
+            setShowPopup(false);
             setActiveTile("store");
           }}
         />
 
-        {/* ADD */}
         <NavItem
           icon={<UserPlus size={22} />}
           label="Add"
-          active={showSignupMenu}
+          active={showPopup}
           onClick={() => {
             setActiveTile("home");
-            setShowSignupMenu(prev => !prev);
+            setShowPopup(prev => !prev);
           }}
         />
 
-        {/* EMPTY */}
         <EmptySlot />
         <EmptySlot />
 
@@ -97,9 +91,6 @@ export default function DockLayout({ children }) {
   );
 }
 
-/* ========================= */
-/* TILE STORE PAGE */
-/* ========================= */
 function TileStorePage() {
   return (
     <div className="store-page-full">
@@ -109,7 +100,6 @@ function TileStorePage() {
   );
 }
 
-/* NAV ITEM */
 function NavItem({ icon, label, active, onClick }) {
   return (
     <div className={`nav-item2 ${active ? "active" : ""}`} onClick={onClick}>
@@ -119,12 +109,10 @@ function NavItem({ icon, label, active, onClick }) {
   );
 }
 
-/* EMPTY SLOT */
 function EmptySlot() {
   return <div className="nav-item2 empty" />;
 }
 
-/* POPUP ITEM */
 function PopupItem({ icon, label, onClick }) {
   return (
     <div className="popup-item" onClick={onClick}>
