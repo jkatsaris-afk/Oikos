@@ -6,13 +6,13 @@ export default function TemplateDashboardPage() {
 
       <div className="card">
         <div className="title">Oikos Display</div>
-        <div className="sub">Dock is working</div>
+        <div className="sub">This is your active screen</div>
       </div>
 
       <div className="card">
-        <div className="title">Next Step</div>
+        <div className="title">Working Area</div>
         <div className="sub">
-          Tiles will be added dynamically from Tile Store
+          Home button will keep you on this screen
         </div>
       </div>
 
