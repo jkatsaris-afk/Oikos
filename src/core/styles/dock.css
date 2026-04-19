@@ -1,3 +1,6 @@
+/* ========================= */
+/* DOCK WRAPPER */
+/* ========================= */
 .nav-wrap {
   position: fixed;
   bottom: 10px;
@@ -21,9 +24,11 @@
   z-index: 100;
 }
 
-/* NAV ITEM */
+/* ========================= */
+/* NAV ITEM (5 SLOT SYSTEM) */
+/* ========================= */
 .nav-item2 {
-  flex: 1;
+  flex: 1; /* 🔥 forces equal spacing for 5 slots */
 
   display: flex;
   flex-direction: column;
@@ -41,13 +46,17 @@
   position: relative;
 }
 
+/* ========================= */
 /* ICON */
+/* ========================= */
 .nav-item2 svg {
   margin-bottom: 2px;
   transition: transform 0.2s ease;
 }
 
+/* ========================= */
 /* HOVER */
+/* ========================= */
 .nav-item2:hover {
   color: #333;
 }
@@ -56,7 +65,9 @@
   transform: scale(1.08);
 }
 
+/* ========================= */
 /* ACTIVE */
+/* ========================= */
 .nav-item2.active {
   color: #0f7a3b;
   transform: translateY(-6px);
@@ -66,12 +77,9 @@
   transform: scale(1.12);
 }
 
-/* EMPTY SLOT */
-.nav-item2.empty {
-  pointer-events: none;
-}
-
+/* ========================= */
 /* ACTIVE DOT */
+/* ========================= */
 .nav-item2.active::after {
   content: "";
   position: absolute;
@@ -80,4 +88,59 @@
   height: 6px;
   border-radius: 50%;
   background: #0f7a3b;
+}
+
+/* ========================= */
+/* EMPTY SLOT */
+/* ========================= */
+.nav-item2.empty {
+  pointer-events: none;
+}
+
+/* ========================= */
+/* POPUP SUPPORT */
+/* ========================= */
+.popup-container {
+  position: fixed;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+
+  display: flex;
+  justify-content: center;
+
+  z-index: 110;
+}
+
+.popup-card {
+  background: white;
+  border-radius: 16px;
+  padding: 12px;
+  min-width: 200px;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.popup-item {
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.popup-item:hover {
+  background: #f0f0f0;
+}
+
+/* ========================= */
+/* MOBILE TWEAKS */
+/* ========================= */
+@media (max-width: 480px) {
+  .nav-wrap {
+    height: 64px;
+  }
+
+  .nav-item2 {
+    font-size: 10px;
+  }
 }
