@@ -24,7 +24,7 @@
   z-index: 100;
 }
 
-/* NAV ITEM */
+/* 🔥 NAV ITEM WITH SMALL OUTLINE */
 .nav-item2 {
   position: relative;
 
@@ -36,34 +36,40 @@
   font-size: 11px;
   color: #9ca3af;
 
-  height: 60px;
-  border-radius: 20px;
+  height: 56px; /* 🔥 slightly smaller */
+  margin: 4px;  /* 🔥 prevents overlap */
+
+  border-radius: 16px;
 
   transition: all 0.25s ease;
   cursor: pointer;
+
+  background: rgba(255,255,255,0.4);
+  border: 1px solid rgba(0,0,0,0.05);
 }
 
 .nav-item2 svg {
   margin-bottom: 4px;
 }
 
-/* 🔥 ACTIVE TILE (ORIGINAL STYLE) */
+/* ACTIVE */
 .nav-item2.active {
-  background: #ffffff;
+  background: white;
   color: #0f7a3b;
 
-  transform: translateY(-20px);
+  transform: translateY(-14px);
 
-  height: 72px;
+  height: 68px;
+  border-radius: 20px;
 
-  border-radius: 22px;
+  border: 1px solid rgba(0,0,0,0.1);
 
   box-shadow:
     0 10px 25px rgba(0,0,0,0.14),
     0 4px 10px rgba(0,0,0,0.06);
 }
 
-/* 🔥 RESTORE BOTTOM LINE */
+/* LINE */
 .nav-item2.active::after {
   content: "";
   position: absolute;
@@ -73,27 +79,26 @@
   bottom: 0;
 
   width: 70%;
-  height: 6px;
+  height: 5px;
 
   background: #0f7a3b;
-
-  border-radius: 0 0 16px 16px;
+  border-radius: 0 0 12px 12px;
 }
 
 /* EMPTY */
 .nav-item2.empty {
   pointer-events: none;
   opacity: 0;
+  border: none;
+  background: transparent;
 }
 
 /* ========================= */
 /* POPUP */
 /* ========================= */
-
-/* 🔥 FIX OVERLAP WITHOUT CHANGING STYLE */
 .popup-wrap {
   position: fixed;
-  bottom: 105px; /* slight lift only */
+  bottom: 105px;
   left: 0;
   right: 0;
 
@@ -117,7 +122,6 @@
   box-shadow: 0 25px 50px rgba(0,0,0,0.25);
 }
 
-/* ITEMS */
 .popup-item {
   display: flex;
   align-items: center;
@@ -136,10 +140,49 @@
   background: #f4f4f4;
 }
 
-/* BACKDROP */
 .popup-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.25);
   z-index: 150;
+}
+
+/* ========================= */
+/* STORE OVERLAY */
+/* ========================= */
+.store-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 300;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.store-page {
+  width: 90%;
+  max-width: 500px;
+
+  background: white;
+  border-radius: 20px;
+
+  padding: 20px;
+
+  box-shadow: 0 30px 60px rgba(0,0,0,0.25);
+}
+
+.store-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.store-content {
+  margin-top: 20px;
+  font-size: 16px;
 }
