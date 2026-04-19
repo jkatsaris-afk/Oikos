@@ -26,4 +26,15 @@ export const tileRegistry = {
     label: "Notes",
     icon: StickyNote,
   },
+  extra1: {
+  id: "extra1",
+  label: "Extra 1",
+  icon: Calendar,
+},
+
+extra2: {
+  id: "extra2",
+  label: "Extra 2",
+  icon: Calendar,
+},
 };
