@@ -170,22 +170,31 @@
 }
 
 /* ========================= */
-/* OVERFLOW HEADER */
+/* 🔥 OVERFLOW HEADER (LESS GLASS) */
 /* ========================= */
 
 .overflow-header {
-  font-size: 22px; /* 🔥 bigger */
+  font-size: 22px;
   font-weight: 700;
 
-  text-align: center; /* 🔥 centered */
+  text-align: center;
 
-  padding: 6px 0 14px 0;
-
-  color: #fff; /* 🔥 white */
-
-  border-bottom: 1px solid rgba(255,255,255,0.15);
-
+  padding: 10px 12px;
   margin-bottom: 12px;
+
+  /* 🔥 LESS GLASS → MORE SOLID */
+  background: rgba(0, 0, 0, 0.45);
+
+  /* 🔥 KEEP WHITE TEXT */
+  color: #fff;
+
+  /* 🔥 CLEAN LOOK */
+  border-radius: 16px;
+
+  backdrop-filter: blur(4px);
+
+  /* 🔥 SUBTLE SEPARATION */
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 /* ========================= */
