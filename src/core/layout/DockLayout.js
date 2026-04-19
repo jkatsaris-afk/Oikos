@@ -64,37 +64,43 @@ export default function DockLayout({ children }) {
       </div>
 
       {/* =========================
-          FULL SCREEN OVERFLOW
+          OVERFLOW PANEL (DOCK STYLE)
       ========================= */}
       {showOverflow && (
-        <div className="overflow-screen">
+        <div
+          className="overflow-backdrop"
+          onClick={() => setShowOverflow(false)}
+        >
+          <div
+            className="overflow-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
 
-          <div className="overflow-header">
-            Apps
+            <div className="overflow-grid">
+
+              {overflowTiles.map(tile => {
+                const Icon = tile.icon;
+
+                return (
+                  <div
+                    key={tile.id}
+                    className={`nav-item2 overflow-item ${
+                      activeTile === tile.id ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      setShowOverflow(false);
+                      setActiveTile(tile.id);
+                    }}
+                  >
+                    <Icon size={22} />
+                    <span>{tile.label}</span>
+                  </div>
+                );
+              })}
+
+            </div>
+
           </div>
-
-          <div className="overflow-grid">
-
-            {overflowTiles.map(tile => {
-              const Icon = tile.icon;
-
-              return (
-                <div
-                  key={tile.id}
-                  className="overflow-tile"
-                  onClick={() => {
-                    setShowOverflow(false);
-                    setActiveTile(tile.id);
-                  }}
-                >
-                  <Icon size={28} />
-                  <span>{tile.label}</span>
-                </div>
-              );
-            })}
-
-          </div>
-
         </div>
       )}
 
@@ -122,7 +128,7 @@ export default function DockLayout({ children }) {
           );
         })}
 
-        {/* MORE (OVERFLOW BUTTON) */}
+        {/* MORE BUTTON */}
         {showMore && (
           <div
             className={`nav-item2 ${showOverflow ? "active" : ""}`}
