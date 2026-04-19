@@ -1,7 +1,7 @@
 import {
   Home,
   Grid,
-  UserPlus,
+  MoreHorizontal,
   Users,
   Shield,
   Flag
@@ -12,125 +12,127 @@ import TileStorePage from "../../store/pages/TileStorePage";
 
 export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
-  const [showPopup, setShowPopup] = useState(false);
+  const [showOverflow, setShowOverflow] = useState(false);
 
   const goTo = (path) => {
-    setShowPopup(false);
+    setShowOverflow(false);
     window.location.href = path;
   };
 
   /* =========================
-     🔥 USER TILES (TEMP FOR NOW)
-     Later this comes from DB
+     USER TILES (TEMP)
   ========================= */
   const userTiles = [
-    {
-      id: "home",
-      icon: <Home size={22} />,
-      label: "Home",
-    },
-    {
-      id: "add",
-      icon: <UserPlus size={22} />,
-      label: "Add",
-    },
+    { id: "home", label: "Home", icon: <Home size={22} /> },
+    { id: "calendar", label: "Calendar", icon: <Grid size={22} /> },
+    { id: "chores", label: "Chores", icon: <Grid size={22} /> },
+    { id: "family", label: "Family", icon: <Grid size={22} /> },
+    { id: "tasks", label: "Tasks", icon: <Grid size={22} /> },
+    { id: "notes", label: "Notes", icon: <Grid size={22} /> },
   ];
 
-  /* =========================
-     🔥 STORE TILE (ALWAYS LAST)
-  ========================= */
   const storeTile = {
     id: "store",
-    icon: <Grid size={22} />,
     label: "Store",
+    icon: <Grid size={22} />
   };
 
   /* =========================
-     🔥 FINAL TILE LIST
-     (store always last)
+     SPLIT VISIBLE / OVERFLOW
   ========================= */
-  const tiles = [...userTiles.filter(t => t.id !== "store"), storeTile];
+  const MAX_VISIBLE = 5;
+
+  let visibleTiles = [];
+  let overflowTiles = [];
+
+  if (userTiles.length <= MAX_VISIBLE - 1) {
+    // no overflow needed
+    visibleTiles = [...userTiles];
+  } else {
+    // reserve 1 slot for "More" and 1 for Store
+    visibleTiles = userTiles.slice(0, MAX_VISIBLE - 2);
+    overflowTiles = userTiles.slice(MAX_VISIBLE - 2);
+  }
+
+  const showMoreButton = overflowTiles.length > 0;
 
   return (
     <div className="app-container">
 
       {/* CONTENT */}
       <div className="content-area">
-
         {activeTile === "home" && children}
-
         {activeTile === "store" && <TileStorePage />}
-
       </div>
 
-      {/* BACKDROP */}
-      {showPopup && (
-        <div
-          className="popup-backdrop"
-          onClick={() => setShowPopup(false)}
-        />
-      )}
+      {/* OVERFLOW DRAWER */}
+      {showOverflow && (
+        <div className="popup-backdrop" onClick={() => setShowOverflow(false)}>
+          <div
+            className="popup-wrap"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="popup-card">
 
-      {/* POPUP */}
-      {showPopup && (
-        <div className="popup-wrap">
-          <div className="popup-card" onClick={(e) => e.stopPropagation()}>
+              {overflowTiles.map(tile => (
+                <PopupItem
+                  key={tile.id}
+                  icon={tile.icon}
+                  label={tile.label}
+                  onClick={() => {
+                    setShowOverflow(false);
+                    setActiveTile(tile.id);
+                  }}
+                />
+              ))}
 
-            <PopupItem icon={<Users size={20} />} label="Player" onClick={() => goTo("/signup")} />
-            <PopupItem icon={<Shield size={20} />} label="Coach" onClick={() => goTo("/coach-signup")} />
-            <PopupItem icon={<Flag size={20} />} label="Referee" onClick={() => goTo("/ref-signup")} />
-
+            </div>
           </div>
         </div>
       )}
 
-      {/* 🔥 DOCK */}
+      {/* DOCK */}
       <div className="nav-wrap">
 
-        {tiles.map((tile, index) => {
+        {/* MAIN VISIBLE TILES */}
+        {visibleTiles.map(tile => (
+          <NavItem
+            key={tile.id}
+            icon={tile.icon}
+            label={tile.label}
+            active={activeTile === tile.id}
+            onClick={() => {
+              setShowOverflow(false);
+              setActiveTile(tile.id);
+            }}
+          />
+        ))}
 
-          const isActive =
-            tile.id === "home"
-              ? activeTile === "home"
-              : tile.id === "store"
-              ? activeTile === "store"
-              : tile.id === "add"
-              ? showPopup
-              : activeTile === tile.id;
+        {/* OVERFLOW BUTTON */}
+        {showMoreButton && (
+          <NavItem
+            icon={<MoreHorizontal size={22} />}
+            label="More"
+            active={showOverflow}
+            onClick={() => setShowOverflow(prev => !prev)}
+          />
+        )}
 
-          return (
-            <NavItem
-              key={tile.id}
-              icon={tile.icon}
-              label={tile.label}
-              active={isActive}
-              onClick={() => {
-                if (tile.id === "home") {
-                  setShowPopup(false);
-                  setActiveTile("home");
-                }
+        {/* STORE ALWAYS LAST */}
+        <NavItem
+          icon={storeTile.icon}
+          label={storeTile.label}
+          active={activeTile === "store"}
+          onClick={() => {
+            setShowOverflow(false);
+            setActiveTile("store");
+          }}
+        />
 
-                else if (tile.id === "store") {
-                  setShowPopup(false);
-                  setActiveTile("store");
-                }
-
-                else if (tile.id === "add") {
-                  setActiveTile("home");
-                  setShowPopup(prev => !prev);
-                }
-
-                else {
-                  setShowPopup(false);
-                  setActiveTile(tile.id);
-                }
-              }}
-            />
-          );
-        })}
-
-        {/* 🔥 FILL EMPTY SLOTS TO 5 */}
-        {Array.from({ length: 5 - tiles.length }).map((_, i) => (
+        {/* FILL EMPTY */}
+        {Array.from({
+          length: MAX_VISIBLE - (visibleTiles.length + (showMoreButton ? 1 : 0) + 1)
+        }).map((_, i) => (
           <EmptySlot key={`empty-${i}`} />
         ))}
 
