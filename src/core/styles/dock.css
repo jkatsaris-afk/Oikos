@@ -1,6 +1,4 @@
-/* ========================= */
 /* DOCK */
-/* ========================= */
 .nav-wrap {
   position: fixed;
   bottom: 10px;
@@ -24,9 +22,7 @@
   z-index: 100;
 }
 
-/* ========================= */
 /* NAV ITEM */
-/* ========================= */
 .nav-item2 {
   display: flex;
   flex-direction: column;
@@ -46,38 +42,35 @@
 
   background: rgba(255,255,255,0.35);
   border: 1px solid rgba(0,0,0,0.06);
+
+  z-index: 1; /* 🔥 important */
 }
 
 .nav-item2 svg {
   margin-bottom: 4px;
 }
 
-.nav-item2:hover {
-  background: rgba(255,255,255,0.75);
-}
-
+/* ACTIVE */
 .nav-item2.active {
   background: white;
   color: #0f7a3b;
 
-  transform: translateY(-18px) scale(1.03);
+  transform: translateY(-14px); /* 🔥 reduced from -18 */
 
-  height: 76px;
-  border-radius: 22px;
+  height: 72px;
+
+  z-index: 2; /* 🔥 keeps above neighbors but BELOW popup */
 
   box-shadow:
     0 10px 25px rgba(0,0,0,0.14),
     0 4px 10px rgba(0,0,0,0.06);
 }
 
-/* ========================= */
-/* POPUP FIX (THIS IS THE IMPORTANT PART) */
-/* ========================= */
+/* POPUP */
 .popup-wrap {
   position: fixed;
 
-  /* 🔥 KEY FIX — MORE SPACE ABOVE DOCK */
-  bottom: 110px;
+  bottom: 120px; /* 🔥 moved higher */
 
   left: 0;
   right: 0;
@@ -85,9 +78,10 @@
   display: flex;
   justify-content: center;
 
-  z-index: 110;
+  z-index: 200; /* 🔥 ABOVE EVERYTHING */
 }
 
+/* CARD */
 .popup-card {
   background: white;
   border-radius: 18px;
@@ -100,11 +94,9 @@
   gap: 10px;
 
   box-shadow: 0 25px 50px rgba(0,0,0,0.25);
-
-  animation: popupSlideUp 0.18s ease-out;
 }
 
-/* POPUP ITEMS */
+/* ITEMS */
 .popup-item {
   display: flex;
   align-items: center;
@@ -117,12 +109,10 @@
   font-weight: 600;
 
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .popup-item:hover {
   background: #f4f4f4;
-  transform: translateX(4px);
 }
 
 /* BACKDROP */
@@ -130,19 +120,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.25);
-  z-index: 90;
-}
-
-/* ANIMATION */
-@keyframes popupSlideUp {
-  from {
-    transform: translateY(25px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  z-index: 150;
 }
 
 /* EMPTY */
