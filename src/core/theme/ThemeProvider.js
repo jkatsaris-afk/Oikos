@@ -8,9 +8,11 @@ export default function ThemeProvider({ mode = "home", children }) {
     const root = document.documentElement;
 
     const rgb = hexToRgb(theme.primary);
+    const dark = darkenHex(theme.primary, 0.25); // 🔥 25% darker
 
     root.style.setProperty("--color-primary", theme.primary);
     root.style.setProperty("--color-primary-rgb", rgb);
+    root.style.setProperty("--color-primary-dark", dark); // 🔥 NEW
   }, [theme]);
 
   return children;
@@ -30,7 +32,28 @@ function hexToRgb(hex) {
 
     return `${r}, ${g}, ${b}`;
   } catch (e) {
-    // 🔥 fallback to home color if anything breaks
-    return "47, 110, 163"; // #2F6EA3
+    return "47, 110, 163"; // fallback
+  }
+}
+
+/* =========================
+   🔥 DARKEN HEX COLOR
+========================= */
+function darkenHex(hex, amount = 0.2) {
+  try {
+    const clean = hex.replace("#", "");
+    const num = parseInt(clean, 16);
+
+    let r = (num >> 16) & 255;
+    let g = (num >> 8) & 255;
+    let b = num & 255;
+
+    r = Math.max(0, Math.floor(r * (1 - amount)));
+    g = Math.max(0, Math.floor(g * (1 - amount)));
+    b = Math.max(0, Math.floor(b * (1 - amount)));
+
+    return `rgb(${r}, ${g}, ${b})`;
+  } catch (e) {
+    return "rgb(31, 79, 120)"; // fallback dark blue
   }
 }
