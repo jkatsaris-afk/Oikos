@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
-// 🔥 Helper for lazy pages
+// 🔥 KEEP lazy for everything ELSE
 const load = (path) =>
   lazy(() =>
     import(`${path}`).catch(() => ({
@@ -10,9 +10,9 @@ const load = (path) =>
   );
 
 // =========================
-// TEMPLATE ✅ ADDED
+// 🔥 TEMPLATE (DIRECT IMPORT — FIX)
 // =========================
-const TemplateDashboard = load("./templates/TemplateDashboardPage");
+import TemplateDashboard from "./templates/TemplateDashboardPage";
 
 // =========================
 // DISPLAY
@@ -74,19 +74,19 @@ export default function App() {
       <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
         <Routes>
 
-          {/* ROOT ✅ UPDATED */}
+          {/* ROOT */}
           <Route path="/" element={<Navigate to="/home" />} />
 
-          {/* TEMPLATE */}
+          {/* 🔥 TEMPLATE (NOW WORKS) */}
           <Route path="/temp" element={<TemplateDashboard />} />
 
-          {/* DISPLAY CLEAN URLS ✅ UPDATED */}
+          {/* DISPLAY */}
           <Route path="/home" element={<DisplayHomeDashboard />} />
           <Route path="/business" element={<DisplayBusinessDashboard />} />
           <Route path="/edu" element={<DisplayEduDashboard />} />
           <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
 
-          {/* OLD DISPLAY PATH REDIRECTS ✅ ADDED */}
+          {/* OLD DISPLAY REDIRECTS */}
           <Route path="/display/home" element={<Navigate to="/home" />} />
           <Route path="/display/business" element={<Navigate to="/business" />} />
           <Route path="/display/edu" element={<Navigate to="/edu" />} />
