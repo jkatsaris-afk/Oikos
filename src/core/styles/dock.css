@@ -55,17 +55,18 @@
 }
 
 /* ========================= */
-/* 🔥 ACTIVE TILE (NO GLASS) */
+/* 🔥 ACTIVE TILE (MODE COLOR - NO GLASS) */
 /* ========================= */
 
 .nav-item2.active {
-  /* 🔥 FULL SOLID */
-  background: #ffffff;
+  /* 🔥 FULL MODE COLOR */
+  background: var(--color-primary);
 
-  /* 🔥 REMOVE GLASS */
+  /* 🔥 NO GLASS */
   backdrop-filter: none;
 
-  color: #111;
+  /* 🔥 WHITE TEXT FOR CONTRAST */
+  color: #fff;
 
   transform: translateY(-14px);
 
@@ -78,6 +79,8 @@
 
   border: 1px solid rgba(0,0,0,0.08);
 }
+
+/* 🔥 ACTIVE BAR MATCHES MODE */
 .nav-item2.active::after {
   content: "";
   position: absolute;
@@ -88,10 +91,10 @@
   width: 70%;
   height: 5px;
 
-  background: rgba(0,0,0,0.2);
+  background: var(--color-primary);
+
   border-radius: 0 0 12px 12px;
 }
-
 /* ========================= */
 /* HOME TILE */
 /* ========================= */
