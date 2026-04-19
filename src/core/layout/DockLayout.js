@@ -1,76 +1,84 @@
-import { Home, Plus, Grid, Calendar, CheckSquare } from "lucide-react";
+import {
+  Home,
+  UserPlus,
+  Users,
+  Shield,
+  Flag
+} from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 
 export default function DockLayout({ children }) {
-  const [showMenu, setShowMenu] = useState(false);
+  const [showSignupMenu, setShowSignupMenu] = useState(false);
 
   const location = useLocation();
   const currentPath = location.pathname;
 
+  const goTo = (path) => {
+    setShowSignupMenu(false);
+    window.location.href = path;
+  };
+
   return (
     <div className="app-container">
 
-      {/* CONTENT AREA */}
+      {/* CONTENT */}
       <div className="content-area">
         {children}
       </div>
 
       {/* BACKDROP */}
-      {showMenu && (
+      {showSignupMenu && (
         <div
           className="popup-backdrop"
-          onClick={() => setShowMenu(false)}
+          onClick={() => setShowSignupMenu(false)}
         />
       )}
 
       {/* POPUP */}
-      {showMenu && (
-        <div className="popup-container">
-          <div
-            className="popup-card"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {showSignupMenu && (
+        <div className="popup-wrap popup-signup">
+          <div className="popup-card" onClick={(e) => e.stopPropagation()}>
 
             <PopupItem
-              icon={<Grid />}
-              label="Tile Store"
-              onClick={() => setShowMenu(false)}
+              icon={<Users size={20} />}
+              label="Player"
+              onClick={() => goTo("/signup")}
             />
 
             <PopupItem
-              icon={<Calendar />}
-              label="Calendar"
-              onClick={() => setShowMenu(false)}
+              icon={<Shield size={20} />}
+              label="Coach"
+              onClick={() => goTo("/coach-signup")}
             />
 
             <PopupItem
-              icon={<CheckSquare />}
-              label="Chores"
-              onClick={() => setShowMenu(false)}
+              icon={<Flag size={20} />}
+              label="Referee"
+              onClick={() => goTo("/ref-signup")}
             />
 
           </div>
         </div>
       )}
 
-      {/* DOCK */}
+      {/* 🔥 DOCK (5 SLOT GRID) */}
       <div className="nav-wrap">
 
         {/* SLOT 1 */}
         <NavItem
           icon={<Home size={22} />}
           label="Home"
-          active={true}
-          onClick={() => console.log("Home")}
+          active={currentPath === "/" || currentPath === "/home"}
+          onClick={() => goTo("/home")}
         />
 
         {/* SLOT 2 */}
         <NavItem
-          icon={<Plus size={22} />}
+          icon={<UserPlus size={22} />}
           label="Add"
-          active={showMenu}
-          onClick={() => setShowMenu(prev => !prev)}
+          active={showSignupMenu}
+          onClick={() => setShowSignupMenu(prev => !prev)}
         />
 
         {/* SLOT 3 */}
@@ -90,10 +98,7 @@ export default function DockLayout({ children }) {
 /* NAV ITEM */
 function NavItem({ icon, label, active, onClick }) {
   return (
-    <div
-      className={`nav-item2 ${active ? "active" : ""}`}
-      onClick={onClick}
-    >
+    <div className={`nav-item2 ${active ? "active" : ""}`} onClick={onClick}>
       {icon}
       <span>{label}</span>
     </div>
