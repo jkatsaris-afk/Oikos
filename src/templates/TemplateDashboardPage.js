@@ -11,22 +11,22 @@ export default function TemplateDashboardPage() {
 
 const styles = {
   page: {
-    position: "fixed",   // 🔥 locks full screen
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    width: "100%",
+    height: "100%",
 
-    width: "100vw",
-    height: "100vh",
+    minHeight: "calc(100vh - 110px)", 
+    // 🔥 leaves room for your dock (matches your padding-bottom)
 
     /* 🔥 FULL BACKGROUND */
     backgroundImage: `url(${churchBg})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
+    backgroundSize: "cover",        // 🔥 scales perfectly
+    backgroundPosition: "center",   // 🔥 keeps centered
     backgroundRepeat: "no-repeat",
 
-    /* 🔥 content layout */
+    /* 🔥 responsive layout */
+    display: "flex",
+    flexDirection: "column",
+
     padding: "20px",
     boxSizing: "border-box",
   }
