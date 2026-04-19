@@ -1,4 +1,4 @@
-import { Home, Plus } from "lucide-react";
+import { Home, Plus, Grid, Calendar, CheckSquare } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -31,9 +31,25 @@ export default function DockLayout({ children }) {
             className="popup-card"
             onClick={(e) => e.stopPropagation()}
           >
-            <PopupItem label="Tile 1" onClick={() => setShowMenu(false)} />
-            <PopupItem label="Tile 2" onClick={() => setShowMenu(false)} />
-            <PopupItem label="Tile 3" onClick={() => setShowMenu(false)} />
+
+            <PopupItem
+              icon={<Grid size={18} />}
+              label="Tile Store"
+              onClick={() => setShowMenu(false)}
+            />
+
+            <PopupItem
+              icon={<Calendar size={18} />}
+              label="Calendar"
+              onClick={() => setShowMenu(false)}
+            />
+
+            <PopupItem
+              icon={<CheckSquare size={18} />}
+              label="Chores"
+              onClick={() => setShowMenu(false)}
+            />
+
           </div>
         </div>
       )}
@@ -49,7 +65,7 @@ export default function DockLayout({ children }) {
           onClick={() => console.log("Home")}
         />
 
-        {/* SLOT 2 (POPUP) */}
+        {/* SLOT 2 (POPUP BUTTON) */}
         <NavItem
           icon={<Plus size={22} />}
           label="Add"
@@ -90,10 +106,11 @@ function EmptySlot() {
 }
 
 /* POPUP ITEM */
-function PopupItem({ label, onClick }) {
+function PopupItem({ icon, label, onClick }) {
   return (
     <div className="popup-item" onClick={onClick}>
-      {label}
+      {icon}
+      <span>{label}</span>
     </div>
   );
 }
