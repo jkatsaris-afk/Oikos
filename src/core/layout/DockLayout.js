@@ -6,13 +6,12 @@ import {
   Flag
 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "react-router-dom";
 
 export default function DockLayout({ children }) {
   const [showSignupMenu, setShowSignupMenu] = useState(false);
 
-  const location = useLocation();
-  const currentPath = location.pathname;
+  // 🔥 current path (used for active state only)
+  const currentPath = window.location.pathname;
 
   const goTo = (path) => {
     setShowSignupMenu(false);
@@ -65,15 +64,18 @@ export default function DockLayout({ children }) {
       {/* 🔥 DOCK (5 SLOT GRID) */}
       <div className="nav-wrap">
 
-        {/* SLOT 1 */}
+        {/* SLOT 1 — HOME (CURRENT PAGE, NO NAV) */}
         <NavItem
           icon={<Home size={22} />}
           label="Home"
-          active={currentPath === "/" || currentPath === "/home"}
-          onClick={() => goTo("/home")}
+          active={true} // 🔥 always active = current screen
+          onClick={() => {
+            // 🔥 DO NOTHING (home = current screen)
+            setShowSignupMenu(false);
+          }}
         />
 
-        {/* SLOT 2 */}
+        {/* SLOT 2 — ADD */}
         <NavItem
           icon={<UserPlus size={22} />}
           label="Add"
@@ -81,13 +83,9 @@ export default function DockLayout({ children }) {
           onClick={() => setShowSignupMenu(prev => !prev)}
         />
 
-        {/* SLOT 3 */}
+        {/* EMPTY SLOTS */}
         <EmptySlot />
-
-        {/* SLOT 4 */}
         <EmptySlot />
-
-        {/* SLOT 5 */}
         <EmptySlot />
 
       </div>
