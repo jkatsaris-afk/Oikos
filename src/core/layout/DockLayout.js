@@ -1,4 +1,5 @@
 import {
+  Home,
   Grid,
   MoreHorizontal
 } from "lucide-react";
@@ -15,7 +16,7 @@ export default function DockLayout({ children }) {
   const { tiles } = useUserTiles();
 
   /* =========================
-     BUILD USER TILE LIST
+     BUILD INSTALLED TILE LIST
   ========================= */
   const installedTiles = tiles
     .filter(t => t.installed)
@@ -25,6 +26,9 @@ export default function DockLayout({ children }) {
       ...tileRegistry[t.id],
     }));
 
+  /* =========================
+     STORE TILE (ALWAYS LAST)
+  ========================= */
   const storeTile = {
     id: "store",
     label: "Store",
@@ -48,111 +52,107 @@ export default function DockLayout({ children }) {
   return (
     <div className="app-container">
 
-      {/* CONTENT */}
+      {/* =========================
+          CONTENT AREA
+      ========================= */}
       <div className="content-area">
+
         {activeTile === "home" && children}
+
         {activeTile === "store" && <TileStorePage />}
+
       </div>
 
-      {/* OVERFLOW */}
+      {/* =========================
+          FULL SCREEN OVERFLOW
+      ========================= */}
       {showOverflow && (
-        <div className="popup-backdrop" onClick={() => setShowOverflow(false)}>
-          <div className="popup-wrap" onClick={(e) => e.stopPropagation()}>
-            <div className="popup-card">
+        <div className="overflow-screen">
 
-              {overflowTiles.map(tile => {
-                const Icon = tile.icon;
-                return (
-                  <PopupItem
-                    key={tile.id}
-                    icon={<Icon size={20} />}
-                    label={tile.label}
-                    onClick={() => {
-                      setShowOverflow(false);
-                      setActiveTile(tile.id);
-                    }}
-                  />
-                );
-              })}
-
-            </div>
+          <div className="overflow-header">
+            Apps
           </div>
+
+          <div className="overflow-grid">
+
+            {overflowTiles.map(tile => {
+              const Icon = tile.icon;
+
+              return (
+                <div
+                  key={tile.id}
+                  className="overflow-tile"
+                  onClick={() => {
+                    setShowOverflow(false);
+                    setActiveTile(tile.id);
+                  }}
+                >
+                  <Icon size={28} />
+                  <span>{tile.label}</span>
+                </div>
+              );
+            })}
+
+          </div>
+
         </div>
       )}
 
-      {/* DOCK */}
+      {/* =========================
+          DOCK
+      ========================= */}
       <div className="nav-wrap">
 
+        {/* VISIBLE TILES */}
         {visibleTiles.map(tile => {
           const Icon = tile.icon;
 
           return (
-            <NavItem
+            <div
               key={tile.id}
-              icon={<Icon size={22} />}
-              label={tile.label}
-              active={activeTile === tile.id}
+              className={`nav-item2 ${activeTile === tile.id ? "active" : ""}`}
               onClick={() => {
                 setShowOverflow(false);
                 setActiveTile(tile.id);
               }}
-            />
+            >
+              <Icon size={22} />
+              <span>{tile.label}</span>
+            </div>
           );
         })}
 
+        {/* MORE (OVERFLOW BUTTON) */}
         {showMore && (
-          <NavItem
-            icon={<MoreHorizontal size={22} />}
-            label="More"
-            active={showOverflow}
+          <div
+            className={`nav-item2 ${showOverflow ? "active" : ""}`}
             onClick={() => setShowOverflow(prev => !prev)}
-          />
+          >
+            <MoreHorizontal size={22} />
+            <span>More</span>
+          </div>
         )}
 
-        {/* STORE */}
-        <NavItem
-          icon={<Grid size={22} />}
-          label="Store"
-          active={activeTile === "store"}
+        {/* STORE (ALWAYS LAST) */}
+        <div
+          className={`nav-item2 ${activeTile === "store" ? "active" : ""}`}
           onClick={() => {
             setShowOverflow(false);
             setActiveTile("store");
           }}
-        />
+        >
+          <Grid size={22} />
+          <span>Store</span>
+        </div>
 
-        {/* EMPTY */}
+        {/* EMPTY SLOTS */}
         {Array.from({
           length: MAX_SLOTS - (visibleTiles.length + (showMore ? 1 : 0) + 1)
         }).map((_, i) => (
-          <EmptySlot key={i} />
+          <div key={`empty-${i}`} className="nav-item2 empty" />
         ))}
 
       </div>
-    </div>
-  );
-}
-
-/* NAV ITEM */
-function NavItem({ icon, label, active, onClick }) {
-  return (
-    <div className={`nav-item2 ${active ? "active" : ""}`} onClick={onClick}>
-      {icon}
-      <span>{label}</span>
-    </div>
-  );
-}
-
-/* EMPTY */
-function EmptySlot() {
-  return <div className="nav-item2 empty" />;
-}
-
-/* POPUP */
-function PopupItem({ icon, label, onClick }) {
-  return (
-    <div className="popup-item" onClick={onClick}>
-      {icon}
-      <span>{label}</span>
     </div>
   );
 }
