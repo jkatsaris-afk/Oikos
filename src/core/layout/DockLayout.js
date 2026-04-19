@@ -8,10 +8,10 @@ import {
 import { useState } from "react";
 
 export default function DockLayout({ children }) {
-  const [showSignupMenu, setShowSignupMenu] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const goTo = (path) => {
-    setShowSignupMenu(false);
+    setShowMenu(false);
     window.location.href = path;
   };
 
@@ -24,16 +24,16 @@ export default function DockLayout({ children }) {
       </div>
 
       {/* BACKDROP */}
-      {showSignupMenu && (
+      {showMenu && (
         <div
           className="popup-backdrop"
-          onClick={() => setShowSignupMenu(false)}
+          onClick={() => setShowMenu(false)}
         />
       )}
 
       {/* POPUP */}
-      {showSignupMenu && (
-        <div className="popup-wrap popup-signup">
+      {showMenu && (
+        <div className="popup-wrap">
           <div
             className="popup-card"
             onClick={(e) => e.stopPropagation()}
@@ -64,35 +64,24 @@ export default function DockLayout({ children }) {
       {/* DOCK */}
       <div className="nav-wrap">
 
-        {/* HOME (CURRENT SCREEN) */}
+        {/* HOME */}
         <NavItem
           icon={<Home size={22} />}
           label="Home"
           active={true}
-          onClick={() => {
-            setShowSignupMenu(false);
-          }}
+          onClick={() => setShowMenu(false)}
         />
 
-        {/* 🔥 TILE STORE (PERMANENT TILE) */}
+        {/* 🔥 TILE STORE (TEST POPUP HERE) */}
         <NavItem
           icon={<Grid size={22} />}
           label="Store"
-          active={false}
-          onClick={() => {
-            console.log("Tile Store coming soon");
-          }}
-        />
-
-        {/* ADD / POPUP */}
-        <NavItem
-          icon={<Users size={22} />}
-          label="Add"
-          active={showSignupMenu}
-          onClick={() => setShowSignupMenu(prev => !prev)}
+          active={showMenu}
+          onClick={() => setShowMenu(prev => !prev)}
         />
 
         {/* EMPTY */}
+        <EmptySlot />
         <EmptySlot />
         <EmptySlot />
 
