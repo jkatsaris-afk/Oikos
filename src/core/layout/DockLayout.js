@@ -59,7 +59,7 @@ export default function DockLayout({ children }) {
 
             {/* 🔥 HEADER */}
             <div className="overflow-header">
-              All Installed Apps
+              All Tile Apps
             </div>
 
             <div className="overflow-grid">
