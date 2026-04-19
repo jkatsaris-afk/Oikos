@@ -8,30 +8,35 @@ export default function DockLayout({ children }) {
   return (
     <div className="app-container">
 
-      {/* CONTENT */}
-      <div className="content">
+      {/* CONTENT AREA */}
+      <div className="content-area">
         {children}
       </div>
 
       {/* DOCK */}
       <div className="nav-wrap">
 
-        {/* 🔥 HOME (NO ROUTING) */}
+        {/* SLOT 1 - HOME */}
         <NavItem
           icon={<Home size={22} />}
           label="Home"
           active={true}
           onClick={() => {
-            // intentionally does nothing (OS-style behavior)
-            // later: reset scroll / widgets / state
-            console.log("Home pressed");
+            console.log("Home clicked");
           }}
         />
 
-        {/* 🔥 FUTURE TILE STORE ITEMS GO HERE */}
-        {/* Example later:
-        <NavItem icon={<Calendar />} label="Calendar" />
-        */}
+        {/* SLOT 2 */}
+        <EmptySlot />
+
+        {/* SLOT 3 */}
+        <EmptySlot />
+
+        {/* SLOT 4 */}
+        <EmptySlot />
+
+        {/* SLOT 5 */}
+        <EmptySlot />
 
       </div>
     </div>
@@ -49,4 +54,9 @@ function NavItem({ icon, label, active, onClick }) {
       <span>{label}</span>
     </div>
   );
+}
+
+/* EMPTY SLOT */
+function EmptySlot() {
+  return <div className="nav-item2 empty" />;
 }
