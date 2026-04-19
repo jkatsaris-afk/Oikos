@@ -1,0 +1,17 @@
+/* APP CONTAINER */
+.app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8f9fb;
+}
+
+/* CONTENT AREA */
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+
+  /* 🔥 THIS PREVENTS DOCK OVERLAP */
+  padding: 20px;
+  padding-bottom: 110px;
+}
