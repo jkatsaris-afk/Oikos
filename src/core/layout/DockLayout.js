@@ -10,39 +10,26 @@ import { useState } from "react";
 
 export default function DockLayout({ children }) {
   const [showSignupMenu, setShowSignupMenu] = useState(false);
-  const [showStore, setShowStore] = useState(false);
+  const [activeTile, setActiveTile] = useState("home"); // 🔥 controls screen
 
   const goTo = (path) => {
     setShowSignupMenu(false);
-    setShowStore(false);
     window.location.href = path;
   };
 
   return (
     <div className="app-container">
 
-      {/* CONTENT */}
+      {/* 🔥 CONTENT AREA SWITCH */}
       <div className="content-area">
-        {children}
+
+        {activeTile === "home" && children}
+
+        {activeTile === "store" && (
+          <TileStorePage />
+        )}
+
       </div>
-
-      {/* 🔥 TILE STORE OVERLAY */}
-      {showStore && (
-        <div className="store-overlay">
-          <div className="store-page">
-
-            <div className="store-header">
-              <span>Tile Store</span>
-              <button onClick={() => setShowStore(false)}>Close</button>
-            </div>
-
-            <div className="store-content">
-              Tile Store is working 👍
-            </div>
-
-          </div>
-        </div>
-      )}
 
       {/* BACKDROP */}
       {showSignupMenu && (
@@ -52,7 +39,7 @@ export default function DockLayout({ children }) {
         />
       )}
 
-      {/* POPUP */}
+      {/* POPUP (ADD) */}
       {showSignupMenu && (
         <div className="popup-wrap popup-signup">
           <div className="popup-card" onClick={(e) => e.stopPropagation()}>
@@ -65,28 +52,28 @@ export default function DockLayout({ children }) {
         </div>
       )}
 
-      {/* DOCK */}
+      {/* 🔥 DOCK */}
       <div className="nav-wrap">
 
         {/* HOME */}
         <NavItem
           icon={<Home size={22} />}
           label="Home"
-          active={true}
+          active={activeTile === "home"}
           onClick={() => {
             setShowSignupMenu(false);
-            setShowStore(false);
+            setActiveTile("home");
           }}
         />
 
-        {/* 🔥 TILE STORE */}
+        {/* STORE */}
         <NavItem
           icon={<Grid size={22} />}
           label="Store"
-          active={showStore}
+          active={activeTile === "store"}
           onClick={() => {
             setShowSignupMenu(false);
-            setShowStore(true);
+            setActiveTile("store");
           }}
         />
 
@@ -96,7 +83,7 @@ export default function DockLayout({ children }) {
           label="Add"
           active={showSignupMenu}
           onClick={() => {
-            setShowStore(false);
+            setActiveTile("home");
             setShowSignupMenu(prev => !prev);
           }}
         />
@@ -106,6 +93,18 @@ export default function DockLayout({ children }) {
         <EmptySlot />
 
       </div>
+    </div>
+  );
+}
+
+/* ========================= */
+/* TILE STORE PAGE */
+/* ========================= */
+function TileStorePage() {
+  return (
+    <div className="store-page-full">
+      <h2>Tile Store</h2>
+      <p>This is replacing the dashboard 👍</p>
     </div>
   );
 }
