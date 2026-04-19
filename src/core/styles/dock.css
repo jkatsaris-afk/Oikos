@@ -174,16 +174,18 @@
 /* ========================= */
 
 .overflow-header {
-  font-size: 18px;
+  font-size: 22px; /* 🔥 bigger */
   font-weight: 700;
 
-  padding: 4px 4px 12px 4px;
+  text-align: center; /* 🔥 centered */
 
-  color: #111;
+  padding: 6px 0 14px 0;
 
-  border-bottom: 1px solid rgba(0,0,0,0.08);
+  color: #fff; /* 🔥 white */
 
-  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+
+  margin-bottom: 12px;
 }
 
 /* ========================= */
