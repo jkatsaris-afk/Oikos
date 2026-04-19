@@ -19,7 +19,7 @@ export default function DockLayout({ children }) {
      BUILD INSTALLED TILE LIST
   ========================= */
   const installedTiles = tiles
-    .filter(t => t.installed)
+    .filter(t => t.installed && t.id !== "store") // 🔥 prevent store duplication
     .sort((a, b) => a.order - b.order)
     .map(t => ({
       ...t,
@@ -27,7 +27,7 @@ export default function DockLayout({ children }) {
     }));
 
   /* =========================
-     STORE TILE (ALWAYS LAST)
+     STORE TILE (FOR OVERFLOW)
   ========================= */
   const storeTile = {
     id: "store",
@@ -40,12 +40,15 @@ export default function DockLayout({ children }) {
   let visibleTiles = [];
   let overflowTiles = [];
 
-  if (installedTiles.length <= MAX_SLOTS - 1) {
-    visibleTiles = installedTiles;
-  } else {
-    visibleTiles = installedTiles.slice(0, MAX_SLOTS - 2);
-    overflowTiles = installedTiles.slice(MAX_SLOTS - 2);
-  }
+  /* =========================
+     🔥 FORCE 3 USER TILES MAX
+     home + 3 tiles + more
+  ========================= */
+  visibleTiles = installedTiles.slice(0, 3);
+  overflowTiles = installedTiles.slice(3);
+
+  /* 🔥 ALWAYS ADD STORE TO OVERFLOW */
+  overflowTiles = [...overflowTiles, storeTile];
 
   const showMore = overflowTiles.length > 0;
 
@@ -64,7 +67,7 @@ export default function DockLayout({ children }) {
       </div>
 
       {/* =========================
-          OVERFLOW PANEL (DOCK STYLE)
+          OVERFLOW PANEL
       ========================= */}
       {showOverflow && (
         <div
@@ -86,6 +89,8 @@ export default function DockLayout({ children }) {
                     key={tile.id}
                     className={`nav-item2 overflow-item ${
                       activeTile === tile.id ? "active" : ""
+                    } ${tile.id === "home" ? "home" : ""} ${
+                      tile.id === "store" ? "store" : ""
                     }`}
                     onClick={() => {
                       setShowOverflow(false);
@@ -109,14 +114,30 @@ export default function DockLayout({ children }) {
       ========================= */}
       <div className="nav-wrap">
 
-        {/* VISIBLE TILES */}
+        {/* 🔥 HOME TILE (ALWAYS FIRST) */}
+        <div
+          className={`nav-item2 home ${
+            activeTile === "home" ? "active" : ""
+          }`}
+          onClick={() => {
+            setShowOverflow(false);
+            setActiveTile("home");
+          }}
+        >
+          <Home size={22} />
+          <span>Home</span>
+        </div>
+
+        {/* USER PINNED TILES (MAX 3) */}
         {visibleTiles.map(tile => {
           const Icon = tile.icon;
 
           return (
             <div
               key={tile.id}
-              className={`nav-item2 ${activeTile === tile.id ? "active" : ""}`}
+              className={`nav-item2 ${
+                activeTile === tile.id ? "active" : ""
+              }`}
               onClick={() => {
                 setShowOverflow(false);
                 setActiveTile(tile.id);
@@ -128,10 +149,12 @@ export default function DockLayout({ children }) {
           );
         })}
 
-        {/* MORE BUTTON */}
+        {/* 🔥 MORE BUTTON */}
         {showMore && (
           <div
-            className={`nav-item2 ${showOverflow ? "active" : ""}`}
+            className={`nav-item2 more ${
+              showOverflow ? "active" : ""
+            }`}
             onClick={() => setShowOverflow(prev => !prev)}
           >
             <MoreHorizontal size={22} />
@@ -139,21 +162,9 @@ export default function DockLayout({ children }) {
           </div>
         )}
 
-        {/* STORE (ALWAYS LAST) */}
-        <div
-          className={`nav-item2 ${activeTile === "store" ? "active" : ""}`}
-          onClick={() => {
-            setShowOverflow(false);
-            setActiveTile("store");
-          }}
-        >
-          <Grid size={22} />
-          <span>Store</span>
-        </div>
-
-        {/* EMPTY SLOTS */}
+        {/* 🔥 EMPTY SLOT FILLER (ALWAYS 5) */}
         {Array.from({
-          length: MAX_SLOTS - (visibleTiles.length + (showMore ? 1 : 0) + 1)
+          length: MAX_SLOTS - (1 + visibleTiles.length + (showMore ? 1 : 0))
         }).map((_, i) => (
           <div key={`empty-${i}`} className="nav-item2 empty" />
         ))}
