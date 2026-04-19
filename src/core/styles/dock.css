@@ -1,5 +1,5 @@
 /* ========================= */
-/* DOCK WRAPPER */
+/* DOCK */
 /* ========================= */
 .nav-wrap {
   position: fixed;
@@ -25,7 +25,7 @@
 }
 
 /* ========================= */
-/* NAV ITEM (🔥 OUTLINE ADDED) */
+/* NAV ITEM */
 /* ========================= */
 .nav-item2 {
   display: flex;
@@ -44,23 +44,18 @@
 
   position: relative;
 
-  /* 🔥 NEW — MATCH POPUP CARD STYLE */
   background: rgba(255,255,255,0.35);
   border: 1px solid rgba(0,0,0,0.06);
 }
 
-/* ICON */
 .nav-item2 svg {
   margin-bottom: 4px;
 }
 
-/* HOVER */
 .nav-item2:hover {
   background: rgba(255,255,255,0.75);
-  border-color: rgba(0,0,0,0.12);
 }
 
-/* ACTIVE */
 .nav-item2.active {
   background: white;
   color: #0f7a3b;
@@ -70,55 +65,20 @@
   height: 76px;
   border-radius: 22px;
 
-  border: 1px solid rgba(0,0,0,0.12);
-
   box-shadow:
     0 10px 25px rgba(0,0,0,0.14),
     0 4px 10px rgba(0,0,0,0.06);
 }
 
-/* ACTIVE BAR */
-.nav-item2.active::after {
-  content: "";
-  position: absolute;
-
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 0;
-
-  width: 70%;
-  height: 6px;
-
-  background: #0f7a3b;
-  border-radius: 0 0 16px 16px;
-}
-
-/* PRESS */
-.nav-item2:active {
-  transform: scale(0.96);
-}
-
-/* EMPTY SLOT */
-.nav-item2.empty {
-  pointer-events: none;
-  opacity: 0;
-  border: none;
-  background: transparent;
-}
-
 /* ========================= */
-/* POPUP (UNCHANGED STYLE) */
+/* POPUP FIX (THIS IS THE IMPORTANT PART) */
 /* ========================= */
-.popup-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.25);
-  z-index: 90;
-}
-
 .popup-wrap {
   position: fixed;
-  bottom: 95px;
+
+  /* 🔥 KEY FIX — MORE SPACE ABOVE DOCK */
+  bottom: 110px;
+
   left: 0;
   right: 0;
 
@@ -144,6 +104,7 @@
   animation: popupSlideUp 0.18s ease-out;
 }
 
+/* POPUP ITEMS */
 .popup-item {
   display: flex;
   align-items: center;
@@ -164,6 +125,15 @@
   transform: translateX(4px);
 }
 
+/* BACKDROP */
+.popup-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  z-index: 90;
+}
+
+/* ANIMATION */
 @keyframes popupSlideUp {
   from {
     transform: translateY(25px);
@@ -173,4 +143,10 @@
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* EMPTY */
+.nav-item2.empty {
+  pointer-events: none;
+  opacity: 0;
 }
