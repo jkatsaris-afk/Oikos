@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Settings, Moon, User } from "lucide-react";
 
+/* 🔥 IMPORT YOUR LOGOS */
+import ChurchLogo from "../../assets/logos/Church-Logo.png";
+import CampusLogo from "../../assets/logos/Campus-Logo.png";
+import SportsLogo from "../../assets/logos/Sports-Logo.png";
+import DisplayLogo from "../../assets/logos/Display-Logo.png";
+
 export default function GlobalHeader({ mode }) {
   const [time, setTime] = useState(new Date());
 
@@ -20,7 +26,7 @@ export default function GlobalHeader({ mode }) {
   return (
     <div style={styles.header}>
 
-      {/* 🔥 LEFT SIDE (LOGO NOW HERE) */}
+      {/* LEFT SIDE (LOGO) */}
       <div style={styles.left}>
         <img
           src={getModeLogo(mode)}
@@ -29,7 +35,7 @@ export default function GlobalHeader({ mode }) {
         />
       </div>
 
-      {/* 🔥 RIGHT SIDE (BUTTONS + TIME) */}
+      {/* RIGHT SIDE */}
       <div style={styles.right}>
 
         {/* SETTINGS */}
@@ -65,19 +71,19 @@ export default function GlobalHeader({ mode }) {
 }
 
 /* ========================= */
-/* MODE LOGO */
+/* MODE → LOGO MAPPING */
 /* ========================= */
 
 function getModeLogo(mode) {
   switch (mode) {
     case "church":
-      return "/logos/church-logo.png";
+      return ChurchLogo;
     case "campus":
-      return "/logos/campus-logo.png";
+      return CampusLogo;
     case "sports":
-      return "/logos/sports-logo.png";
+      return SportsLogo;
     default:
-      return "/logos/display-logo.png";
+      return DisplayLogo;
   }
 }
 
