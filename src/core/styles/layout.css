@@ -11,3 +11,65 @@
   padding: 20px;
   padding-bottom: 110px;
 }
+/* ========================= */
+/* TEMPLATE PAGE */
+/* ========================= */
+.template-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* HEADER */
+.template-header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 12px;
+
+  background: rgba(255,255,255,0.8);
+  backdrop-filter: blur(10px);
+
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+/* HEADER SECTIONS */
+.template-header-left,
+.template-header-right {
+  width: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.template-header-right {
+  justify-content: flex-end;
+}
+
+.template-header-title {
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  flex: 1;
+}
+
+/* BUTTON */
+.template-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.template-btn:hover {
+  background: rgba(0,0,0,0.05);
+}
+
+/* CONTENT */
+.template-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
