@@ -1,15 +1,8 @@
 import { useEffect, useState } from "react";
 import { Settings, Moon, User } from "lucide-react";
 
-/* LOGOS */
-import ChurchLogo from "../../assets/logos/Church-Logo.png";
-import CampusLogo from "../../assets/logos/Campus-Logo.png";
-import SportsLogo from "../../assets/logos/Sports-Logo.png";
-
-/* DISPLAY MODE LOGOS */
-import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
-import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
-import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
+/* 🔥 MODE CONFIG IMPORT */
+import { getModeConfig } from "../theme/modeConfig";
 
 export default function GlobalHeader({ mode }) {
   const [time, setTime] = useState(new Date());
@@ -18,6 +11,7 @@ export default function GlobalHeader({ mode }) {
     const interval = setInterval(() => {
       setTime(new Date());
     }, 1000);
+
     return () => clearInterval(interval);
   }, []);
 
@@ -30,16 +24,20 @@ export default function GlobalHeader({ mode }) {
   return (
     <div style={styles.header}>
 
-      {/* LEFT SIDE (LOGO) */}
+      {/* =========================
+          LEFT (LOGO)
+      ========================= */}
       <div style={styles.left}>
         <img
-          src={getModeLogo(mode)}
-          alt="logo"
+          src={getModeConfig(mode).logo}
+          alt="mode logo"
           style={styles.logo}
         />
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* =========================
+          RIGHT (CONTROLS + TIME)
+      ========================= */}
       <div style={styles.right}>
 
         {/* DISPLAY ONLY BUTTONS */}
@@ -57,13 +55,16 @@ export default function GlobalHeader({ mode }) {
 
         {/* TIME */}
         <div style={styles.time}>
-          {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          {time.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
           <div style={styles.date}>
             {time.toLocaleDateString()}
           </div>
         </div>
 
-        {/* SETTINGS */}
+        {/* SETTINGS (NEXT TO TIME) */}
         <button style={styles.iconBtn}>
           <Settings size={20} />
         </button>
@@ -74,36 +75,9 @@ export default function GlobalHeader({ mode }) {
   );
 }
 
-/* ========================= */
-/* MODE → LOGO */
-/* ========================= */
-
-function getModeLogo(mode) {
-  switch (mode) {
-    case "church":
-      return ChurchLogo;
-
-    case "campus":
-      return CampusLogo;
-
-    case "sports":
-      return SportsLogo;
-
-    case "business":
-      return DisplayBusinessLogo;
-
-    case "education":
-      return DisplayEduLogo;
-
-    case "home":
-    default:
-      return DisplayHomeLogo;
-  }
-}
-
-/* ========================= */
-/* STYLES */
-/* ========================= */
+/* =========================
+   STYLES
+========================= */
 
 const styles = {
   header: {
@@ -116,8 +90,10 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+
     backdropFilter: "blur(12px)",
     background: "rgba(0,0,0,0.25)",
+
     color: "#fff",
     zIndex: 200,
   },
