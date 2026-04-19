@@ -36,7 +36,6 @@ export default function GlobalHeader({ mode }) {
       {/* RIGHT (CONTROLS) */}
       <div style={styles.right}>
 
-        {/* DISPLAY ONLY */}
         {isDisplayMode && (
           <>
             <button style={styles.iconBtn}>
@@ -49,12 +48,10 @@ export default function GlobalHeader({ mode }) {
           </>
         )}
 
-        {/* SETTINGS */}
         <button style={styles.iconBtn}>
           <Settings size={20} />
         </button>
 
-        {/* 🔥 CLOCK LAST */}
         <div style={styles.time}>
           {time.toLocaleTimeString([], {
             hour: "2-digit",
@@ -87,10 +84,15 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
 
-    backdropFilter: "blur(12px)",
-    background: "rgba(0,0,0,0.25)",
+    /* 🔥 WHITE GLASS BAR */
+    background: "rgba(255,255,255,0.85)",
+    backdropFilter: "blur(10px)",
 
-    color: "#fff",
+    /* 🔥 DARK TEXT NOW */
+    color: "#1f2937",
+
+    borderBottom: "1px solid rgba(0,0,0,0.06)",
+
     zIndex: 200,
   },
 
@@ -113,16 +115,16 @@ const styles = {
 
   date: {
     fontSize: 11,
-    opacity: 0.8,
+    opacity: 0.6,
   },
 
   iconBtn: {
-    background: "rgba(255,255,255,0.15)",
+    background: "rgba(0,0,0,0.05)",  // 🔥 subtle gray instead of white
     border: "none",
     borderRadius: 10,
     padding: 6,
     cursor: "pointer",
-    color: "#fff",
+    color: "#1f2937", // 🔥 dark icons
   },
 
   logo: {
