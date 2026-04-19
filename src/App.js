@@ -74,17 +74,23 @@ export default function App() {
       <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
         <Routes>
 
-          {/* ROOT */}
-          <Route path="/" element={<Navigate to="/display/home" />} />
+          {/* ROOT ✅ UPDATED */}
+          <Route path="/" element={<Navigate to="/home" />} />
 
-          {/* TEMPLATE ✅ ADDED */}
+          {/* TEMPLATE */}
           <Route path="/temp" element={<TemplateDashboard />} />
 
-          {/* DISPLAY */}
-          <Route path="/display/home" element={<DisplayHomeDashboard />} />
-          <Route path="/display/business" element={<DisplayBusinessDashboard />} />
-          <Route path="/display/edu" element={<DisplayEduDashboard />} />
-          <Route path="/display/nightstand" element={<DisplayNightstandDashboard />} />
+          {/* DISPLAY CLEAN URLS ✅ UPDATED */}
+          <Route path="/home" element={<DisplayHomeDashboard />} />
+          <Route path="/business" element={<DisplayBusinessDashboard />} />
+          <Route path="/edu" element={<DisplayEduDashboard />} />
+          <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
+
+          {/* OLD DISPLAY PATH REDIRECTS ✅ ADDED */}
+          <Route path="/display/home" element={<Navigate to="/home" />} />
+          <Route path="/display/business" element={<Navigate to="/business" />} />
+          <Route path="/display/edu" element={<Navigate to="/edu" />} />
+          <Route path="/display/nightstand" element={<Navigate to="/nightstand" />} />
 
           {/* DISPLAY MANAGER */}
           <Route path="/display-manager" element={<DisplayManagerDashboard />} />
