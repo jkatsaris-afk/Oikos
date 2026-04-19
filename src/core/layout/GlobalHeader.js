@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Settings, Moon, User } from "lucide-react";
 
-/* 🔥 IMPORT YOUR LOGOS */
+/* LOGOS */
 import ChurchLogo from "../../assets/logos/Church-Logo.png";
 import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
@@ -38,12 +38,7 @@ export default function GlobalHeader({ mode }) {
       {/* RIGHT SIDE */}
       <div style={styles.right}>
 
-        {/* SETTINGS */}
-        <button style={styles.iconBtn}>
-          <Settings size={20} />
-        </button>
-
-        {/* DISPLAY ONLY */}
+        {/* DISPLAY ONLY BUTTONS FIRST */}
         {isDisplayMode && (
           <>
             <button style={styles.iconBtn}>
@@ -56,13 +51,18 @@ export default function GlobalHeader({ mode }) {
           </>
         )}
 
-        {/* TIME */}
+        {/* 🔥 TIME */}
         <div style={styles.time}>
           {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           <div style={styles.date}>
             {time.toLocaleDateString()}
           </div>
         </div>
+
+        {/* 🔥 SETTINGS NEXT TO TIME */}
+        <button style={styles.iconBtn}>
+          <Settings size={20} />
+        </button>
 
       </div>
 
@@ -71,7 +71,7 @@ export default function GlobalHeader({ mode }) {
 }
 
 /* ========================= */
-/* MODE → LOGO MAPPING */
+/* MODE LOGO */
 /* ========================= */
 
 function getModeLogo(mode) {
