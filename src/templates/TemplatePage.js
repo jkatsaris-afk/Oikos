@@ -1,44 +1,56 @@
-import { Settings, ArrowLeft } from "lucide-react";
+import { Settings, Info, Trash2 } from "lucide-react";
 
 export default function TemplatePage({
   title = "Page",
   children,
-  showHeader = true,
-  showBack = false,
-  onBack = null,
-  rightAction = null
+
+  // controls
+  showSettings = true,
+  showInfo = true,
+  showUninstall = false,
+
+  // actions
+  onSettings = () => console.log("Settings clicked"),
+  onInfo = () => console.log("Info clicked"),
+  onUninstall = () => console.log("Uninstall clicked"),
 }) {
   return (
     <div className="template-page">
 
-      {showHeader && (
-        <div className="template-header">
+      {/* 🔥 TOP BAR (LIGHTWEIGHT) */}
+      <div className="template-top">
 
-          <div className="template-header-left">
-            {showBack && (
-              <button className="template-btn" onClick={onBack}>
-                <ArrowLeft size={18} />
-              </button>
-            )}
-          </div>
+        {/* TITLE */}
+        <div className="template-title">
+          {title}
+        </div>
 
-          <div className="template-header-title">
-            {title}
-          </div>
+        {/* ACTIONS */}
+        <div className="template-actions">
 
-          <div className="template-header-right">
-            {rightAction ? (
-              rightAction
-            ) : (
-              <button className="template-btn">
-                <Settings size={18} />
-              </button>
-            )}
-          </div>
+          {showSettings && (
+            <button className="template-icon-btn" onClick={onSettings}>
+              <Settings size={20} />
+            </button>
+          )}
+
+          {showInfo && (
+            <button className="template-icon-btn" onClick={onInfo}>
+              <Info size={20} />
+            </button>
+          )}
+
+          {showUninstall && (
+            <button className="template-icon-btn danger" onClick={onUninstall}>
+              <Trash2 size={20} />
+            </button>
+          )}
 
         </div>
-      )}
 
+      </div>
+
+      {/* CONTENT */}
       <div className="template-content">
         {children}
       </div>
