@@ -1,3 +1,7 @@
+/* ========================= */
+/* DOCK */
+/* ========================= */
+
 .nav-wrap {
   position: fixed;
   bottom: 10px;
@@ -7,9 +11,9 @@
   height: 72px;
   padding: 6px;
 
-  /* 🔥 MODE TINT (LIGHT GLASS) */
+  /* 🔥 MODE COLOR GLASS */
   background: rgba(var(--color-primary-rgb), 0.08);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(14px);
 
   border-radius: 28px;
 
@@ -98,7 +102,7 @@
 }
 
 /* ========================= */
-/* 🔥 MORE + STORE (MODE COLOR ALWAYS) */
+/* 🔥 MORE + STORE */
 /* ========================= */
 
 .nav-item2.more,
@@ -112,21 +116,19 @@
   background: rgba(var(--color-primary-rgb), 0.18);
 }
 
-/* ACTIVE STATE */
 .nav-item2.more.active,
 .nav-item2.store.active {
   background: rgba(var(--color-primary-rgb), 0.18);
   color: var(--color-primary);
 }
 
-/* BAR */
 .nav-item2.more.active::after,
 .nav-item2.store.active::after {
   background: var(--color-primary);
 }
 
 /* ========================= */
-/* EMPTY */
+/* EMPTY SLOT */
 /* ========================= */
 
 .nav-item2.empty {
@@ -135,7 +137,7 @@
 }
 
 /* ========================= */
-/* OLD POPUP */
+/* OLD POPUP (SAFE TO KEEP) */
 /* ========================= */
 
 .popup-wrap {
@@ -198,7 +200,7 @@
 }
 
 /* ========================= */
-/* 🔥 OVERFLOW PANEL (STRONGER MODE COLOR) */
+/* 🔥 OVERFLOW PANEL */
 /* ========================= */
 
 .overflow-backdrop {
@@ -215,24 +217,34 @@
   left: 12px;
   right: 12px;
 
-  /* 🔥 STRONGER THAN DOCK */
-  background: rgba(var(--color-primary-rgb), 0.18);
-  backdrop-filter: blur(16px);
+  /* 🔥 SAME AS DOCK */
+  background: rgba(var(--color-primary-rgb), 0.08);
+  backdrop-filter: blur(14px);
 
   border-radius: 28px;
-  padding: 12px;
+  padding: 16px;
+
+  /* 🔥 HALF SCREEN */
+  height: 50vh;
+  max-height: 50vh;
 
   box-shadow: 0 20px 40px rgba(0,0,0,0.18);
 
   z-index: 120;
+
+  display: flex;
+  flex-direction: column;
 }
 
+/* SCROLLABLE GRID */
 .overflow-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 12px;
+
+  overflow-y: auto;
 }
 
 .overflow-item {
-  height: 64px;
+  height: 70px;
 }
