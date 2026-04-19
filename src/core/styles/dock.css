@@ -7,7 +7,7 @@
   height: 72px;
   padding: 6px;
 
-  /* 🔥 MODE TINT (WAS WHITE) */
+  /* 🔥 MODE TINT (LIGHT GLASS) */
   background: rgba(var(--color-primary-rgb), 0.08);
   backdrop-filter: blur(10px);
 
@@ -21,6 +21,10 @@
   box-shadow: 0 10px 25px rgba(0,0,0,0.10);
   z-index: 100;
 }
+
+/* ========================= */
+/* BASE TILE */
+/* ========================= */
 
 .nav-item2 {
   position: relative;
@@ -41,14 +45,14 @@
   cursor: pointer;
   transition: all 0.25s ease;
 
-  background: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.45);
   backdrop-filter: blur(10px);
 
   border: 1px solid rgba(0,0,0,0.05);
 }
 
 /* ========================= */
-/* DEFAULT ACTIVE (OTHER APPS) */
+/* DEFAULT ACTIVE */
 /* ========================= */
 
 .nav-item2.active {
@@ -86,13 +90,38 @@
 
 .nav-item2.home.active {
   color: var(--color-primary);
-
-  /* GLASS WITH MODE TINT */
   background: rgba(var(--color-primary-rgb), 0.12);
 }
 
-/* MODE COLOR BAR */
 .nav-item2.home.active::after {
+  background: var(--color-primary);
+}
+
+/* ========================= */
+/* 🔥 MORE + STORE (MODE COLOR ALWAYS) */
+/* ========================= */
+
+.nav-item2.more,
+.nav-item2.store {
+  color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.10);
+}
+
+.nav-item2.more:hover,
+.nav-item2.store:hover {
+  background: rgba(var(--color-primary-rgb), 0.18);
+}
+
+/* ACTIVE STATE */
+.nav-item2.more.active,
+.nav-item2.store.active {
+  background: rgba(var(--color-primary-rgb), 0.18);
+  color: var(--color-primary);
+}
+
+/* BAR */
+.nav-item2.more.active::after,
+.nav-item2.store.active::after {
   background: var(--color-primary);
 }
 
@@ -106,7 +135,7 @@
 }
 
 /* ========================= */
-/* OLD POPUP (SAFE TO KEEP) */
+/* OLD POPUP */
 /* ========================= */
 
 .popup-wrap {
@@ -169,7 +198,7 @@
 }
 
 /* ========================= */
-/* OVERFLOW (DOCK EXPANSION) */
+/* 🔥 OVERFLOW PANEL (STRONGER MODE COLOR) */
 /* ========================= */
 
 .overflow-backdrop {
@@ -186,9 +215,9 @@
   left: 12px;
   right: 12px;
 
-  /* 🔥 MATCH DOCK GLASS WITH MODE TINT */
-  background: rgba(var(--color-primary-rgb), 0.10);
-  backdrop-filter: blur(12px);
+  /* 🔥 STRONGER THAN DOCK */
+  background: rgba(var(--color-primary-rgb), 0.18);
+  backdrop-filter: blur(16px);
 
   border-radius: 28px;
   padding: 12px;
