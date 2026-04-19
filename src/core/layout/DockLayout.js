@@ -29,11 +29,8 @@ export default function DockLayout({ children }) {
     icon: Grid,
   };
 
-  const MAX_SLOTS = 5;
-
   const visibleTiles = installedTiles.slice(0, 3);
 
-  /* 🔥 STORE FIRST IN OVERFLOW */
   let overflowTiles = [
     storeTile,
     ...installedTiles.slice(3),
@@ -45,10 +42,8 @@ export default function DockLayout({ children }) {
     <div className="app-container">
 
       <div className="content-area">
-
         {activeTile === "home" && children}
         {activeTile === "store" && <TileStorePage />}
-
       </div>
 
       {/* OVERFLOW */}
@@ -62,8 +57,12 @@ export default function DockLayout({ children }) {
             onClick={(e) => e.stopPropagation()}
           >
 
-            <div className="overflow-grid">
+            {/* 🔥 HEADER */}
+            <div className="overflow-header">
+              All Installed Apps
+            </div>
 
+            <div className="overflow-grid">
               {overflowTiles.map(tile => {
                 const Icon = tile.icon;
 
@@ -85,7 +84,6 @@ export default function DockLayout({ children }) {
                   </div>
                 );
               })}
-
             </div>
 
           </div>
@@ -95,7 +93,6 @@ export default function DockLayout({ children }) {
       {/* DOCK */}
       <div className="nav-wrap">
 
-        {/* HOME */}
         <div
           className={`nav-item2 home ${
             activeTile === "home" ? "active" : ""
@@ -109,7 +106,6 @@ export default function DockLayout({ children }) {
           <span>Home</span>
         </div>
 
-        {/* USER TILES */}
         {visibleTiles.map(tile => {
           const Icon = tile.icon;
 
@@ -130,7 +126,6 @@ export default function DockLayout({ children }) {
           );
         })}
 
-        {/* MORE */}
         {showMore && (
           <div
             className={`nav-item2 more ${
@@ -143,9 +138,8 @@ export default function DockLayout({ children }) {
           </div>
         )}
 
-        {/* EMPTY */}
         {Array.from({
-          length: MAX_SLOTS - (1 + visibleTiles.length + (showMore ? 1 : 0))
+          length: 5 - (1 + visibleTiles.length + (showMore ? 1 : 0))
         }).map((_, i) => (
           <div key={`empty-${i}`} className="nav-item2 empty" />
         ))}
