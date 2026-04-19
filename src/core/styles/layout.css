@@ -12,47 +12,5 @@
   overflow-y: auto;
 
   padding: 20px;
-  padding-bottom: 110px; /* space for dock */
-}
-
-/* POPUP BACKDROP */
-.popup-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.25);
-  z-index: 90;
-}
-
-/* POPUP CONTAINER */
-.popup-container {
-  position: fixed;
-  bottom: 100px;
-  left: 0;
-  right: 0;
-
-  display: flex;
-  justify-content: center;
-
-  z-index: 110;
-}
-
-/* POPUP CARD */
-.popup-card {
-  background: white;
-  border-radius: 16px;
-  padding: 12px;
-  min-width: 200px;
-
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-}
-
-/* POPUP ITEM */
-.popup-item {
-  padding: 10px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.popup-item:hover {
-  background: #f0f0f0;
+  padding-bottom: 110px;
 }
