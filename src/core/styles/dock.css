@@ -1,7 +1,6 @@
 /* ========================= */
-/* DOCK SYSTEM */
+/* DOCK WRAPPER */
 /* ========================= */
-
 .nav-wrap {
   position: fixed;
   bottom: 10px;
@@ -9,24 +8,27 @@
   right: 12px;
 
   height: 72px;
-  padding: 6px;
+  border-radius: 24px;
 
-  background: rgba(255,255,255,0.65);
-  backdrop-filter: blur(10px);
-
-  border-radius: 28px;
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(12px);
 
   display: flex;
   justify-content: space-between;
   align-items: center;
 
-  box-shadow: 0 10px 25px rgba(0,0,0,0.10);
+  padding: 0 10px;
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+
   z-index: 100;
 }
 
+/* ========================= */
+/* NAV ITEM */
+/* ========================= */
 .nav-item2 {
   flex: 1;
-  position: relative;
 
   display: flex;
   flex-direction: column;
@@ -34,55 +36,76 @@
   justify-content: center;
 
   font-size: 11px;
-  color: #9ca3af;
+  font-weight: 500;
 
-  height: 60px;
+  color: #666;
 
-  border-radius: 20px;
-
-  transition: all 0.25s ease;
   cursor: pointer;
+  transition: all 0.2s ease;
+
+  user-select: none;
 }
 
+/* ========================= */
+/* NAV ICON */
+/* ========================= */
 .nav-item2 svg {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  transition: transform 0.2s ease;
 }
 
+/* ========================= */
+/* HOVER */
+/* ========================= */
+.nav-item2:hover {
+  color: #333;
+}
+
+.nav-item2:hover svg {
+  transform: scale(1.08);
+}
+
+/* ========================= */
+/* ACTIVE */
+/* ========================= */
 .nav-item2.active {
-  background: #ffffff;
   color: #0f7a3b;
-
-  transform: translateY(-24px) scale(1.04);
-
-  height: 76px;
-
-  border-radius: 24px;
-
-  box-shadow:
-    0 10px 25px rgba(0,0,0,0.14),
-    0 4px 10px rgba(0,0,0,0.06);
+  transform: translateY(-6px);
 }
 
+.nav-item2.active svg {
+  transform: scale(1.12);
+}
+
+/* ========================= */
+/* EMPTY SLOT */
+/* ========================= */
+.nav-item2.empty {
+  pointer-events: none;
+}
+
+/* ========================= */
+/* OPTIONAL: ACTIVE GLOW */
+/* ========================= */
 .nav-item2.active::after {
   content: "";
   position: absolute;
-
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 0;
-
-  width: 70%;
+  bottom: 6px;
+  width: 6px;
   height: 6px;
-
+  border-radius: 50%;
   background: #0f7a3b;
-
-  border-radius: 0 0 16px 16px;
 }
 
-.nav-item2.active span {
-  font-weight: 600;
-}
+/* ========================= */
+/* RESPONSIVE */
+/* ========================= */
+@media (max-width: 480px) {
+  .nav-wrap {
+    height: 64px;
+  }
 
-.nav-item2:active {
-  transform: scale(0.96);
+  .nav-item2 {
+    font-size: 10px;
+  }
 }
