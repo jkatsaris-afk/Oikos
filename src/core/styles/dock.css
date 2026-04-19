@@ -8,8 +8,8 @@
   left: 20px;
   right: 20px;
 
-  height: 80px; /* 🔥 was 72 */
-  padding: 8px; /* 🔥 slightly more breathing room */
+  height: 80px;
+  padding: 8px;
 
   background: rgba(var(--color-primary-rgb), 0.08);
   backdrop-filter: blur(14px);
@@ -37,10 +37,10 @@
   align-items: center;
   justify-content: center;
 
-  font-size: 12px; /* 🔥 slightly bigger */
+  font-size: 12px;
   color: #1f2937;
 
-  height: 60px; /* 🔥 was 56 */
+  height: 60px;
   margin: 4px;
 
   border-radius: 16px;
@@ -55,17 +55,12 @@
 }
 
 /* ========================= */
-/* 🔥 ACTIVE TILE (MODE COLOR - NO GLASS) */
+/* 🔥 ACTIVE TILE (FINAL FIX) */
 /* ========================= */
 
 .nav-item2.active {
-  /* 🔥 FULL MODE COLOR */
   background: var(--color-primary);
-
-  /* 🔥 NO GLASS */
   backdrop-filter: none;
-
-  /* 🔥 WHITE TEXT FOR CONTRAST */
   color: #fff;
 
   transform: translateY(-14px);
@@ -80,7 +75,7 @@
   border: 1px solid rgba(0,0,0,0.08);
 }
 
-/* 🔥 ACTIVE BAR MATCHES MODE */
+/* ACTIVE BAR */
 .nav-item2.active::after {
   content: "";
   position: absolute;
@@ -95,6 +90,7 @@
 
   border-radius: 0 0 12px 12px;
 }
+
 /* ========================= */
 /* HOME TILE */
 /* ========================= */
@@ -102,15 +98,6 @@
 .nav-item2.home {
   background: rgba(var(--color-primary-rgb), 0.9);
   color: #fff;
-}
-
-.nav-item2.home.active {
-  color: var(--color-primary);
-  background: rgba(var(--color-primary-rgb), 0.18);
-}
-
-.nav-item2.home.active::after {
-  background: var(--color-primary);
 }
 
 /* ========================= */
@@ -121,17 +108,6 @@
 .nav-item2.store {
   background: rgba(var(--color-primary-rgb), 0.9);
   color: #fff;
-}
-
-.nav-item2.more.active,
-.nav-item2.store.active {
-  background: rgba(var(--color-primary-rgb), 0.2);
-  color: var(--color-primary);
-}
-
-.nav-item2.more.active::after,
-.nav-item2.store.active::after {
-  background: var(--color-primary);
 }
 
 /* ========================= */
@@ -157,7 +133,7 @@
 .overflow-panel {
   position: fixed;
 
-  bottom: 130px; /* 🔥 adjusted for taller dock */
+  bottom: 130px;
   left: 20px;
   right: 20px;
 
@@ -179,7 +155,7 @@
 }
 
 /* ========================= */
-/* 🔥 OVERFLOW HEADER (LESS GLASS) */
+/* OVERFLOW HEADER */
 /* ========================= */
 
 .overflow-header {
@@ -192,7 +168,6 @@
   margin-bottom: 12px;
 
   background: rgba(0, 0, 0, 0.45);
-
   color: #fff;
 
   border-radius: 16px;
@@ -215,5 +190,5 @@
 }
 
 .overflow-item {
-  height: 72px; /* 🔥 match tile size */
+  height: 72px;
 }
