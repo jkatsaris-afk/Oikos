@@ -17,9 +17,10 @@ export default function DockLayout({ children }) {
 
   /* =========================
      BUILD INSTALLED TILE LIST
+     🔥 FIX: remove home + store
   ========================= */
   const installedTiles = tiles
-    .filter(t => t.installed && t.id !== "store") // 🔥 prevent store duplication
+    .filter(t => t.installed && t.id !== "home" && t.id !== "store")
     .sort((a, b) => a.order - b.order)
     .map(t => ({
       ...t,
@@ -37,17 +38,14 @@ export default function DockLayout({ children }) {
 
   const MAX_SLOTS = 5;
 
-  let visibleTiles = [];
-  let overflowTiles = [];
-
   /* =========================
-     🔥 FORCE 3 USER TILES MAX
-     home + 3 tiles + more
+     🔥 STRUCTURE
+     Home + 3 tiles + More
   ========================= */
-  visibleTiles = installedTiles.slice(0, 3);
-  overflowTiles = installedTiles.slice(3);
+  const visibleTiles = installedTiles.slice(0, 3);
+  let overflowTiles = installedTiles.slice(3);
 
-  /* 🔥 ALWAYS ADD STORE TO OVERFLOW */
+  /* 🔥 ALWAYS INCLUDE STORE IN OVERFLOW */
   overflowTiles = [...overflowTiles, storeTile];
 
   const showMore = overflowTiles.length > 0;
@@ -114,7 +112,7 @@ export default function DockLayout({ children }) {
       ========================= */}
       <div className="nav-wrap">
 
-        {/* 🔥 HOME TILE (ALWAYS FIRST) */}
+        {/* 🔥 HOME TILE (SYSTEM) */}
         <div
           className={`nav-item2 home ${
             activeTile === "home" ? "active" : ""
@@ -128,7 +126,7 @@ export default function DockLayout({ children }) {
           <span>Home</span>
         </div>
 
-        {/* USER PINNED TILES (MAX 3) */}
+        {/* 🔥 USER PINNED TILES (MAX 3) */}
         {visibleTiles.map(tile => {
           const Icon = tile.icon;
 
@@ -162,7 +160,7 @@ export default function DockLayout({ children }) {
           </div>
         )}
 
-        {/* 🔥 EMPTY SLOT FILLER (ALWAYS 5) */}
+        {/* 🔥 EMPTY SLOTS TO KEEP 5 GRID */}
         {Array.from({
           length: MAX_SLOTS - (1 + visibleTiles.length + (showMore ? 1 : 0))
         }).map((_, i) => (
