@@ -10,7 +10,7 @@ import { tileRegistry } from "../tiles/tileRegistry";
 import useUserTiles from "../tiles/useUserTiles";
 
 /* 🔥 ADDED */
-import TilePageLayout from "../pages/TilePageLayout";
+import TilePageLayout from "./TilePageLayout";
 import SettingsModal from "../settings/SettingsModal";
 import React from "react";
 
