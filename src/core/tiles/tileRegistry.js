@@ -1,67 +1,30 @@
-/**
- * =========================================
- * TILE REGISTRY (REPAIRED)
- * =========================================
- * Purpose:
- * - Defines what tiles exist
- * - Maps tile IDs to their page components
- * - Contains ONLY logic (NO UI)
- *
- * UI is handled in:
- * - tileDesign.js
- *
- * ✅ FIXES INCLUDED:
- * - Correct import path to AnnouncementPage
- * - Uses .page (not .component)
- * - Clean structure for scaling
- */
+import { Home, StickyNote, Grid } from "lucide-react";
 
-import AnnouncementPage from "../../tiles/announcements/AnnouncementPage";
+import AnnouncementTile from "../../platforms/church/tiles/announcements/AnnouncementTile";
+import AnnouncementSettings from "../../platforms/church/tiles/announcements/AnnouncementSettings";
+import AnnouncementWidget from "../../platforms/church/tiles/announcements/AnnouncementWidget";
 
 export const tileRegistry = {
-  /**
-   * =========================================
-   * ANNOUNCEMENTS TILE
-   * =========================================
-   */
-  announcements: {
-    id: "announcements",
-
-    // 🔥 MAIN PAGE COMPONENT
-    page: AnnouncementPage,
-
-    // 🔥 OPTIONAL FLAGS (future safe)
-    system: false,
-    noUninstall: false,
-  },
-
-  /**
-   * =========================================
-   * FUTURE TILE EXAMPLES
-   * =========================================
-   * Uncomment when ready and create matching files
-   */
-
-  /*
-  calendar: {
-    id: "calendar",
-    page: CalendarPage,
-    system: false,
-    noUninstall: false,
-  },
-
-  chores: {
-    id: "chores",
-    page: ChoresPage,
-    system: false,
-    noUninstall: false,
-  },
-
   home: {
     id: "home",
-    page: HomePage,
-    system: true, // cannot uninstall
+    label: "Home",
+    icon: Home,
+    system: true,
+  },
+
+  announcements: {
+    id: "announcements",
+    label: "Announcements",
+    icon: StickyNote,
+    component: AnnouncementTile,
+    settings: AnnouncementSettings,
+    widget: AnnouncementWidget,
+  },
+
+  store: {
+    id: "store",
+    label: "Store",
+    icon: Grid,
     noUninstall: true,
   },
-  */
 };
