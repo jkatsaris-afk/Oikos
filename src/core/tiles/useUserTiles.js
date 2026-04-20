@@ -5,14 +5,23 @@ export default function useUserTiles() {
   const [tiles, setTiles] = useState([
     { id: "home", order: 1, installed: true },
     { id: "announcements", order: 2, installed: true },
-    { id: "sermon", order: 3, installed: true }, // 🔥 ADDED
+    { id: "sermon", order: 3, installed: true },
   ]);
 
   /* =========================
-     SORT TILES (ALWAYS SAFE)
+     SORT TILES (SAFE + STABLE)
   ========================= */
   const getSortedTiles = (tileList) => {
     return [...tileList].sort((a, b) => a.order - b.order);
+  };
+
+  /* =========================
+     GET INSTALLED ONLY
+  ========================= */
+  const getInstalledTiles = () => {
+    return getSortedTiles(
+      tiles.filter(t => t.installed)
+    );
   };
 
   /* =========================
@@ -30,16 +39,16 @@ export default function useUserTiles() {
           : tile
       );
 
-      // 🔥 RE-ORDER INSTALLED TILES CLEANLY
+      // 🔥 REORDER INSTALLED ONLY
       const installed = updated.filter(t => t.installed);
       const uninstalled = updated.filter(t => !t.installed);
 
-      const reordered = installed.map((tile, index) => ({
+      const reorderedInstalled = installed.map((tile, index) => ({
         ...tile,
         order: index + 1,
       }));
 
-      return [...reordered, ...uninstalled];
+      return [...reorderedInstalled, ...uninstalled];
     });
   };
 
@@ -51,7 +60,6 @@ export default function useUserTiles() {
 
       const exists = prev.find(t => t.id === tileId);
 
-      // 🔥 GET NEXT ORDER SLOT
       const nextOrder =
         prev.filter(t => t.installed).length + 1;
 
@@ -79,17 +87,24 @@ export default function useUserTiles() {
   };
 
   /* =========================
-     REORDER (FUTURE DRAG)
+     REORDER (FUTURE)
   ========================= */
   const reorderTiles = (newTiles) => {
     setTiles(newTiles);
   };
 
   /* =========================
-     RETURN SORTED TILES
+     DEBUG (TEMP — REMOVE LATER)
+  ========================= */
+  console.log("ALL TILES:", tiles);
+  console.log("INSTALLED TILES:", getInstalledTiles());
+
+  /* =========================
+     RETURN
   ========================= */
   return {
     tiles: getSortedTiles(tiles),
+    installedTiles: getInstalledTiles(), // 🔥 NEW (use this in Dock if needed)
     setTiles,
     uninstallTile,
     installTile,
