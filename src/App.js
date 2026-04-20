@@ -13,6 +13,10 @@ import ThemeProvider from "./core/theme/ThemeProvider";
 // 🔥 AUTH PROTECTION (ADDED)
 import RequireAuth from "./auth/RequireAuth";
 
+// 🔥 GLOBAL SYSTEM PAGES (ADDED)
+import PendingApprovalPage from "./core/pages/PendingApprovalPage";
+import NoAccessPage from "./core/pages/NoAccessPage";
+
 // 🔥 Helper for lazy pages
 const load = (path) =>
   lazy(() =>
@@ -199,6 +203,10 @@ export default function App() {
 
               {/* BILLING */}
               <Route path="/billing" element={<BillingOverview />} />
+
+              {/* 🔥 SYSTEM ROUTES (ADDED) */}
+              <Route path="/pending-approval" element={<PendingApprovalPage />} />
+              <Route path="/no-access" element={<NoAccessPage />} />
 
               {/* FALLBACK */}
               <Route path="*" element={<div style={{ padding: 20 }}>404 - Page not found</div>} />
