@@ -6,10 +6,7 @@
   display: flex;
   flex-direction: column;
 
-  /* 🔥 FIX: ensure full viewport height */
   min-height: 100vh;
-
-  /* 🔥 FIX: account for global header */
   padding-top: 60px;
 
   box-sizing: border-box;
@@ -25,9 +22,6 @@
   align-items: center;
 
   padding: 12px 16px;
-
-  /* 🔥 REMOVE margin-top (causes layout issues) */
-  /* margin-top: 60px; ❌ */
 
   background: rgba(255,255,255,0.85);
   backdrop-filter: blur(10px);
@@ -67,6 +61,21 @@
   color: #dc2626;
 }
 
+/* 🔥 NEW: UNINSTALL BUTTON */
+
+.uninstall-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.uninstall-btn span {
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* ========================= */
 /* BODY */
 /* ========================= */
@@ -74,14 +83,8 @@
 .tile-body {
   display: flex;
   flex-direction: column;
-
-  /* 🔥 FIX: allow content to expand properly */
   flex: 1;
-
-  /* 🔥 prevent overflow issues */
   overflow: hidden;
-
-  /* 🔥 FIX: space for bottom dock */
   padding-bottom: 110px;
 }
 
@@ -101,12 +104,7 @@
 
 .tile-content {
   flex: 1;
-
-  /* 🔥 FIX: scrolling works correctly */
   overflow-y: auto;
-
   padding: 16px;
-
-  /* 🔥 prevents weird flex shrinking */
   min-height: 0;
 }
