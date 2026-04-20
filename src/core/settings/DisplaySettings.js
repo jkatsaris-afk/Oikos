@@ -1,3 +1,5 @@
+import SettingsLayout from "./SettingsLayout";
+
 export default function DisplaySettings() {
   const sections = [
     {
