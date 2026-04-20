@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
+import { tileDesign } from "../tiles/tileDesign"; // 🔥 NEW
 import useUserTiles from "../tiles/useUserTiles";
 
 import TilePageLayout from "./TilePageLayout";
@@ -17,11 +18,12 @@ export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
   const [openTileSettings, setOpenTileSettings] = useState(false);
+  const [openTileInfo, setOpenTileInfo] = useState(false); // 🔥 NEW
 
   const { tiles } = useUserTiles();
 
   /* =========================
-     SAFE TILE BUILD (FIX)
+     SAFE TILE BUILD
   ========================= */
   const installedTiles = tiles
     .filter(t => t.installed && t.id !== "home" && t.id !== "store")
@@ -42,8 +44,6 @@ export default function DockLayout({ children }) {
 
   const storeTile = {
     id: "store",
-    label: "Store",
-    icon: Grid,
   };
 
   const visibleTiles = installedTiles.slice(0, 3);
@@ -55,7 +55,8 @@ export default function DockLayout({ children }) {
 
   const showMore = overflowTiles.length > 0;
 
-  const ActiveComponent = tileRegistry[activeTile]?.component;
+  /* 🔥 FIXED: use .page instead of .component */
+  const ActiveComponent = tileRegistry[activeTile]?.page;
 
   return (
     <div className="app-container">
@@ -71,8 +72,9 @@ export default function DockLayout({ children }) {
 
         {activeTile !== "home" && activeTile !== "store" && (
           <TilePageLayout
-            title={tileRegistry[activeTile]?.label || "App"}
+            title={tileDesign[activeTile]?.label || "App"} // 🔥 FIXED
             onSettings={() => setOpenTileSettings(true)}
+            onInfo={() => setOpenTileInfo(true)} // 🔥 NEW
             showUninstall={
               !tileRegistry[activeTile]?.system &&
               !tileRegistry[activeTile]?.noUninstall
@@ -106,6 +108,20 @@ export default function DockLayout({ children }) {
       )}
 
       {/* =========================
+          INFO MODAL (NEW)
+      ========================= */}
+      {openTileInfo && tileRegistry[activeTile]?.info && (
+        <SettingsModal
+          open={openTileInfo}
+          onClose={() => setOpenTileInfo(false)}
+        >
+          {React.createElement(tileRegistry[activeTile].info, {
+            tileId: activeTile,
+          })}
+        </SettingsModal>
+      )}
+
+      {/* =========================
           OVERFLOW
       ========================= */}
       {showOverflow && (
@@ -124,7 +140,8 @@ export default function DockLayout({ children }) {
 
             <div className="overflow-grid">
               {overflowTiles.map(tile => {
-                const Icon = tile.icon;
+                const design = tileDesign[tile.id];
+                const Icon = design?.icon;
 
                 if (!Icon) return null;
 
@@ -140,7 +157,7 @@ export default function DockLayout({ children }) {
                     }}
                   >
                     <Icon size={22} />
-                    <span>{tile.label}</span>
+                    <span>{design?.label}</span>
                   </div>
                 );
               })}
@@ -155,6 +172,7 @@ export default function DockLayout({ children }) {
       ========================= */}
       <div className="nav-wrap">
 
+        {/* HOME */}
         <div
           className={`nav-item2 home ${
             activeTile === "home" ? "active" : ""
@@ -168,8 +186,10 @@ export default function DockLayout({ children }) {
           <span>Home</span>
         </div>
 
+        {/* MAIN TILES */}
         {visibleTiles.map(tile => {
-          const Icon = tile.icon;
+          const design = tileDesign[tile.id];
+          const Icon = design?.icon;
 
           if (!Icon) return null;
 
@@ -185,11 +205,12 @@ export default function DockLayout({ children }) {
               }}
             >
               <Icon size={22} />
-              <span>{tile.label}</span>
+              <span>{design?.label}</span>
             </div>
           );
         })}
 
+        {/* MORE */}
         {showMore && (
           <div
             className={`nav-item2 more ${
@@ -202,6 +223,7 @@ export default function DockLayout({ children }) {
           </div>
         )}
 
+        {/* EMPTY SLOTS */}
         {Array.from({
           length: 5 - (1 + visibleTiles.length + (showMore ? 1 : 0))
         }).map((_, i) => (
