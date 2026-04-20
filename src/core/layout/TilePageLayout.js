@@ -47,10 +47,15 @@ export default function TilePageLayout({
 
           {showUninstall && (
             <button
-              className="tile-icon-btn danger"
-              onClick={onUninstall}
+              className="tile-icon-btn danger uninstall-btn"
+              onClick={() => {
+                if (window.confirm("Uninstall this app?")) {
+                  onUninstall();
+                }
+              }}
             >
-              <Trash2 size={20} />
+              <Trash2 size={18} />
+              <span>Uninstall</span>
             </button>
           )}
 
