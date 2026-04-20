@@ -4,6 +4,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 // 🔥 IMPORT DOCK LAYOUT
 import DockLayout from "./core/layout/DockLayout";
 
+// 🔥 IMPORT GLOBAL HEADER (FIX)
+import GlobalHeader from "./core/layout/GlobalHeader";
+
 // 🔥 IMPORT THEME PROVIDER
 import ThemeProvider from "./core/theme/ThemeProvider";
 
@@ -46,7 +49,7 @@ const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
 
 // =========================
-// 🔥 PAGES (ADDED)
+// 🔥 PAGES
 // =========================
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
 
@@ -92,7 +95,7 @@ function ModeWrapper({ children }) {
   else if (location.pathname.startsWith("/nightstand")) mode = "nightstand";
   else if (location.pathname.startsWith("/church")) mode = "church";
   else if (location.pathname.startsWith("/campus")) mode = "campus";
-  else if (location.pathname.startsWith("/pages")) mode = "pages"; // 🔥 ADDED
+  else if (location.pathname.startsWith("/pages")) mode = "pages";
   else if (location.pathname.startsWith("/sports")) mode = "sports";
   else if (location.pathname.startsWith("/farm")) mode = "farm";
 
@@ -131,6 +134,9 @@ export default function App() {
         {/* MODE + THEME */}
         <ModeWrapper>
 
+          {/* 🔥 GLOBAL HEADER (FIX ADDED) */}
+          <GlobalHeader />
+
           {/* DOCK */}
           <DockLayout>
 
@@ -165,7 +171,7 @@ export default function App() {
               {/* CAMPUS */}
               <Route path="/campus" element={<CampusDashboard />} />
 
-              {/* 🔥 PAGES (ADDED) */}
+              {/* PAGES */}
               <Route path="/pages" element={<PagesDashboard />} />
 
               {/* SPORTS */}
