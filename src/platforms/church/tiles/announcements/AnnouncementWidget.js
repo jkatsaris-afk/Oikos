@@ -1,7 +1,7 @@
 export default function AnnouncementWidget() {
   return (
     <div>
-      <p>Announcements Preview</p>
+      <p>Announcements Widget</p>
     </div>
   );
 }
