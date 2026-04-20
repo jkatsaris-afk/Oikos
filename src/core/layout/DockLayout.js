@@ -9,7 +9,6 @@ import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
 import useUserTiles from "../tiles/useUserTiles";
 
-/* 🔥 ADDED */
 import TilePageLayout from "./TilePageLayout";
 import SettingsModal from "../settings/SettingsModal";
 import React from "react";
@@ -17,8 +16,6 @@ import React from "react";
 export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
-
-  /* 🔥 ADDED */
   const [openTileSettings, setOpenTileSettings] = useState(false);
 
   const { tiles } = useUserTiles();
@@ -46,7 +43,6 @@ export default function DockLayout({ children }) {
 
   const showMore = overflowTiles.length > 0;
 
-  /* 🔥 ADDED */
   const ActiveComponent = tileRegistry[activeTile]?.component;
 
   return (
@@ -63,32 +59,32 @@ export default function DockLayout({ children }) {
         {/* STORE */}
         {activeTile === "store" && <TileStorePage />}
 
-        {/* 🔥 ALL OTHER TILES */}
+        {/* 🔥 SAFE TILE RENDER */}
         {activeTile !== "home" && activeTile !== "store" && (
           <TilePageLayout
             title={tileRegistry[activeTile]?.label || "App"}
-
-            /* 🔥 OPEN TILE SETTINGS */
             onSettings={() => setOpenTileSettings(true)}
-
             showUninstall={
               !tileRegistry[activeTile]?.system &&
               !tileRegistry[activeTile]?.noUninstall
             }
           >
-            {ActiveComponent ? (
-              <ActiveComponent />
-            ) : (
-              <div style={{ padding: 20 }}>
-                This app is not built yet
-              </div>
-            )}
+            {ActiveComponent
+              ? React.createElement(ActiveComponent)
+              : (
+                <div style={{ padding: 20 }}>
+                  ⚠️ Tile component is undefined
+                </div>
+              )
+            }
           </TilePageLayout>
         )}
 
       </div>
 
-      {/* 🔥 TILE SETTINGS MODAL */}
+      {/* =========================
+          TILE SETTINGS MODAL
+      ========================= */}
       {openTileSettings && tileRegistry[activeTile]?.settings && (
         <SettingsModal
           open={openTileSettings}
@@ -126,8 +122,6 @@ export default function DockLayout({ children }) {
                     key={tile.id}
                     className={`nav-item2 overflow-item ${
                       activeTile === tile.id ? "active" : ""
-                    } ${tile.id === "home" ? "home" : ""} ${
-                      tile.id === "store" ? "store" : ""
                     }`}
                     onClick={() => {
                       setShowOverflow(false);
@@ -198,7 +192,7 @@ export default function DockLayout({ children }) {
         {Array.from({
           length: 5 - (1 + visibleTiles.length + (showMore ? 1 : 0))
         }).map((_, i) => (
-          <div key={`empty-${i}`} className="nav-item2 empty" />
+          <div key={i} className="nav-item2 empty" />
         ))}
 
       </div>
