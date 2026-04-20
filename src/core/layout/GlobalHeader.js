@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 
 import { getModeConfig } from "../theme/modeConfig";
 
+/* 🔥 ADD THESE */
+import SettingsModal from "../settings/SettingsModal";
+import { getModeSettings } from "../settings/getModeSettings";
+
 /* =========================
    GLOBAL HEADER
 ========================= */
@@ -14,6 +18,9 @@ export default function GlobalHeader() {
 
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
+
+  /* 🔥 ADD STATE */
+  const [openSettings, setOpenSettings] = useState(false);
 
   let mode = "home";
 
@@ -71,51 +78,64 @@ export default function GlobalHeader() {
   }, []);
 
   return (
-    <div style={styles.header}>
+    <>
+      <div style={styles.header}>
 
-      {/* =========================
-          LEFT SIDE (LOGO)
-      ========================= */}
-      <div style={styles.left}>
-        <img
-          src={modeData.logo}
-          alt={modeData.label}
-          style={styles.logo}
-        />
-      </div>
+        {/* =========================
+            LEFT SIDE (LOGO)
+        ========================= */}
+        <div style={styles.left}>
+          <img
+            src={modeData.logo}
+            alt={modeData.label}
+            style={styles.logo}
+          />
+        </div>
 
-      {/* =========================
-          RIGHT SIDE (ALL CONTROLS)
-      ========================= */}
-      <div style={styles.right}>
+        {/* =========================
+            RIGHT SIDE (ALL CONTROLS)
+        ========================= */}
+        <div style={styles.right}>
 
-        {/* DISPLAY / TV ONLY */}
-        {isDisplayMode && (
-          <>
-            <button style={styles.iconBtn}>
-              <User size={20} />
-            </button>
+          {/* DISPLAY / TV ONLY */}
+          {isDisplayMode && (
+            <>
+              <button style={styles.iconBtn}>
+                <User size={20} />
+              </button>
 
-            <button style={styles.iconBtn}>
-              <Moon size={20} />
-            </button>
-          </>
-        )}
+              <button style={styles.iconBtn}>
+                <Moon size={20} />
+              </button>
+            </>
+          )}
 
-        {/* SETTINGS */}
-        <button style={styles.iconBtn}>
-          <Settings size={20} />
-        </button>
+          {/* SETTINGS */}
+          <button
+            style={styles.iconBtn}
+            onClick={() => setOpenSettings(true)} // 🔥 ADDED
+          >
+            <Settings size={20} />
+          </button>
 
-        {/* CLOCK (FURTHEST RIGHT) */}
-        <div style={styles.clock}>
-          <div style={styles.time}>{time}</div>
-          <div style={styles.date}>{date}</div>
+          {/* CLOCK (FURTHEST RIGHT) */}
+          <div style={styles.clock}>
+            <div style={styles.time}>{time}</div>
+            <div style={styles.date}>{date}</div>
+          </div>
+
         </div>
 
       </div>
 
-    </div>
+      {/* 🔥 SETTINGS MODAL (ADDED) */}
+      <SettingsModal
+        open={openSettings}
+        onClose={() => setOpenSettings(false)}
+      >
+        {getModeSettings(mode)}
+      </SettingsModal>
+    </>
   );
 }
 
