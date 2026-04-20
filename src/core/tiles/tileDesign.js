@@ -1,7 +1,7 @@
 import { Grid } from "lucide-react";
 
 import AnnouncementTileDesign from "../../platforms/church/tiles/announcements/TileDesign";
-import SermonTileDesign from "../../platforms/church/tiles/sermon/TileDesign";
+import SermonTileDesign from "../../platforms/church/tiles/Sermon/TileDesign";
 // 🔥 ADD MORE TILE IMPORTS HERE
 
 /**
