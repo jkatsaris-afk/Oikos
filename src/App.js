@@ -93,21 +93,26 @@ const PaymentManager = load("./master-admin/pages/PaymentManagerPage");
 const BillingOverview = load("./billing/pages/BillingOverviewPage");
 
 /* =========================
-   MODE WRAPPER
+   MODE WRAPPER (FIXED)
 ========================= */
 function ModeWrapper({ children }) {
   const location = useLocation();
+  const path = location.pathname;
 
   let mode = "home";
 
-  if (location.pathname.startsWith("/business")) mode = "business";
-  else if (location.pathname.startsWith("/edu")) mode = "education";
-  else if (location.pathname.startsWith("/nightstand")) mode = "nightstand";
-  else if (location.pathname.startsWith("/church")) mode = "church";
-  else if (location.pathname.startsWith("/campus")) mode = "campus";
-  else if (location.pathname.startsWith("/pages")) mode = "pages";
-  else if (location.pathname.startsWith("/sports")) mode = "sports";
-  else if (location.pathname.startsWith("/farm")) mode = "farm";
+  // 🔥 DISPLAY MODES (FIXED)
+  if (path.includes("/home") || path === "/") mode = "home";
+  else if (path.includes("/business")) mode = "business";
+  else if (path.includes("/edu")) mode = "edu"; // 🔥 FIXED
+  else if (path.includes("/nightstand")) mode = "nightstand";
+
+  // 🔥 OTHER PLATFORMS
+  else if (path.startsWith("/church")) mode = "church";
+  else if (path.startsWith("/campus")) mode = "campus";
+  else if (path.startsWith("/pages")) mode = "pages";
+  else if (path.startsWith("/sports")) mode = "sports";
+  else if (path.startsWith("/farm")) mode = "farm";
 
   return <ThemeProvider mode={mode}>{children}</ThemeProvider>;
 }
