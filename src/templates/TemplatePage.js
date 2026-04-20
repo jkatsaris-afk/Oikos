@@ -4,12 +4,16 @@ export default function TemplatePage({
   title = "Page",
   children,
 
-  // controls
+  /* =========================
+     VISIBILITY CONTROLS
+  ========================= */
   showSettings = true,
   showInfo = true,
   showUninstall = false,
 
-  // actions
+  /* =========================
+     ACTION HANDLERS
+  ========================= */
   onSettings = () => console.log("Settings clicked"),
   onInfo = () => console.log("Info clicked"),
   onUninstall = () => console.log("Uninstall clicked"),
@@ -17,7 +21,9 @@ export default function TemplatePage({
   return (
     <div className="template-page">
 
-      {/* 🔥 TOP BAR (LIGHTWEIGHT) */}
+      {/* =========================
+          TOP BAR
+      ========================= */}
       <div className="template-top">
 
         {/* TITLE */}
@@ -25,23 +31,35 @@ export default function TemplatePage({
           {title}
         </div>
 
-        {/* ACTIONS */}
+        {/* ACTION BUTTONS */}
         <div className="template-actions">
 
           {showSettings && (
-            <button className="template-icon-btn" onClick={onSettings}>
+            <button
+              className="template-icon-btn"
+              onClick={onSettings}
+              aria-label="Settings"
+            >
               <Settings size={20} />
             </button>
           )}
 
           {showInfo && (
-            <button className="template-icon-btn" onClick={onInfo}>
+            <button
+              className="template-icon-btn"
+              onClick={onInfo}
+              aria-label="Info"
+            >
               <Info size={20} />
             </button>
           )}
 
           {showUninstall && (
-            <button className="template-icon-btn danger" onClick={onUninstall}>
+            <button
+              className="template-icon-btn danger"
+              onClick={onUninstall}
+              aria-label="Uninstall"
+            >
               <Trash2 size={20} />
             </button>
           )}
@@ -50,9 +68,19 @@ export default function TemplatePage({
 
       </div>
 
-      {/* CONTENT */}
-      <div className="template-content">
-        {children}
+      {/* =========================
+          MAIN BODY
+      ========================= */}
+      <div className="template-body">
+
+        {/* 🔥 FUTURE LEFT MENU SLOT */}
+        {/* <div className="template-sidebar"></div> */}
+
+        {/* CONTENT */}
+        <div className="template-content">
+          {children}
+        </div>
+
       </div>
 
     </div>
