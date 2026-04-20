@@ -1,16 +1,13 @@
-import { Megaphone } from "lucide-react";
+import AnnouncementTileDesign from "./announcements/TileDesign";
 
 /**
  * =========================================
- * CHURCH TILE DESIGN
+ * CHURCH TILE DESIGN REGISTRY
  * =========================================
- * Controls dock UI for church platform
+ * ADD NEW TILES HERE ONLY
  */
 
 export const churchTileDesign = {
-  announcements: {
-    icon: Megaphone,
-    label: "Announcements",
-    color: "#96B379",
-  },
+  [AnnouncementTileDesign.id]: AnnouncementTileDesign,
+  [CalendarTileDesign.id]: CalendarTileDesign,
 };
