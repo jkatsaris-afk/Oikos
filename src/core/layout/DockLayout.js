@@ -13,9 +13,6 @@ import TilePageLayout from "./TilePageLayout";
 import SettingsModal from "../settings/SettingsModal";
 import React from "react";
 
-/* 🔥 HARD IMPORT FOR TEST (REMOVES REGISTRY RISK) */
-import AnnouncementTile from "../../platforms/church/tiles/announcements/AnnouncementTile";
-
 export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
@@ -23,13 +20,25 @@ export default function DockLayout({ children }) {
 
   const { tiles } = useUserTiles();
 
+  /* =========================
+     SAFE TILE BUILD (FIX)
+  ========================= */
   const installedTiles = tiles
     .filter(t => t.installed && t.id !== "home" && t.id !== "store")
-    .sort((a, b) => a.order - b.order)
-    .map(t => ({
-      ...t,
-      ...tileRegistry[t.id],
-    }));
+    .map(t => {
+      const registryTile = tileRegistry[t.id];
+
+      if (!registryTile) {
+        console.warn("Missing tile in registry:", t.id);
+        return null;
+      }
+
+      return {
+        ...t,
+        ...registryTile,
+      };
+    })
+    .filter(Boolean);
 
   const storeTile = {
     id: "store",
@@ -46,6 +55,8 @@ export default function DockLayout({ children }) {
 
   const showMore = overflowTiles.length > 0;
 
+  const ActiveComponent = tileRegistry[activeTile]?.component;
+
   return (
     <div className="app-container">
 
@@ -54,36 +65,43 @@ export default function DockLayout({ children }) {
       ========================= */}
       <div className="content-area">
 
-        {/* HOME */}
         {activeTile === "home" && children}
 
-        {/* STORE */}
         {activeTile === "store" && <TileStorePage />}
 
-        {/* 🔥 HARD SAFE RENDER (NO REGISTRY) */}
         {activeTile !== "home" && activeTile !== "store" && (
           <TilePageLayout
-            title="Announcements"
+            title={tileRegistry[activeTile]?.label || "App"}
             onSettings={() => setOpenTileSettings(true)}
+            showUninstall={
+              !tileRegistry[activeTile]?.system &&
+              !tileRegistry[activeTile]?.noUninstall
+            }
           >
-            <AnnouncementTile />
+            {ActiveComponent
+              ? React.createElement(ActiveComponent)
+              : (
+                <div style={{ padding: 20 }}>
+                  ⚠️ Tile component is undefined
+                </div>
+              )
+            }
           </TilePageLayout>
         )}
 
       </div>
 
       {/* =========================
-          SETTINGS MODAL (SAFE)
+          SETTINGS MODAL
       ========================= */}
-      {openTileSettings && (
+      {openTileSettings && tileRegistry[activeTile]?.settings && (
         <SettingsModal
           open={openTileSettings}
           onClose={() => setOpenTileSettings(false)}
         >
-          <div style={{ padding: 20 }}>
-            <h2>Settings Panel</h2>
-            <p>Settings working ✅</p>
-          </div>
+          {React.createElement(tileRegistry[activeTile].settings, {
+            tileId: activeTile,
+          })}
         </SettingsModal>
       )}
 
@@ -107,6 +125,8 @@ export default function DockLayout({ children }) {
             <div className="overflow-grid">
               {overflowTiles.map(tile => {
                 const Icon = tile.icon;
+
+                if (!Icon) return null;
 
                 return (
                   <div
@@ -150,6 +170,8 @@ export default function DockLayout({ children }) {
 
         {visibleTiles.map(tile => {
           const Icon = tile.icon;
+
+          if (!Icon) return null;
 
           return (
             <div
