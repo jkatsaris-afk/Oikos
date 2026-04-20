@@ -15,4 +15,11 @@ export const churchTileRegistry = {
     system: false,
     noUninstall: false,
   },
+
+  sermon: { // 🔥 ADD THIS
+    id: "sermon",
+    page: SermonApp,
+    system: false,
+    noUninstall: false,
+  },
 };
