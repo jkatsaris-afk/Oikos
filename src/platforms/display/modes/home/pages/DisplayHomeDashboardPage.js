@@ -1,15 +1,11 @@
 import ThemeProvider from "../../../../../core/theme/ThemeProvider";
 import { getBackgroundConfig } from "../../../../../core/theme/backgroundConfig";
 
-/* OPTIONAL: use your tile template */
-import TemplatePage from "../../../../../templates/TemplatePage";
-
 export default function DisplayHomeDashboardPage() {
   const bg = getBackgroundConfig("home");
 
   return (
     <ThemeProvider mode="home">
-
       <div style={styles.wrapper}>
 
         {/* =========================
@@ -23,13 +19,12 @@ export default function DisplayHomeDashboardPage() {
         />
 
         {/* =========================
-            CONTENT (USE TEMPLATE)
+            CONTENT (NO TEMPLATE PAGE)
         ========================= */}
-        <TemplatePage title="Home">
+        <div style={styles.content}>
 
           <div style={styles.grid}>
 
-            {/* 🔥 SAMPLE TILE BLOCKS */}
             <div style={styles.tile}>Calendar</div>
             <div style={styles.tile}>Weather</div>
             <div style={styles.tile}>Chores</div>
@@ -37,10 +32,9 @@ export default function DisplayHomeDashboardPage() {
 
           </div>
 
-        </TemplatePage>
+        </div>
 
       </div>
-
     </ThemeProvider>
   );
 }
@@ -63,6 +57,12 @@ const styles = {
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
     zIndex: 0,
+  },
+
+  content: {
+    position: "relative",
+    zIndex: 1,
+    padding: "20px",
   },
 
   grid: {
