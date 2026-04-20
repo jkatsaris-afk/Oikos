@@ -1,29 +1,23 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
-// 🔥 IMPORT DOCK LAYOUT
 import DockLayout from "./core/layout/DockLayout";
-
-// 🔥 IMPORT GLOBAL HEADER
 import GlobalHeader from "./core/layout/GlobalHeader";
-
-// 🔥 IMPORT THEME PROVIDER
 import ThemeProvider from "./core/theme/ThemeProvider";
-
-// 🔥 AUTH PROTECTION
 import RequireAuth from "./auth/RequireAuth";
 
-// 🔥 GLOBAL SYSTEM PAGES
 import LoginPage from "./core/pages/LoginPage";
 import PendingApprovalPage from "./core/pages/PendingApprovalPage";
 import NoAccessPage from "./core/pages/NoAccessPage";
-
-// 🔥 ADDED AUTH PAGES (FIX)
 import SignupPage from "./core/pages/SignupPage";
 import ForgotPasswordPage from "./core/pages/ForgotPasswordPage";
 import ResetPasswordPage from "./core/pages/ResetPasswordPage";
 
-// 🔥 Helper for lazy pages
+import { getModeFromPath } from "./core/utils/getMode";
+
+// =========================
+// LAZY LOADER
+// =========================
 const load = (path) =>
   lazy(() =>
     import(`${path}`).catch(() => ({
@@ -32,92 +26,36 @@ const load = (path) =>
   );
 
 // =========================
-// TEMPLATE
-// =========================
-const TemplateDashboard = load("./templates/TemplateDashboardPage");
-
-// =========================
-// DISPLAY
+// PAGES
 // =========================
 const DisplayHomeDashboard = load("./platforms/display/modes/home/pages/DisplayHomeDashboardPage");
 const DisplayBusinessDashboard = load("./platforms/display/modes/business/pages/DisplayBusinessDashboardPage");
 const DisplayEduDashboard = load("./platforms/display/modes/edu/pages/DisplayEduDashboardPage");
 const DisplayNightstandDashboard = load("./platforms/display/modes/nightstand/pages/DisplayNightstandDashboardPage");
 
-// =========================
-// DISPLAY MANAGER
-// =========================
-const DisplayManagerDashboard = load("./platforms/display/manager/pages/DisplayManagerDashboardPage");
-const DisplayDevices = load("./platforms/display/manager/pages/DisplayDevicesPage");
-const DisplayDeviceDetail = load("./platforms/display/manager/pages/DisplayDeviceDetailPage");
-
-// =========================
-// CHURCH
-// =========================
 const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
-
-// =========================
-// CAMPUS
-// =========================
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
-
-// =========================
-// PAGES
-// =========================
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
-
-// =========================
-// SPORTS
-// =========================
 const SportsDashboard = load("./platforms/sports/pages/SportsDashboardPage");
-
-// =========================
-// FARM
-// =========================
 const FarmDashboard = load("./platforms/farm/pages/FarmDashboardPage");
 
 // =========================
-// ACCOUNT
+// MODE WRAPPER
 // =========================
-const AccountDashboard = load("./account/pages/AccountDashboardPage");
-
-// =========================
-// ADMIN
-// =========================
-const AdminDashboard = load("./master-admin/pages/AdminDashboardPage");
-const PaymentManager = load("./master-admin/pages/PaymentManagerPage");
-
-// =========================
-// BILLING
-// =========================
-const BillingOverview = load("./billing/pages/BillingOverviewPage");
-
-/* =========================
-   MODE WRAPPER (FIXED)
-========================= */
 function ModeWrapper({ children }) {
   const location = useLocation();
-  const path = location.pathname;
 
-  let mode = "home";
-
-  // 🔥 FIX: MATCH LOGIN LOGIC EXACTLY
-  if (path.includes("/business")) mode = "business";
-  else if (path.includes("/edu")) mode = "edu";
-  else if (path.includes("/pages")) mode = "pages";
-  else if (path.includes("/nightstand")) mode = "nightstand";
-  else if (path.includes("/church")) mode = "church";
-  else if (path.includes("/campus")) mode = "campus";
-  else if (path.includes("/sports")) mode = "sports";
-  else if (path.includes("/farm")) mode = "farm";
-  else mode = "home";
+  const mode = getModeFromPath(
+    location.pathname,
+    window.location.hostname
+  );
 
   return <ThemeProvider mode={mode}>{children}</ThemeProvider>;
 }
 
-/* =========================
-   ROOT DOMAIN ROUTER (UNCHANGED)
-========================= */
+// =========================
+// ROOT REDIRECT
+// =========================
 function HomeOrDomain() {
   const hostname = window.location.hostname;
   const path = window.location.pathname;
@@ -126,17 +64,9 @@ function HomeOrDomain() {
     return <Navigate to={path} replace />;
   }
 
-  if (hostname.includes("oikoschurch")) {
-    return <Navigate to="/church" replace />;
-  }
-
-  if (hostname.includes("oikoscampus")) {
-    return <Navigate to="/campus" replace />;
-  }
-
-  if (hostname.includes("oikossports")) {
-    return <Navigate to="/sports" replace />;
-  }
+  if (hostname.includes("oikoschurch")) return <Navigate to="/church" replace />;
+  if (hostname.includes("oikoscampus")) return <Navigate to="/campus" replace />;
+  if (hostname.includes("oikossports")) return <Navigate to="/sports" replace />;
 
   return <Navigate to="/home" replace />;
 }
@@ -151,7 +81,7 @@ export default function App() {
 
         <Routes>
 
-          {/* 🔓 FULL SCREEN (NO DOCK) */}
+          {/* PUBLIC */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -159,7 +89,7 @@ export default function App() {
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/no-access" element={<NoAccessPage />} />
 
-          {/* 🔒 APP */}
+          {/* PROTECTED */}
           <Route
             path="*"
             element={
@@ -172,36 +102,16 @@ export default function App() {
 
                       <Route path="/" element={<HomeOrDomain />} />
 
-                      <Route path="/temp" element={<TemplateDashboard />} />
-
                       <Route path="/home" element={<DisplayHomeDashboard />} />
                       <Route path="/business" element={<DisplayBusinessDashboard />} />
                       <Route path="/edu" element={<DisplayEduDashboard />} />
                       <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
-
-                      <Route path="/display/home" element={<Navigate to="/home" />} />
-                      <Route path="/display/business" element={<Navigate to="/business" />} />
-                      <Route path="/display/edu" element={<Navigate to="/edu" />} />
-                      <Route path="/display/nightstand" element={<Navigate to="/nightstand" />} />
-
-                      <Route path="/display-manager" element={<DisplayManagerDashboard />} />
-                      <Route path="/display-manager/devices" element={<DisplayDevices />} />
-                      <Route path="/display-manager/devices/:deviceId" element={<DisplayDeviceDetail />} />
 
                       <Route path="/church" element={<ChurchDashboard />} />
                       <Route path="/campus" element={<CampusDashboard />} />
                       <Route path="/pages" element={<PagesDashboard />} />
                       <Route path="/sports" element={<SportsDashboard />} />
                       <Route path="/farm" element={<FarmDashboard />} />
-
-                      <Route path="/account" element={<AccountDashboard />} />
-
-                      <Route path="/master-admin" element={<AdminDashboard />} />
-                      <Route path="/master-admin/payments" element={<PaymentManager />} />
-
-                      <Route path="/billing" element={<BillingOverview />} />
-
-                      <Route path="*" element={<div style={{ padding: 20 }}>404 - Page not found</div>} />
 
                     </Routes>
 
