@@ -93,7 +93,7 @@ const PaymentManager = load("./master-admin/pages/PaymentManagerPage");
 const BillingOverview = load("./billing/pages/BillingOverviewPage");
 
 /* =========================
-   MODE WRAPPER (UNCHANGED)
+   MODE WRAPPER (FIXED)
 ========================= */
 function ModeWrapper({ children }) {
   const location = useLocation();
@@ -101,33 +101,31 @@ function ModeWrapper({ children }) {
 
   let mode = "home";
 
-  if (path.includes("/home") || path === "/") mode = "home";
-  else if (path.includes("/business")) mode = "business";
+  // 🔥 FIX: MATCH LOGIN LOGIC EXACTLY
+  if (path.includes("/business")) mode = "business";
   else if (path.includes("/edu")) mode = "edu";
+  else if (path.includes("/pages")) mode = "pages";
   else if (path.includes("/nightstand")) mode = "nightstand";
-
-  else if (path.startsWith("/church")) mode = "church";
-  else if (path.startsWith("/campus")) mode = "campus";
-  else if (path.startsWith("/pages")) mode = "pages";
-  else if (path.startsWith("/sports")) mode = "sports";
-  else if (path.startsWith("/farm")) mode = "farm";
+  else if (path.includes("/church")) mode = "church";
+  else if (path.includes("/campus")) mode = "campus";
+  else if (path.includes("/sports")) mode = "sports";
+  else if (path.includes("/farm")) mode = "farm";
+  else mode = "home";
 
   return <ThemeProvider mode={mode}>{children}</ThemeProvider>;
 }
 
 /* =========================
-   ROOT DOMAIN ROUTER (FIXED)
+   ROOT DOMAIN ROUTER (UNCHANGED)
 ========================= */
 function HomeOrDomain() {
   const hostname = window.location.hostname;
   const path = window.location.pathname;
 
-  // 🔥 RESPECT CURRENT PATH (CRITICAL FIX)
   if (path !== "/" && path !== "") {
     return <Navigate to={path} replace />;
   }
 
-  // 🔥 DOMAIN REDIRECTS
   if (hostname.includes("oikoschurch")) {
     return <Navigate to="/church" replace />;
   }
@@ -140,7 +138,6 @@ function HomeOrDomain() {
     return <Navigate to="/sports" replace />;
   }
 
-  // 🔥 DEFAULT DISPLAY
   return <Navigate to="/home" replace />;
 }
 
@@ -173,47 +170,37 @@ export default function App() {
 
                     <Routes>
 
-                      {/* ROOT */}
                       <Route path="/" element={<HomeOrDomain />} />
 
-                      {/* TEMPLATE */}
                       <Route path="/temp" element={<TemplateDashboard />} />
 
-                      {/* DISPLAY */}
                       <Route path="/home" element={<DisplayHomeDashboard />} />
                       <Route path="/business" element={<DisplayBusinessDashboard />} />
                       <Route path="/edu" element={<DisplayEduDashboard />} />
                       <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
 
-                      {/* REDIRECTS */}
                       <Route path="/display/home" element={<Navigate to="/home" />} />
                       <Route path="/display/business" element={<Navigate to="/business" />} />
                       <Route path="/display/edu" element={<Navigate to="/edu" />} />
                       <Route path="/display/nightstand" element={<Navigate to="/nightstand" />} />
 
-                      {/* DISPLAY MANAGER */}
                       <Route path="/display-manager" element={<DisplayManagerDashboard />} />
                       <Route path="/display-manager/devices" element={<DisplayDevices />} />
                       <Route path="/display-manager/devices/:deviceId" element={<DisplayDeviceDetail />} />
 
-                      {/* OTHER PLATFORMS */}
                       <Route path="/church" element={<ChurchDashboard />} />
                       <Route path="/campus" element={<CampusDashboard />} />
                       <Route path="/pages" element={<PagesDashboard />} />
                       <Route path="/sports" element={<SportsDashboard />} />
                       <Route path="/farm" element={<FarmDashboard />} />
 
-                      {/* ACCOUNT */}
                       <Route path="/account" element={<AccountDashboard />} />
 
-                      {/* ADMIN */}
                       <Route path="/master-admin" element={<AdminDashboard />} />
                       <Route path="/master-admin/payments" element={<PaymentManager />} />
 
-                      {/* BILLING */}
                       <Route path="/billing" element={<BillingOverview />} />
 
-                      {/* FALLBACK */}
                       <Route path="*" element={<div style={{ padding: 20 }}>404 - Page not found</div>} />
 
                     </Routes>
