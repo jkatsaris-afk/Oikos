@@ -1,7 +1,7 @@
 import { Settings, Info, Trash2 } from "lucide-react";
 
-/* 🔥 IMPORT STYLES */
-import "../../core/styles/TileAppPage.css";
+/* 🔥 FIXED PATH (THIS WAS THE ISSUE) */
+import "../core/styles/TileAppPage.css";
 
 export default function TemplatePage({
   title = "Page",
@@ -76,7 +76,7 @@ export default function TemplatePage({
       ========================= */}
       <div className="tile-body">
 
-        {/* 🔥 FUTURE SIDEBAR (READY) */}
+        {/* FUTURE SIDEBAR */}
         {/* <div className="tile-sidebar"></div> */}
 
         {/* CONTENT */}
