@@ -54,7 +54,7 @@ export default function RequireAuth({ children }) {
   if (loading || !accessChecked) return null;
 
   // ❌ NOT LOGGED IN
-  if (!user) return <Navigate to="/login/home" />;
+  if (!user) return <Navigate to="/login" />;
 
   // ❌ NOT APPROVED
   if (!profile?.is_approved) {
