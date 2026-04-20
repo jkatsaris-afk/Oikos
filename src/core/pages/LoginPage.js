@@ -17,9 +17,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 DETECT MODE FROM PATH
+  // 🔥 MODE DETECTION
   let logo = DisplayHomeLogo;
-
   const path = location.pathname;
 
   if (path.includes("business")) logo = DisplayBusinessLogo;
@@ -46,40 +45,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "#0a0a0a",
-      }}
-    >
-      <div style={{ textAlign: "center" }}>
+    <div style={pageStyle}>
+      <div style={containerStyle}>
         
         {/* 🔥 LOGO */}
-        <img
-          src={logo}
-          alt="logo"
-          style={{
-            width: 160,
-            marginBottom: 30,
-            opacity: 0.95,
-          }}
-        />
+        <img src={logo} alt="logo" style={logoStyle} />
 
-        {/* 🔥 LOGIN CARD */}
-        <div
-          style={{
-            width: 320,
-            padding: 30,
-            borderRadius: 16,
-            background: "rgba(255,255,255,0.05)",
-            backdropFilter: "blur(12px)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
-          }}
-        >
+        {/* 🔥 CARD */}
+        <div style={cardStyle}>
           <input
             placeholder="Email"
             value={email}
@@ -96,7 +69,7 @@ export default function LoginPage() {
           />
 
           <button style={buttonStyle} onClick={handleLogin}>
-            Login
+            Sign In
           </button>
         </div>
       </div>
@@ -104,15 +77,43 @@ export default function LoginPage() {
   );
 }
 
-// 🔥 STYLES
+// =========================
+// STYLES
+// =========================
+
+const pageStyle = {
+  height: "100vh",
+  background: "#f7f8fa",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+};
+
+const containerStyle = {
+  textAlign: "center",
+};
+
+const logoStyle = {
+  width: 180,
+  marginBottom: 30,
+};
+
+const cardStyle = {
+  width: 340,
+  padding: 30,
+  borderRadius: 16,
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
+};
+
 const inputStyle = {
   width: "100%",
   padding: "12px",
   marginBottom: "12px",
   borderRadius: "8px",
-  border: "1px solid rgba(255,255,255,0.1)",
-  background: "rgba(0,0,0,0.4)",
-  color: "#fff",
+  border: "1px solid #d1d5db",
+  fontSize: "14px",
 };
 
 const buttonStyle = {
@@ -122,6 +123,6 @@ const buttonStyle = {
   border: "none",
   background: "#2f6ea3",
   color: "#fff",
-  fontWeight: "bold",
+  fontWeight: "600",
   cursor: "pointer",
 };
