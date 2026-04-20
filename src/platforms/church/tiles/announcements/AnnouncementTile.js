@@ -1,25 +1,8 @@
 export default function AnnouncementTile() {
   return (
-    <div>
-      <h2>Announcements</h2>
-
-      <div style={{ marginTop: 20 }}>
-        <div style={card}>
-          Sunday Service – 10:00 AM
-        </div>
-
-        <div style={card}>
-          Bible Study – Wednesday 6:30 PM
-        </div>
-      </div>
+    <div style={{ padding: 20 }}>
+      <h1>TEST TILE WORKING ✅</h1>
+      <p>If you see this, your tile system is working.</p>
     </div>
   );
 }
-
-const card = {
-  background: "#fff",
-  padding: "12px",
-  borderRadius: "10px",
-  marginBottom: "10px",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-};
