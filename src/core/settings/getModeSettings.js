@@ -1,5 +1,5 @@
 import SettingsLayout from "./SettingsLayout";
-import DisplaySettings from "../../platforms/display/settings/DisplaySettings";
+import DisplaySettings from "./DisplaySettings";
 
 /* =========================
    MODE SETTINGS LOADER
