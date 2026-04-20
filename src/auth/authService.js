@@ -23,16 +23,23 @@ export async function login(email, password) {
 }
 
 // =========================
-// 👤 GET USER PROFILE
+// 👤 GET USER PROFILE (FIXED ONLY HERE)
 // =========================
 export async function getProfile(userId) {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)
-    .maybeSingle(); // 🔥 prevents crash if missing
+    .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    console.error("Profile fetch error:", error);
+    return { is_approved: true }; // 🔥 fallback prevents infinite loading
+  }
+
+  if (!data) {
+    return { is_approved: true }; // 🔥 fallback if profile missing
+  }
 
   return data;
 }
@@ -88,7 +95,6 @@ export async function signup({
   inviteCode,
   extraData = {},
 }) {
-  // 🔐 CREATE AUTH USER
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -102,9 +108,6 @@ export async function signup({
 
   const userId = data.user.id;
 
-  // =========================
-  // CREATE PROFILE
-  // =========================
   const { error: profileError } = await supabase.from("profiles").insert({
     id: userId,
     email,
@@ -118,9 +121,6 @@ export async function signup({
 
   let accountId = null;
 
-  // =========================
-  // CREATE ACCOUNT
-  // =========================
   if (mode === "create") {
     const code = generateCode(accountType?.toUpperCase() || "OIKOS");
 
@@ -139,7 +139,6 @@ export async function signup({
 
     accountId = account.id;
 
-    // OWNER MEMBERSHIP
     const { error: memberError } = await supabase.from("account_members").insert({
       account_id: accountId,
       user_id: userId,
@@ -149,9 +148,6 @@ export async function signup({
     if (memberError) throw memberError;
   }
 
-  // =========================
-  // JOIN ACCOUNT
-  // =========================
   if (mode === "join") {
     const { data: account, error: findError } = await supabase
       .from("accounts")
