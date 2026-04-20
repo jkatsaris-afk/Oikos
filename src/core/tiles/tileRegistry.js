@@ -1,30 +1,50 @@
-import { Home, StickyNote, Grid } from "lucide-react";
+/**
+ * =========================================
+ * TILE REGISTRY (CURRENT STATE)
+ * =========================================
+ * Purpose:
+ * - Defines what tiles exist
+ * - Maps tile IDs to their page components
+ * - Contains ONLY logic (NO UI)
+ *
+ * UI is handled in:
+ * - tileDesign.js
+ */
 
-import AnnouncementTile from "../../platforms/church/tiles/announcements/AnnouncementTile";
-import AnnouncementSettings from "../../platforms/church/tiles/announcements/AnnouncementSettings";
-import AnnouncementWidget from "../../platforms/church/tiles/announcements/AnnouncementWidget";
+import AnnouncementPage from "../../tiles/announcements/AnnouncementPage";
+// import CalendarPage from "../../tiles/calendar/CalendarPage";
+// import ChoresPage from "../../tiles/chores/ChoresPage";
+// import HomePage from "../../tiles/home/HomePage";
 
 export const tileRegistry = {
-  home: {
-    id: "home",
-    label: "Home",
-    icon: Home,
-    system: true,
-  },
-
+  /**
+   * =========================================
+   * ANNOUNCEMENTS
+   * =========================================
+   */
   announcements: {
     id: "announcements",
-    label: "Announcements",
-    icon: StickyNote,
-    component: AnnouncementTile,
-    settings: AnnouncementSettings,
-    widget: AnnouncementWidget,
+    page: AnnouncementPage,
   },
 
-  store: {
-    id: "store",
-    label: "Store",
-    icon: Grid,
-    noUninstall: true,
-  },
+  /**
+   * =========================================
+   * FUTURE TILES (UNCOMMENT WHEN READY)
+   * =========================================
+   */
+
+  // calendar: {
+  //   id: "calendar",
+  //   page: CalendarPage,
+  // },
+
+  // chores: {
+  //   id: "chores",
+  //   page: ChoresPage,
+  // },
+
+  // home: {
+  //   id: "home",
+  //   page: HomePage,
+  // },
 };
