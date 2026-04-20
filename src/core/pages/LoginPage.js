@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { login } from "../../auth/authService"; // 🔥 removed getProfile
+import { login } from "../../auth/authService";
 import { modeTheme } from "../../core/theme/modeTheme";
+import { getModeFromPath } from "../../core/utils/getMode";
 
 // 🔥 LOGOS
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
@@ -18,52 +19,30 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // =========================
-  // 🔥 MODE DETECTION (FIXED)
-  // =========================
-  const hostname = window.location.hostname;
-  const path = location.pathname;
+  // 🔥 MODE
+  const mode = getModeFromPath(
+    location.pathname,
+    window.location.hostname
+  );
 
-  let mode = "home";
-  let logo = DisplayHomeLogo;
+  // 🔥 LOGO MAP
+  const logoMap = {
+    home: DisplayHomeLogo,
+    business: DisplayBusinessLogo,
+    edu: DisplayEduLogo,
+    pages: PagesLogo,
+    church: ChurchLogo,
+    campus: CampusLogo,
+    sports: SportsLogo,
+  };
 
-  // 🔥 DOMAIN (ONLY overrides if matched)
-  if (hostname.includes("oikoschurch")) {
-    mode = "church";
-    logo = ChurchLogo;
-  } 
-  else if (hostname.includes("oikoscampus")) {
-    mode = "campus";
-    logo = CampusLogo;
-  } 
-  else if (hostname.includes("oikossports")) {
-    mode = "sports";
-    logo = SportsLogo;
-  }
+  const logo = logoMap[mode] || DisplayHomeLogo;
 
-  // 🔥 PATH (ALWAYS RUNS)
-  if (path.includes("/business")) {
-    mode = "business";
-    logo = DisplayBusinessLogo;
-  }
-  else if (path.includes("/edu")) {
-    mode = "edu";
-    logo = DisplayEduLogo;
-  }
-  else if (path.includes("/pages")) {
-    mode = "pages";
-    logo = PagesLogo;
-  }
-  else if (path.includes("/home")) {
-    mode = "home";
-    logo = DisplayHomeLogo;
-  }
-
-  // 🔥 GET MODE COLOR
+  // 🔥 COLOR
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
 
   // =========================
-  // 🔐 LOGIN (FIXED)
+  // 🔐 LOGIN
   // =========================
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -72,6 +51,7 @@ export default function LoginPage() {
       await login(email, password);
 
       const hostname = window.location.hostname;
+      const from = location.pathname;
 
       if (hostname.includes("oikoschurch")) {
         navigate("/church", { replace: true });
@@ -83,7 +63,7 @@ export default function LoginPage() {
         navigate("/sports", { replace: true });
       } 
       else {
-        navigate("/home", { replace: true });
+        navigate(from !== "/login" ? from : "/home", { replace: true });
       }
 
     } catch (err) {
@@ -95,17 +75,16 @@ export default function LoginPage() {
     <div style={pageStyle}>
       <div style={cardStyle}>
 
-        {/* 🔥 LOGO */}
+        {/* LOGO */}
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
         </div>
 
-        {/* 🔥 FORM */}
+        {/* FORM */}
         <form style={formStyle} onSubmit={handleLogin}>
           <label style={labelStyle}>Email</label>
           <input
             type="email"
-            placeholder="you@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={inputStyle}
@@ -114,7 +93,6 @@ export default function LoginPage() {
           <label style={labelStyle}>Password</label>
           <input
             type="password"
-            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={inputStyle}
@@ -122,15 +100,11 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            style={{
-              ...buttonStyle,
-              background: primaryColor,
-            }}
+            style={{ ...buttonStyle, background: primaryColor }}
           >
             Sign In
           </button>
 
-          {/* LINKS */}
           <div style={linksStyle}>
             <span onClick={() => navigate("/signup")} style={{ ...linkStyle, color: primaryColor }}>
               Create Account
@@ -140,77 +114,61 @@ export default function LoginPage() {
             </span>
           </div>
         </form>
+
       </div>
     </div>
   );
 }
 
 // =========================
-// 🎨 STYLES
+// STYLES
 // =========================
 
 const pageStyle = {
   height: "100vh",
-  width: "100%",
-  background: "#f7f8fa",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  padding: "20px",
+  background: "#f7f8fa",
 };
 
 const cardStyle = {
   width: "100%",
   maxWidth: "420px",
-  borderRadius: "18px",
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
-  overflow: "hidden",
+  background: "#fff",
+  borderRadius: "16px",
+  padding: "20px",
 };
 
 const logoWrapper = {
   display: "flex",
   justifyContent: "center",
-  alignItems: "center",
-  padding: "30px 20px 10px",
+  marginBottom: "10px",
 };
 
 const logoStyle = {
   width: "180px",
-  maxWidth: "80%",
 };
 
 const formStyle = {
-  padding: "20px 30px 30px",
+  display: "flex",
+  flexDirection: "column",
 };
 
 const labelStyle = {
-  fontSize: "13px",
-  fontWeight: "600",
-  color: "#374151",
-  marginBottom: "6px",
-  display: "block",
+  marginBottom: "5px",
 };
 
 const inputStyle = {
-  width: "100%",
-  padding: "12px",
-  marginBottom: "16px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db",
-  fontSize: "14px",
-  boxSizing: "border-box",
+  marginBottom: "15px",
+  padding: "10px",
 };
 
 const buttonStyle = {
-  width: "100%",
   padding: "12px",
-  borderRadius: "8px",
-  border: "none",
   color: "#fff",
-  fontWeight: "600",
-  fontSize: "14px",
+  border: "none",
+  borderRadius: "6px",
   cursor: "pointer",
 };
 
@@ -218,7 +176,6 @@ const linksStyle = {
   display: "flex",
   justifyContent: "space-between",
   marginTop: "10px",
-  fontSize: "13px",
 };
 
 const linkStyle = {
