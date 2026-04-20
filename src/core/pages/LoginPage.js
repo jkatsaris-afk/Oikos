@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { login, getProfile } from "../../auth/authService";
+import { login } from "../../auth/authService"; // 🔥 removed getProfile
 import { modeTheme } from "../../core/theme/modeTheme";
 
 // 🔥 LOGOS
@@ -59,19 +59,27 @@ export default function LoginPage() {
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
 
   // =========================
-  // 🔐 LOGIN
+  // 🔐 LOGIN (FIXED)
   // =========================
   const handleLogin = async () => {
     try {
-      const user = await login(email, password);
-      const profile = await getProfile(user.id);
+      await login(email, password);
 
-      if (!profile.is_approved) {
-        navigate("/pending-approval");
-        return;
+      const hostname = window.location.hostname;
+
+      if (hostname.includes("oikoschurch")) {
+        navigate("/church", { replace: true });
+      } 
+      else if (hostname.includes("oikoscampus")) {
+        navigate("/campus", { replace: true });
+      } 
+      else if (hostname.includes("oikossports")) {
+        navigate("/sports", { replace: true });
+      } 
+      else {
+        navigate("/home", { replace: true });
       }
 
-      navigate("/home");
     } catch (err) {
       alert(err.message);
     }
@@ -109,7 +117,7 @@ export default function LoginPage() {
           <button
             style={{
               ...buttonStyle,
-              background: primaryColor, // 🔥 MODE COLOR
+              background: primaryColor,
             }}
             onClick={handleLogin}
           >
