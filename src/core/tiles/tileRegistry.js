@@ -1,6 +1,6 @@
 /**
  * =========================================
- * TILE REGISTRY (CURRENT STATE)
+ * TILE REGISTRY (REPAIRED)
  * =========================================
  * Purpose:
  * - Defines what tiles exist
@@ -9,42 +9,59 @@
  *
  * UI is handled in:
  * - tileDesign.js
+ *
+ * ✅ FIXES INCLUDED:
+ * - Correct import path to AnnouncementPage
+ * - Uses .page (not .component)
+ * - Clean structure for scaling
  */
 
 import AnnouncementPage from "../../tiles/announcements/AnnouncementPage";
-// import CalendarPage from "../../tiles/calendar/CalendarPage";
-// import ChoresPage from "../../tiles/chores/ChoresPage";
-// import HomePage from "../../tiles/home/HomePage";
 
 export const tileRegistry = {
   /**
    * =========================================
-   * ANNOUNCEMENTS
+   * ANNOUNCEMENTS TILE
    * =========================================
    */
   announcements: {
     id: "announcements",
+
+    // 🔥 MAIN PAGE COMPONENT
     page: AnnouncementPage,
+
+    // 🔥 OPTIONAL FLAGS (future safe)
+    system: false,
+    noUninstall: false,
   },
 
   /**
    * =========================================
-   * FUTURE TILES (UNCOMMENT WHEN READY)
+   * FUTURE TILE EXAMPLES
    * =========================================
+   * Uncomment when ready and create matching files
    */
 
-  // calendar: {
-  //   id: "calendar",
-  //   page: CalendarPage,
-  // },
+  /*
+  calendar: {
+    id: "calendar",
+    page: CalendarPage,
+    system: false,
+    noUninstall: false,
+  },
 
-  // chores: {
-  //   id: "chores",
-  //   page: ChoresPage,
-  // },
+  chores: {
+    id: "chores",
+    page: ChoresPage,
+    system: false,
+    noUninstall: false,
+  },
 
-  // home: {
-  //   id: "home",
-  //   page: HomePage,
-  // },
+  home: {
+    id: "home",
+    page: HomePage,
+    system: true, // cannot uninstall
+    noUninstall: true,
+  },
+  */
 };
