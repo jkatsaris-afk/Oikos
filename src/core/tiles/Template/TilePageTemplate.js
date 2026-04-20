@@ -8,7 +8,8 @@ export default function TilePageTemplate({
   PageComponent,
   SettingsComponent,
   InfoComponent,
-  onUninstall, // 🔥 ADDED
+  onUninstall,
+  showUninstall,
 }) {
   const [openSettings, setOpenSettings] = useState(false);
   const [openInfo, setOpenInfo] = useState(false);
@@ -19,7 +20,8 @@ export default function TilePageTemplate({
         title={title}
         onSettings={() => setOpenSettings(true)}
         onInfo={() => setOpenInfo(true)}
-        onUninstall={onUninstall} // 🔥 ADDED
+        onUninstall={onUninstall}
+        showUninstall={showUninstall}
       >
         <PageComponent />
       </TilePageLayout>
