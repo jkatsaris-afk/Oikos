@@ -1,36 +1,40 @@
+import { Home, Calendar, ListTodo, StickyNote } from "lucide-react";
+
+// 🔥 ALL AVAILABLE TILES IN SYSTEM
 export const tileRegistry = {
   home: {
     id: "home",
     label: "Home",
     icon: Home,
-    system: true, // cannot uninstall
+    system: true, // 🔥 cannot uninstall
   },
 
   calendar: {
     id: "calendar",
     label: "Calendar",
     icon: Calendar,
-    component: CalendarPage,
   },
 
   chores: {
     id: "chores",
     label: "Chores",
     icon: ListTodo,
-    component: ChoresPage,
   },
 
   notes: {
     id: "notes",
     label: "Notes",
     icon: StickyNote,
-    component: NotesPage,
   },
+  extra1: {
+  id: "extra1",
+  label: "Extra 1",
+  icon: Calendar,
+},
 
-  store: {
-    id: "store",
-    label: "Store",
-    icon: Grid,
-    noUninstall: true, // 🔥 IMPORTANT
-  },
+extra2: {
+  id: "extra2",
+  label: "Extra 2",
+  icon: Calendar,
+},
 };
