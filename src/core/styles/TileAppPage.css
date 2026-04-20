@@ -19,6 +19,9 @@
 
   padding: 12px 16px;
 
+  /* 🔥 PUSH BELOW GLOBAL HEADER */
+  margin-top: 60px;
+
   background: rgba(255,255,255,0.85);
   backdrop-filter: blur(10px);
 
@@ -63,12 +66,14 @@
   flex: 1;
   overflow: hidden;
 
-  /* 🔥 FIX: APPLY OFFSET HERE ONLY */
-  padding-top: 60px;     /* Global header height */
-  padding-bottom: 110px; /* Dock height */
+  /* 🔥 PREVENT CONTENT FROM HIDING UNDER DOCK */
+  padding-bottom: 110px;
 }
 
-/* FUTURE SIDEBAR */
+/* ========================= */
+/* SIDEBAR (FUTURE) */
+/* ========================= */
+
 .tile-sidebar {
   width: 220px;
   background: rgba(255,255,255,0.75);
