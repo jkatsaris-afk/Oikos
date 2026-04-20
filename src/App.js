@@ -4,20 +4,19 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "r
 // 🔥 IMPORT DOCK LAYOUT
 import DockLayout from "./core/layout/DockLayout";
 
-// 🔥 IMPORT GLOBAL HEADER (FIX)
+// 🔥 IMPORT GLOBAL HEADER
 import GlobalHeader from "./core/layout/GlobalHeader";
 
 // 🔥 IMPORT THEME PROVIDER
 import ThemeProvider from "./core/theme/ThemeProvider";
 
-// 🔥 AUTH PROTECTION (ADDED)
+// 🔥 AUTH PROTECTION
 import RequireAuth from "./auth/RequireAuth";
 
-// 🔥 GLOBAL SYSTEM PAGES (ADD BELOW RequireAuth)
+// 🔥 GLOBAL SYSTEM PAGES
 import LoginPage from "./core/pages/LoginPage";
 import PendingApprovalPage from "./core/pages/PendingApprovalPage";
 import NoAccessPage from "./core/pages/NoAccessPage";
-
 
 // 🔥 Helper for lazy pages
 const load = (path) =>
@@ -58,7 +57,7 @@ const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
 
 // =========================
-// 🔥 PAGES
+// PAGES
 // =========================
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
 
@@ -89,17 +88,14 @@ const PaymentManager = load("./master-admin/pages/PaymentManagerPage");
 const BillingOverview = load("./billing/pages/BillingOverviewPage");
 
 /* =========================
-   🔥 MODE DETECTOR
+   MODE WRAPPER
 ========================= */
 function ModeWrapper({ children }) {
   const location = useLocation();
-  const hostname = window.location.hostname;
 
   let mode = "home";
 
-  if (hostname.includes("oikoschurch")) mode = "church";
-  else if (hostname.includes("oikoscampus")) mode = "campus";
-  else if (location.pathname.startsWith("/business")) mode = "business";
+  if (location.pathname.startsWith("/business")) mode = "business";
   else if (location.pathname.startsWith("/edu")) mode = "education";
   else if (location.pathname.startsWith("/nightstand")) mode = "nightstand";
   else if (location.pathname.startsWith("/church")) mode = "church";
@@ -108,15 +104,11 @@ function ModeWrapper({ children }) {
   else if (location.pathname.startsWith("/sports")) mode = "sports";
   else if (location.pathname.startsWith("/farm")) mode = "farm";
 
-  return (
-    <ThemeProvider mode={mode}>
-      {children}
-    </ThemeProvider>
-  );
+  return <ThemeProvider mode={mode}>{children}</ThemeProvider>;
 }
 
 /* =========================
-   🔥 ROOT DOMAIN ROUTER
+   ROOT DOMAIN ROUTER
 ========================= */
 function HomeOrDomain() {
   const hostname = window.location.hostname;
@@ -140,89 +132,76 @@ export default function App() {
     <Router>
       <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
 
-        {/* MODE + THEME */}
-        <ModeWrapper>
+        <Routes>
 
-          {/* 🔥 GLOBAL HEADER */}
-          <GlobalHeader />
+          {/* 🔓 FULL SCREEN (NO DOCK) */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/pending-approval" element={<PendingApprovalPage />} />
+          <Route path="/no-access" element={<NoAccessPage />} />
 
-          {/* DOCK */}
-          <DockLayout>
+          {/* 🔒 APP (WITH DOCK + HEADER) */}
+          <Route
+            path="*"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
 
-            <Routes>
+                    <Routes>
 
-              {/* ROOT */}
-              <Route path="/" element={<HomeOrDomain />} />
+                      {/* ROOT */}
+                      <Route path="/" element={<HomeOrDomain />} />
 
-            {/* AUTH + SYSTEM */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/pending-approval" element={<PendingApprovalPage />} />
-            <Route path="/no-access" element={<NoAccessPage />} />
+                      {/* TEMPLATE */}
+                      <Route path="/temp" element={<TemplateDashboard />} />
 
-              {/* TEMPLATE */}
-              <Route path="/temp" element={<TemplateDashboard />} />
+                      {/* DISPLAY */}
+                      <Route path="/home" element={<DisplayHomeDashboard />} />
+                      <Route path="/business" element={<DisplayBusinessDashboard />} />
+                      <Route path="/edu" element={<DisplayEduDashboard />} />
+                      <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
 
-              {/* DISPLAY */}
-              <Route 
-                path="/home" 
-                element={
-                  <RequireAuth>
-                    <DisplayHomeDashboard />
-                  </RequireAuth>
-                } 
-              />
-              <Route path="/business" element={<DisplayBusinessDashboard />} />
-              <Route path="/edu" element={<DisplayEduDashboard />} />
-              <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
+                      {/* REDIRECTS */}
+                      <Route path="/display/home" element={<Navigate to="/home" />} />
+                      <Route path="/display/business" element={<Navigate to="/business" />} />
+                      <Route path="/display/edu" element={<Navigate to="/edu" />} />
+                      <Route path="/display/nightstand" element={<Navigate to="/nightstand" />} />
 
-              {/* OLD DISPLAY REDIRECTS */}
-              <Route path="/display/home" element={<Navigate to="/home" />} />
-              <Route path="/display/business" element={<Navigate to="/business" />} />
-              <Route path="/display/edu" element={<Navigate to="/edu" />} />
-              <Route path="/display/nightstand" element={<Navigate to="/nightstand" />} />
+                      {/* DISPLAY MANAGER */}
+                      <Route path="/display-manager" element={<DisplayManagerDashboard />} />
+                      <Route path="/display-manager/devices" element={<DisplayDevices />} />
+                      <Route path="/display-manager/devices/:deviceId" element={<DisplayDeviceDetail />} />
 
-              {/* DISPLAY MANAGER */}
-              <Route path="/display-manager" element={<DisplayManagerDashboard />} />
-              <Route path="/display-manager/devices" element={<DisplayDevices />} />
-              <Route path="/display-manager/devices/:deviceId" element={<DisplayDeviceDetail />} />
+                      {/* OTHER PLATFORMS */}
+                      <Route path="/church" element={<ChurchDashboard />} />
+                      <Route path="/campus" element={<CampusDashboard />} />
+                      <Route path="/pages" element={<PagesDashboard />} />
+                      <Route path="/sports" element={<SportsDashboard />} />
+                      <Route path="/farm" element={<FarmDashboard />} />
 
-              {/* CHURCH */}
-              <Route path="/church" element={<ChurchDashboard />} />
+                      {/* ACCOUNT */}
+                      <Route path="/account" element={<AccountDashboard />} />
 
-              {/* CAMPUS */}
-              <Route path="/campus" element={<CampusDashboard />} />
+                      {/* ADMIN */}
+                      <Route path="/master-admin" element={<AdminDashboard />} />
+                      <Route path="/master-admin/payments" element={<PaymentManager />} />
 
-              {/* PAGES */}
-              <Route path="/pages" element={<PagesDashboard />} />
+                      {/* BILLING */}
+                      <Route path="/billing" element={<BillingOverview />} />
 
-              {/* SPORTS */}
-              <Route path="/sports" element={<SportsDashboard />} />
+                      {/* FALLBACK */}
+                      <Route path="*" element={<div style={{ padding: 20 }}>404 - Page not found</div>} />
 
-              {/* FARM */}
-              <Route path="/farm" element={<FarmDashboard />} />
+                    </Routes>
 
-              {/* ACCOUNT */}
-              <Route path="/account" element={<AccountDashboard />} />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
 
-              {/* ADMIN */}
-              <Route path="/master-admin" element={<AdminDashboard />} />
-              <Route path="/master-admin/payments" element={<PaymentManager />} />
-
-              {/* BILLING */}
-              <Route path="/billing" element={<BillingOverview />} />
-
-              {/* 🔥 SYSTEM ROUTES (ADDED) */}
-              <Route path="/pending-approval" element={<PendingApprovalPage />} />
-              <Route path="/no-access" element={<NoAccessPage />} />
-
-              {/* FALLBACK */}
-              <Route path="*" element={<div style={{ padding: 20 }}>404 - Page not found</div>} />
-
-            </Routes>
-
-          </DockLayout>
-
-        </ModeWrapper>
+        </Routes>
 
       </Suspense>
     </Router>
