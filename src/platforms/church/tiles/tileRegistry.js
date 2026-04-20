@@ -1,4 +1,4 @@
-import AnnouncementApp from "./announcements/AnnouncementApp";
+import AnnouncementApp from "./announcements";
 
 export const churchTileRegistry = {
   announcements: {
