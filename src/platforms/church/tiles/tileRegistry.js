@@ -1,4 +1,5 @@
 import AnnouncementApp from "./announcements/AnnouncementApp";
+import SermonApp from "./sermon/SermonApp";
 
 /**
  * =========================================
