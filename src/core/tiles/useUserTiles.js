@@ -4,44 +4,74 @@ export default function useUserTiles() {
 
   const [tiles, setTiles] = useState([
     { id: "home", order: 1, installed: true },
-    { id: "announcements", order: 2, installed: true }, // ✅ ONLY VALID TILE
+    { id: "announcements", order: 2, installed: true },
+    { id: "sermon", order: 3, installed: true }, // 🔥 ADDED
   ]);
+
+  /* =========================
+     SORT TILES (ALWAYS SAFE)
+  ========================= */
+  const getSortedTiles = (tileList) => {
+    return [...tileList].sort((a, b) => a.order - b.order);
+  };
 
   /* =========================
      UNINSTALL TILE
   ========================= */
   const uninstallTile = (tileId) => {
-    setTiles(prev =>
-      prev.map(tile =>
+
+    // 🔥 PROTECT SYSTEM TILES
+    if (tileId === "home" || tileId === "store") return;
+
+    setTiles(prev => {
+      const updated = prev.map(tile =>
         tile.id === tileId
           ? { ...tile, installed: false }
           : tile
-      )
-    );
+      );
+
+      // 🔥 RE-ORDER INSTALLED TILES CLEANLY
+      const installed = updated.filter(t => t.installed);
+      const uninstalled = updated.filter(t => !t.installed);
+
+      const reordered = installed.map((tile, index) => ({
+        ...tile,
+        order: index + 1,
+      }));
+
+      return [...reordered, ...uninstalled];
+    });
   };
 
   /* =========================
-     INSTALL TILE (FOR LATER)
+     INSTALL TILE
   ========================= */
   const installTile = (tileId) => {
     setTiles(prev => {
+
       const exists = prev.find(t => t.id === tileId);
 
-      // if tile exists, just re-enable
+      // 🔥 GET NEXT ORDER SLOT
+      const nextOrder =
+        prev.filter(t => t.installed).length + 1;
+
       if (exists) {
         return prev.map(t =>
           t.id === tileId
-            ? { ...t, installed: true }
+            ? {
+                ...t,
+                installed: true,
+                order: nextOrder,
+              }
             : t
         );
       }
 
-      // otherwise add it
       return [
         ...prev,
         {
           id: tileId,
-          order: prev.length + 1,
+          order: nextOrder,
           installed: true,
         }
       ];
@@ -49,17 +79,20 @@ export default function useUserTiles() {
   };
 
   /* =========================
-     REORDER (FUTURE)
+     REORDER (FUTURE DRAG)
   ========================= */
   const reorderTiles = (newTiles) => {
     setTiles(newTiles);
   };
 
+  /* =========================
+     RETURN SORTED TILES
+  ========================= */
   return {
-    tiles,
+    tiles: getSortedTiles(tiles),
     setTiles,
-    uninstallTile, // 🔥 USED NOW
-    installTile,   // 🔥 FOR TILE STORE
-    reorderTiles,  // 🔥 FOR DRAG + DROP
+    uninstallTile,
+    installTile,
+    reorderTiles,
   };
 }
