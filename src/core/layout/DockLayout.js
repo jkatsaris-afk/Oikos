@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
-import { tileDesign } from "../tiles/tileDesign"; // 🔥 NEW
+import { tileDesign } from "../tiles/tileDesign";
 import useUserTiles from "../tiles/useUserTiles";
 
 import TilePageLayout from "./TilePageLayout";
@@ -18,13 +18,10 @@ export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
   const [openTileSettings, setOpenTileSettings] = useState(false);
-  const [openTileInfo, setOpenTileInfo] = useState(false); // 🔥 NEW
+  const [openTileInfo, setOpenTileInfo] = useState(false);
 
-  const { tiles } = useUserTiles();
+  const { tiles, uninstallTile } = useUserTiles(); // 🔥 UPDATED
 
-  /* =========================
-     SAFE TILE BUILD
-  ========================= */
   const installedTiles = tiles
     .filter(t => t.installed && t.id !== "home" && t.id !== "store")
     .map(t => {
@@ -55,26 +52,23 @@ export default function DockLayout({ children }) {
 
   const showMore = overflowTiles.length > 0;
 
-  /* 🔥 FIXED: use .page instead of .component */
   const ActiveComponent = tileRegistry[activeTile]?.page;
 
   return (
     <div className="app-container">
 
-      {/* =========================
-          CONTENT AREA
-      ========================= */}
       <div className="content-area">
 
         {activeTile === "home" && children}
 
         {activeTile === "store" && <TileStorePage />}
 
-        {/* 🔥 FIX: REMOVED TilePageLayout WRAPPER */}
         {activeTile !== "home" && activeTile !== "store" && (
           <>
             {ActiveComponent
-              ? React.createElement(ActiveComponent)
+              ? React.createElement(ActiveComponent, {
+                  onUninstall: () => uninstallTile(activeTile) // 🔥 ADDED
+                })
               : (
                 <div style={{ padding: 20 }}>
                   ⚠️ Tile component is undefined
@@ -86,9 +80,6 @@ export default function DockLayout({ children }) {
 
       </div>
 
-      {/* =========================
-          SETTINGS MODAL
-      ========================= */}
       {openTileSettings && tileRegistry[activeTile]?.settings && (
         <SettingsModal
           open={openTileSettings}
@@ -100,9 +91,6 @@ export default function DockLayout({ children }) {
         </SettingsModal>
       )}
 
-      {/* =========================
-          INFO MODAL (NEW)
-      ========================= */}
       {openTileInfo && tileRegistry[activeTile]?.info && (
         <SettingsModal
           open={openTileInfo}
@@ -114,9 +102,6 @@ export default function DockLayout({ children }) {
         </SettingsModal>
       )}
 
-      {/* =========================
-          OVERFLOW
-      ========================= */}
       {showOverflow && (
         <div
           className="overflow-backdrop"
@@ -160,12 +145,8 @@ export default function DockLayout({ children }) {
         </div>
       )}
 
-      {/* =========================
-          DOCK
-      ========================= */}
       <div className="nav-wrap">
 
-        {/* HOME */}
         <div
           className={`nav-item2 home ${
             activeTile === "home" ? "active" : ""
@@ -179,7 +160,6 @@ export default function DockLayout({ children }) {
           <span>Home</span>
         </div>
 
-        {/* MAIN TILES */}
         {visibleTiles.map(tile => {
           const design = tileDesign[tile.id];
           const Icon = design?.icon;
@@ -203,7 +183,6 @@ export default function DockLayout({ children }) {
           );
         })}
 
-        {/* MORE */}
         {showMore && (
           <div
             className={`nav-item2 more ${
@@ -216,7 +195,6 @@ export default function DockLayout({ children }) {
           </div>
         )}
 
-        {/* EMPTY SLOTS */}
         {Array.from({
           length: 5 - (1 + visibleTiles.length + (showMore ? 1 : 0))
         }).map((_, i) => (
