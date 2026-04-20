@@ -1,4 +1,3 @@
-import SettingsLayout from "./SettingsLayout";
 import DisplaySettings from "./DisplaySettings";
 
 /* =========================
@@ -6,39 +5,29 @@ import DisplaySettings from "./DisplaySettings";
 ========================= */
 
 export function getModeSettings(mode) {
-  let content = null;
-
   switch (mode) {
     case "home":
     case "business":
     case "education":
     case "nightstand":
-      content = <DisplaySettings />;
-      break;
+      return <DisplaySettings />;
 
     case "church":
-      content = <div>Church Settings</div>;
-      break;
+      return <div>Church Settings</div>;
 
     case "campus":
-      content = <div>Campus Settings</div>;
-      break;
+      return <div>Campus Settings</div>;
 
     case "pages":
-      content = <div>Pages Settings</div>;
-      break;
+      return <div>Pages Settings</div>;
 
     case "sports":
-      content = <div>Sports Settings</div>;
-      break;
+      return <div>Sports Settings</div>;
 
     case "farm":
-      content = <div>Farm Settings</div>;
-      break;
+      return <div>Farm Settings</div>;
 
     default:
-      content = <div>No settings available</div>;
+      return <div>No settings available</div>;
   }
-
-  return <SettingsLayout>{content}</SettingsLayout>;
 }
