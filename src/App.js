@@ -80,8 +80,9 @@ function ModeWrapper({ children }) {
 
   let mode = "home";
 
-  // 🔥 DOMAIN FIRST
+  // 🔥 DOMAIN FIRST (ADDED CAMPUS ONLY)
   if (hostname.includes("oikoschurch")) mode = "church";
+  else if (hostname.includes("oikoscampus")) mode = "campus";
   else if (location.pathname.startsWith("/business")) mode = "business";
   else if (location.pathname.startsWith("/edu")) mode = "education";
   else if (location.pathname.startsWith("/nightstand")) mode = "nightstand";
@@ -100,11 +101,16 @@ function ModeWrapper({ children }) {
 /* =========================
    🔥 ROOT DOMAIN ROUTER (FIX)
 ========================= */
-function HomeOrChurch() {
+function HomeOrDomain() {
   const hostname = window.location.hostname;
 
+  // 🔥 DOMAIN ROUTING (ADDED CAMPUS ONLY)
   if (hostname.includes("oikoschurch")) {
     return <Navigate to="/church" replace />;
+  }
+
+  if (hostname.includes("oikoscampus")) {
+    return <Navigate to="/campus" replace />;
   }
 
   return <Navigate to="/home" replace />;
@@ -127,7 +133,7 @@ export default function App() {
             <Routes>
 
               {/* 🔥 ROOT FIXED */}
-              <Route path="/" element={<HomeOrChurch />} />
+              <Route path="/" element={<HomeOrDomain />} />
 
               {/* TEMPLATE */}
               <Route path="/temp" element={<TemplateDashboard />} />
