@@ -18,6 +18,11 @@ import LoginPage from "./core/pages/LoginPage";
 import PendingApprovalPage from "./core/pages/PendingApprovalPage";
 import NoAccessPage from "./core/pages/NoAccessPage";
 
+// 🔥 ADDED AUTH PAGES (FIX)
+import SignupPage from "./core/pages/SignupPage";
+import ForgotPasswordPage from "./core/pages/ForgotPasswordPage";
+import ResetPasswordPage from "./core/pages/ResetPasswordPage";
+
 // 🔥 Helper for lazy pages
 const load = (path) =>
   lazy(() =>
@@ -136,6 +141,9 @@ export default function App() {
 
           {/* 🔓 FULL SCREEN (NO DOCK) */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/no-access" element={<NoAccessPage />} />
 
