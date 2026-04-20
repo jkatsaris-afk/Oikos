@@ -4,14 +4,7 @@ import AnnouncementPage from "./AnnouncementPage";
 import AnnouncementSettings from "./AnnouncementSettings";
 import AnnouncementInfo from "./AnnouncementInfo";
 
-/**
- * =========================================
- * ANNOUNCEMENT TILE APP (CHURCH)
- * =========================================
- * Full tile system wrapper
- */
-
-export default function AnnouncementApp() {
+export default function AnnouncementApp({ onUninstall }) { // 🔥 UPDATED
   return (
     <TilePageTemplate
       tileId="announcements"
@@ -19,6 +12,7 @@ export default function AnnouncementApp() {
       PageComponent={AnnouncementPage}
       SettingsComponent={AnnouncementSettings}
       InfoComponent={AnnouncementInfo}
+      onUninstall={onUninstall} // 🔥 ADDED
     />
   );
 }
