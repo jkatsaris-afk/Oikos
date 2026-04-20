@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { Settings } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { getModeConfig } from "../theme/modeConfig";
 
@@ -11,9 +12,12 @@ export default function GlobalHeader() {
   const location = useLocation();
   const hostname = window.location.hostname;
 
+  const [time, setTime] = useState("");
+  const [date, setDate] = useState("");
+
   let mode = "home";
 
-  // 🔥 SAME LOGIC AS ModeWrapper (IMPORTANT)
+  // 🔥 MODE DETECTION (same as app)
   if (hostname.includes("oikoschurch")) mode = "church";
   else if (hostname.includes("oikoscampus")) mode = "campus";
   else if (location.pathname.startsWith("/business")) mode = "business";
@@ -27,17 +31,58 @@ export default function GlobalHeader() {
 
   const modeData = getModeConfig(mode);
 
+  /* =========================
+     CLOCK LOGIC
+  ========================= */
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+
+      const timeStr = now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const dateStr = now.toLocaleDateString([], {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+
+      setTime(timeStr);
+      setDate(dateStr);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div style={styles.header}>
 
-      {/* LEFT SIDE */}
+      {/* =========================
+          LEFT SIDE
+      ========================= */}
       <div style={styles.left}>
+
+        {/* CLOCK */}
+        <div style={styles.clock}>
+          <div style={styles.time}>{time}</div>
+          <div style={styles.date}>{date}</div>
+        </div>
+
+        {/* SETTINGS */}
         <button style={styles.iconBtn}>
           <Settings size={20} />
         </button>
+
       </div>
 
-      {/* RIGHT SIDE LOGO */}
+      {/* =========================
+          RIGHT SIDE (LOGO)
+      ========================= */}
       <div style={styles.right}>
         <img
           src={modeData.logo}
@@ -79,12 +124,28 @@ const styles = {
   left: {
     display: "flex",
     alignItems: "center",
-    gap: "10px",
+    gap: "12px",
   },
 
   right: {
     display: "flex",
     alignItems: "center",
+  },
+
+  clock: {
+    display: "flex",
+    flexDirection: "column",
+    lineHeight: "1",
+  },
+
+  time: {
+    fontSize: "14px",
+    fontWeight: "600",
+  },
+
+  date: {
+    fontSize: "11px",
+    color: "#6b7280",
   },
 
   iconBtn: {
