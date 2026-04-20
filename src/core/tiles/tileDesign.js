@@ -1,14 +1,12 @@
 import { Grid } from "lucide-react";
 
 import AnnouncementTileDesign from "../../platforms/church/tiles/announcements/TileDesign";
-import SermonTileDesign from "../../platforms/church/tiles/Sermon/TileDesign";
-// 🔥 ADD MORE TILE IMPORTS HERE
+import SermonTileDesign from "../../platforms/church/tiles/sermon/TileDesign"; // 🔥 also fix lowercase path
 
 /**
  * =========================================
  * GLOBAL TILE DESIGN REGISTRY
  * =========================================
- * ALL TILE DESIGNS REGISTERED HERE
  */
 
 /* =========================
@@ -23,33 +21,26 @@ const DefaultTileDesign = {
 };
 
 /* =========================
-   🔥 STORE TILE (ALWAYS AVAILABLE)
+   🔥 STORE TILE
 ========================= */
 const StoreTileDesign = {
   id: "store",
   icon: Grid,
   label: "Tile Store",
-  background: "#2F6EA3", // 🔥 matches your Display blue
+  background: "#2F6EA3",
   color: "#ffffff",
 };
 
 export const tileDesign = {
-  /* =========================
-     SYSTEM TILES
-  ========================= */
+  /* SYSTEM */
   [StoreTileDesign.id]: StoreTileDesign,
 
-  /* =========================
-     APP TILES
-  ========================= */
+  /* APP TILES */
   [AnnouncementTileDesign.id]: AnnouncementTileDesign,
-
-  // 🔥 ADD NEW TILES HERE ONLY
+  [SermonTileDesign.id]: SermonTileDesign, // ✅ 🔥 THIS FIXES IT
 };
 
-/* =========================
-   🔥 SAFE GETTER (OPTIONAL USE)
-========================= */
+/* SAFE GETTER */
 export const getTileDesign = (id) => {
   return tileDesign[id] || DefaultTileDesign;
 };
