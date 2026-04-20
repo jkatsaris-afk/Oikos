@@ -74,47 +74,45 @@ export default function GlobalHeader() {
     <div style={styles.header}>
 
       {/* =========================
-          LEFT SIDE
+          LEFT SIDE (LOGO)
       ========================= */}
       <div style={styles.left}>
+        <img
+          src={modeData.logo}
+          alt={modeData.label}
+          style={styles.logo}
+        />
+      </div>
 
-        {/* CLOCK */}
-        <div style={styles.clock}>
-          <div style={styles.time}>{time}</div>
-          <div style={styles.date}>{date}</div>
-        </div>
+      {/* =========================
+          RIGHT SIDE (ALL CONTROLS)
+      ========================= */}
+      <div style={styles.right}>
 
-        {/* SETTINGS */}
-        <button style={styles.iconBtn}>
-          <Settings size={20} />
-        </button>
-
-        {/* 🔥 DISPLAY / TV ONLY CONTROLS */}
+        {/* DISPLAY / TV ONLY */}
         {isDisplayMode && (
           <>
-            {/* PROFILES */}
             <button style={styles.iconBtn}>
               <User size={20} />
             </button>
 
-            {/* NIGHT MODE */}
             <button style={styles.iconBtn}>
               <Moon size={20} />
             </button>
           </>
         )}
 
-      </div>
+        {/* SETTINGS */}
+        <button style={styles.iconBtn}>
+          <Settings size={20} />
+        </button>
 
-      {/* =========================
-          RIGHT SIDE
-      ========================= */}
-      <div style={styles.right}>
-        <img
-          src={modeData.logo}
-          alt={modeData.label}
-          style={styles.logo}
-        />
+        {/* CLOCK (FURTHEST RIGHT) */}
+        <div style={styles.clock}>
+          <div style={styles.time}>{time}</div>
+          <div style={styles.date}>{date}</div>
+        </div>
+
       </div>
 
     </div>
@@ -150,18 +148,27 @@ const styles = {
   left: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
   },
 
   right: {
     display: "flex",
     alignItems: "center",
+    gap: "10px",
+  },
+
+  iconBtn: {
+    background: "rgba(0,0,0,0.05)",
+    border: "none",
+    borderRadius: "10px",
+    padding: "6px",
+    cursor: "pointer",
   },
 
   clock: {
     display: "flex",
     flexDirection: "column",
     lineHeight: "1",
+    marginLeft: "6px",
   },
 
   time: {
@@ -172,14 +179,6 @@ const styles = {
   date: {
     fontSize: "11px",
     color: "#6b7280",
-  },
-
-  iconBtn: {
-    background: "rgba(0,0,0,0.05)",
-    border: "none",
-    borderRadius: "10px",
-    padding: "6px",
-    cursor: "pointer",
   },
 
   logo: {
