@@ -1,19 +1,34 @@
-import HomeSettings from "../../platforms/display/modes/home/settings/HomeSettings";
-import ChurchSettings from "../../platforms/church/settings/ChurchSettings";
-import CampusSettings from "../../platforms/campus/settings/CampusSettings";
+/* =========================
+   MODE SETTINGS LOADER (SAFE)
+========================= */
 
 export function getModeSettings(mode) {
   switch (mode) {
     case "home":
-      return <HomeSettings />;
+      return <div>Home Settings</div>;
 
     case "church":
-      return <ChurchSettings />;
+      return <div>Church Settings</div>;
 
     case "campus":
-      return <CampusSettings />;
+      return <div>Campus Settings</div>;
+
+    case "business":
+      return <div>Business Settings</div>;
+
+    case "education":
+      return <div>Education Settings</div>;
+
+    case "sports":
+      return <div>Sports Settings</div>;
+
+    case "farm":
+      return <div>Farm Settings</div>;
+
+    case "pages":
+      return <div>Pages Settings</div>;
 
     default:
-      return <div>No settings for this mode yet</div>;
+      return <div>No settings available</div>;
   }
 }
