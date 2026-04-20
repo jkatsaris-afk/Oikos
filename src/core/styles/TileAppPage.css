@@ -5,7 +5,12 @@
 .tile-page {
   display: flex;
   flex-direction: column;
+
   height: 100%;
+
+  /* 🔥 FIX HEADER + DOCK OVERLAP */
+  padding-top: 70px;
+  padding-bottom: 120px;
 }
 
 /* ========================= */
