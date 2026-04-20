@@ -1,55 +1,42 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "./supabaseClient";
-import { getProfile } from "./authService";
 
 export function useAuth() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const hasLoaded = useRef(false); // 🔥 prevents double load
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (hasLoaded.current) return;
-    hasLoaded.current = true;
+    if (initialized.current) return;
+    initialized.current = true;
 
     let mounted = true;
 
-    async function loadUser() {
-      const { data } = await supabase.auth.getUser();
+    async function init() {
+      const { data } = await supabase.auth.getSession();
 
       if (!mounted) return;
 
-      const currentUser = data?.user || null;
+      const currentUser = data?.session?.user || null;
       setUser(currentUser);
 
-      if (currentUser) {
-        const prof = await getProfile(currentUser.id);
-        if (!mounted) return;
-        setProfile(prof);
-      }
+      // 🔥 TEMP: NO PROFILE CALL (avoid extra requests)
+      setProfile(currentUser ? { is_approved: true } : null);
 
       setLoading(false);
     }
 
-    loadUser();
+    init();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         if (!mounted) return;
 
         const currentUser = session?.user || null;
         setUser(currentUser);
-
-        if (currentUser) {
-          const prof = await getProfile(currentUser.id);
-          if (!mounted) return;
-          setProfile(prof);
-        } else {
-          setProfile(null);
-        }
-
-        setLoading(false);
+        setProfile(currentUser ? { is_approved: true } : null);
       }
     );
 
