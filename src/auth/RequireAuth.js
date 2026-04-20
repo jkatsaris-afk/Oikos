@@ -10,8 +10,9 @@ export default function RequireAuth({ children }) {
   const [hasAccess, setHasAccess] = useState(null);
 
   useEffect(() => {
+    let timeout;
+
     async function runCheck() {
-      // 🔥 WAIT FOR USER
       if (!user?.id) {
         setHasAccess(false);
         return;
@@ -22,13 +23,11 @@ export default function RequireAuth({ children }) {
 
       const path = location.pathname;
 
-      // 🔥 DISPLAY MODES (FIXED)
       if (path.includes("/business")) mode = "business";
       else if (path.includes("/edu")) mode = "edu";
       else if (path.includes("/nightstand")) mode = "nightstand";
       else if (path.includes("/home")) mode = "home";
 
-      // 🔥 OTHER PLATFORMS
       else if (path.startsWith("/church")) {
         platform = "church";
         mode = "default";
@@ -55,8 +54,13 @@ export default function RequireAuth({ children }) {
       }
     }
 
-    runCheck();
-  }, [user?.id, location.pathname]);
+    // 🔥 DELAY ACCESS CHECK TO AVOID LOCK COLLISION
+    if (!loading && user) {
+      timeout = setTimeout(runCheck, 150); // 🔥 key fix
+    }
+
+    return () => clearTimeout(timeout);
+  }, [user?.id, location.pathname, loading]);
 
   // 🔄 WAIT FOR AUTH + ACCESS
   if (loading || hasAccess === null) return null;
@@ -76,6 +80,5 @@ export default function RequireAuth({ children }) {
     return <Navigate to="/no-access" />;
   }
 
-  // ✅ ALLOWED
   return children;
 }
