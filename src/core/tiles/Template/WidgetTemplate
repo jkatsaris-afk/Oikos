@@ -1,1 +1,8 @@
-
+export default function WidgetTemplate({ title = "Widget" }) {
+  return (
+    <div className="tile-card">
+      <div className="tile-safe-text">{title}</div>
+      <div className="tile-safe-text">No data</div>
+    </div>
+  );
+}
