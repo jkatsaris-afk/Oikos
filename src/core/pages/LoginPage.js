@@ -61,7 +61,9 @@ export default function LoginPage() {
   // =========================
   // 🔐 LOGIN (FIXED)
   // =========================
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault(); // 🔥 allow Enter key submit
+
     try {
       await login(email, password);
 
@@ -95,7 +97,7 @@ export default function LoginPage() {
         </div>
 
         {/* 🔥 FORM */}
-        <div style={formStyle}>
+        <form style={formStyle} onSubmit={handleLogin}>
           <label style={labelStyle}>Email</label>
           <input
             type="email"
@@ -115,11 +117,11 @@ export default function LoginPage() {
           />
 
           <button
+            type="submit"
             style={{
               ...buttonStyle,
               background: primaryColor,
             }}
-            onClick={handleLogin}
           >
             Sign In
           </button>
@@ -133,7 +135,7 @@ export default function LoginPage() {
               Forgot Password?
             </span>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
