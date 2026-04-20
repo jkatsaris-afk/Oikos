@@ -42,14 +42,9 @@ export default function DockLayout({ children }) {
     <div className="app-container">
 
       {/* =========================
-          CONTENT AREA (🔥 FIX HERE)
+          CONTENT AREA (NO PADDING HERE)
       ========================= */}
-      <div
-        className="content-area"
-        style={{
-          paddingBottom: "120px", // 🔥 prevents dock overlap globally
-        }}
-      >
+      <div className="content-area">
         {activeTile === "home" && children}
         {activeTile === "store" && <TileStorePage />}
       </div>
