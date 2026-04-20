@@ -18,9 +18,6 @@ import LoginPage from "./core/pages/LoginPage";
 import PendingApprovalPage from "./core/pages/PendingApprovalPage";
 import NoAccessPage from "./core/pages/NoAccessPage";
 
-// 🔥 GLOBAL SYSTEM PAGES (ADDED)
-import PendingApprovalPage from "./core/pages/PendingApprovalPage";
-import NoAccessPage from "./core/pages/NoAccessPage";
 
 // 🔥 Helper for lazy pages
 const load = (path) =>
