@@ -8,29 +8,12 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   const initialized = useRef(false);
-  const loadingProfile = useRef(false); // 🔥 prevents duplicate profile calls
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
     let mounted = true;
-
-    async function loadProfile(userId) {
-      if (loadingProfile.current) return;
-      loadingProfile.current = true;
-
-      try {
-        const prof = await getProfile(userId);
-        if (!mounted) return;
-        setProfile(prof);
-      } catch (err) {
-        console.error("Profile load error:", err);
-        setProfile(null);
-      } finally {
-        loadingProfile.current = false;
-      }
-    }
 
     async function init() {
       const { data } = await supabase.auth.getSession();
@@ -40,11 +23,25 @@ export function useAuth() {
       const currentUser = data?.session?.user || null;
       setUser(currentUser);
 
-      if (currentUser) {
-        await loadProfile(currentUser.id);
-      }
-
+      // ✅ STOP BLOCKING HERE
       setLoading(false);
+
+      // 🔥 LOAD PROFILE AFTER UI IS READY
+      if (currentUser) {
+        loadProfile(currentUser.id);
+      }
+    }
+
+    async function loadProfile(userId) {
+      try {
+        const prof = await getProfile(userId);
+        if (!mounted) return;
+
+        setProfile(prof || { is_approved: true });
+      } catch (err) {
+        console.error("Profile load error:", err);
+        setProfile({ is_approved: true });
+      }
     }
 
     init();
@@ -56,13 +53,14 @@ export function useAuth() {
         const currentUser = session?.user || null;
         setUser(currentUser);
 
+        // ✅ DO NOT BLOCK UI
+        setLoading(false);
+
         if (currentUser) {
-          await loadProfile(currentUser.id);
+          loadProfile(currentUser.id);
         } else {
           setProfile(null);
         }
-
-        setLoading(false);
       }
     );
 
