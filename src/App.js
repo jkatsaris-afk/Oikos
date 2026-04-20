@@ -13,6 +13,11 @@ import ThemeProvider from "./core/theme/ThemeProvider";
 // 🔥 AUTH PROTECTION (ADDED)
 import RequireAuth from "./auth/RequireAuth";
 
+// 🔥 GLOBAL SYSTEM PAGES (ADD BELOW RequireAuth)
+import LoginPage from "./core/pages/LoginPage";
+import PendingApprovalPage from "./core/pages/PendingApprovalPage";
+import NoAccessPage from "./core/pages/NoAccessPage";
+
 // 🔥 GLOBAL SYSTEM PAGES (ADDED)
 import PendingApprovalPage from "./core/pages/PendingApprovalPage";
 import NoAccessPage from "./core/pages/NoAccessPage";
@@ -151,6 +156,11 @@ export default function App() {
 
               {/* ROOT */}
               <Route path="/" element={<HomeOrDomain />} />
+
+            {/* AUTH + SYSTEM */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/pending-approval" element={<PendingApprovalPage />} />
+            <Route path="/no-access" element={<NoAccessPage />} />
 
               {/* TEMPLATE */}
               <Route path="/temp" element={<TemplateDashboard />} />
