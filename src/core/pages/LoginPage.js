@@ -19,7 +19,7 @@ export default function LoginPage() {
   const location = useLocation();
 
   // =========================
-  // 🔥 MODE DETECTION
+  // 🔥 MODE DETECTION (FIXED)
   // =========================
   const hostname = window.location.hostname;
   const path = location.pathname;
@@ -27,32 +27,36 @@ export default function LoginPage() {
   let mode = "home";
   let logo = DisplayHomeLogo;
 
-  // DOMAIN
+  // 🔥 DOMAIN (ONLY overrides if matched)
   if (hostname.includes("oikoschurch")) {
     mode = "church";
     logo = ChurchLogo;
-  }
+  } 
   else if (hostname.includes("oikoscampus")) {
     mode = "campus";
     logo = CampusLogo;
-  }
+  } 
   else if (hostname.includes("oikossports")) {
     mode = "sports";
     logo = SportsLogo;
   }
 
-  // PATH
-  else if (path.includes("business")) {
+  // 🔥 PATH (ALWAYS RUNS)
+  if (path.includes("/business")) {
     mode = "business";
     logo = DisplayBusinessLogo;
   }
-  else if (path.includes("edu")) {
+  else if (path.includes("/edu")) {
     mode = "edu";
     logo = DisplayEduLogo;
   }
-  else if (path.includes("pages")) {
+  else if (path.includes("/pages")) {
     mode = "pages";
     logo = PagesLogo;
+  }
+  else if (path.includes("/home")) {
+    mode = "home";
+    logo = DisplayHomeLogo;
   }
 
   // 🔥 GET MODE COLOR
@@ -62,7 +66,7 @@ export default function LoginPage() {
   // 🔐 LOGIN (FIXED)
   // =========================
   const handleLogin = async (e) => {
-    e.preventDefault(); // 🔥 allow Enter key submit
+    e.preventDefault();
 
     try {
       await login(email, password);
