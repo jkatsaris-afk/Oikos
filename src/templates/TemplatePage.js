@@ -1,5 +1,8 @@
 import { Settings, Info, Trash2 } from "lucide-react";
 
+/* 🔥 IMPORT STYLES */
+import "../../core/styles/TileAppPage.css";
+
 export default function TemplatePage({
   title = "Page",
   children,
@@ -19,24 +22,24 @@ export default function TemplatePage({
   onUninstall = () => console.log("Uninstall clicked"),
 }) {
   return (
-    <div className="template-page">
+    <div className="tile-page">
 
       {/* =========================
           TOP BAR
       ========================= */}
-      <div className="template-top">
+      <div className="tile-top">
 
         {/* TITLE */}
-        <div className="template-title">
+        <div className="tile-title">
           {title}
         </div>
 
         {/* ACTION BUTTONS */}
-        <div className="template-actions">
+        <div className="tile-actions">
 
           {showSettings && (
             <button
-              className="template-icon-btn"
+              className="tile-icon-btn"
               onClick={onSettings}
               aria-label="Settings"
             >
@@ -46,7 +49,7 @@ export default function TemplatePage({
 
           {showInfo && (
             <button
-              className="template-icon-btn"
+              className="tile-icon-btn"
               onClick={onInfo}
               aria-label="Info"
             >
@@ -56,7 +59,7 @@ export default function TemplatePage({
 
           {showUninstall && (
             <button
-              className="template-icon-btn danger"
+              className="tile-icon-btn danger"
               onClick={onUninstall}
               aria-label="Uninstall"
             >
@@ -69,15 +72,15 @@ export default function TemplatePage({
       </div>
 
       {/* =========================
-          MAIN BODY
+          BODY
       ========================= */}
-      <div className="template-body">
+      <div className="tile-body">
 
-        {/* 🔥 FUTURE LEFT MENU SLOT */}
-        {/* <div className="template-sidebar"></div> */}
+        {/* 🔥 FUTURE SIDEBAR (READY) */}
+        {/* <div className="tile-sidebar"></div> */}
 
         {/* CONTENT */}
-        <div className="template-content">
+        <div className="tile-content">
           {children}
         </div>
 
