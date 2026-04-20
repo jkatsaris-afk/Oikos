@@ -70,16 +70,9 @@ export default function DockLayout({ children }) {
 
         {activeTile === "store" && <TileStorePage />}
 
+        {/* 🔥 FIX: REMOVED TilePageLayout WRAPPER */}
         {activeTile !== "home" && activeTile !== "store" && (
-          <TilePageLayout
-            title={tileDesign[activeTile]?.label || "App"} // 🔥 FIXED
-            onSettings={() => setOpenTileSettings(true)}
-            onInfo={() => setOpenTileInfo(true)} // 🔥 NEW
-            showUninstall={
-              !tileRegistry[activeTile]?.system &&
-              !tileRegistry[activeTile]?.noUninstall
-            }
-          >
+          <>
             {ActiveComponent
               ? React.createElement(ActiveComponent)
               : (
@@ -88,7 +81,7 @@ export default function DockLayout({ children }) {
                 </div>
               )
             }
-          </TilePageLayout>
+          </>
         )}
 
       </div>
