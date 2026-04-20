@@ -9,9 +9,17 @@ import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
 import useUserTiles from "../tiles/useUserTiles";
 
+/* 🔥 ADDED */
+import TilePageLayout from "../pages/TilePageLayout";
+import SettingsModal from "../settings/SettingsModal";
+import React from "react";
+
 export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
+
+  /* 🔥 ADDED */
+  const [openTileSettings, setOpenTileSettings] = useState(false);
 
   const { tiles } = useUserTiles();
 
@@ -38,16 +46,59 @@ export default function DockLayout({ children }) {
 
   const showMore = overflowTiles.length > 0;
 
+  /* 🔥 ADDED */
+  const ActiveComponent = tileRegistry[activeTile]?.component;
+
   return (
     <div className="app-container">
 
       {/* =========================
-          CONTENT AREA (NO PADDING HERE)
+          CONTENT AREA
       ========================= */}
       <div className="content-area">
+
+        {/* HOME */}
         {activeTile === "home" && children}
+
+        {/* STORE */}
         {activeTile === "store" && <TileStorePage />}
+
+        {/* 🔥 ALL OTHER TILES */}
+        {activeTile !== "home" && activeTile !== "store" && (
+          <TilePageLayout
+            title={tileRegistry[activeTile]?.label || "App"}
+
+            /* 🔥 OPEN TILE SETTINGS */
+            onSettings={() => setOpenTileSettings(true)}
+
+            showUninstall={
+              !tileRegistry[activeTile]?.system &&
+              !tileRegistry[activeTile]?.noUninstall
+            }
+          >
+            {ActiveComponent ? (
+              <ActiveComponent />
+            ) : (
+              <div style={{ padding: 20 }}>
+                This app is not built yet
+              </div>
+            )}
+          </TilePageLayout>
+        )}
+
       </div>
+
+      {/* 🔥 TILE SETTINGS MODAL */}
+      {openTileSettings && tileRegistry[activeTile]?.settings && (
+        <SettingsModal
+          open={openTileSettings}
+          onClose={() => setOpenTileSettings(false)}
+        >
+          {React.createElement(tileRegistry[activeTile].settings, {
+            tileId: activeTile,
+          })}
+        </SettingsModal>
+      )}
 
       {/* =========================
           OVERFLOW
