@@ -7,27 +7,27 @@ export default function RequireAuth({ children }) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
 
-  const [accessChecked, setAccessChecked] = useState(false);
-  const [hasAccess, setHasAccess] = useState(false);
-
-  // 🔥 FIRST: HANDLE LOADING
-  if (loading) return null;
-
-  // 🔥 SECOND: NOT LOGGED IN → REDIRECT IMMEDIATELY
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  const [hasAccess, setHasAccess] = useState(null);
 
   useEffect(() => {
     async function runCheck() {
+      if (!user) {
+        setHasAccess(false);
+        return;
+      }
+
       let platform = "display";
       let mode = "home";
 
       const path = location.pathname;
 
-      if (path.startsWith("/business")) mode = "business";
-      else if (path.startsWith("/edu")) mode = "edu";
-      else if (path.startsWith("/nightstand")) mode = "nightstand";
+      // 🔥 DISPLAY MODES (FIXED)
+      if (path.includes("/business")) mode = "business";
+      else if (path.includes("/edu")) mode = "edu";
+      else if (path.includes("/nightstand")) mode = "nightstand";
+      else if (path.includes("/home")) mode = "home";
+
+      // 🔥 OTHER PLATFORMS
       else if (path.startsWith("/church")) {
         platform = "church";
         mode = "default";
@@ -46,16 +46,19 @@ export default function RequireAuth({ children }) {
       }
 
       const access = await checkAccess(user.id, platform, mode);
-
-      setHasAccess(!!access);
-      setAccessChecked(true);
+      setHasAccess(access);
     }
 
     runCheck();
   }, [user, location.pathname]);
 
-  // 🔄 WAIT FOR ACCESS CHECK
-  if (!accessChecked) return null;
+  // 🔄 WAIT FOR AUTH + ACCESS
+  if (loading || hasAccess === null) return null;
+
+  // ❌ NOT LOGGED IN
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   // ❌ NOT APPROVED
   if (!profile?.is_approved) {
