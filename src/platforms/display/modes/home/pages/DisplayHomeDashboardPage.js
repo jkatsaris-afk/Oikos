@@ -19,19 +19,10 @@ export default function DisplayHomeDashboardPage() {
         />
 
         {/* =========================
-            CONTENT (NO TEMPLATE PAGE)
+            EMPTY CONTENT (INTENTIONAL)
         ========================= */}
         <div style={styles.content}>
-
-          <div style={styles.grid}>
-
-            <div style={styles.tile}>Calendar</div>
-            <div style={styles.tile}>Weather</div>
-            <div style={styles.tile}>Chores</div>
-            <div style={styles.tile}>Family</div>
-
-          </div>
-
+          {/* 🔥 intentionally empty for now */}
         </div>
 
       </div>
@@ -63,21 +54,5 @@ const styles = {
     position: "relative",
     zIndex: 1,
     padding: "20px",
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-    gap: "16px",
-  },
-
-  tile: {
-    height: "120px",
-    borderRadius: "16px",
-    background: "rgba(255,255,255,0.85)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: "600",
   },
 };
