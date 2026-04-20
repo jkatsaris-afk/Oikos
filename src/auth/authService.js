@@ -1,9 +1,78 @@
 import { supabase } from "./supabaseClient";
 
-// 🔥 GENERATE CODE
+// =========================
+// 🔥 GENERATE INVITE CODE
+// =========================
 function generateCode(prefix = "OIKOS") {
   const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
   return `${prefix}-${rand}`;
+}
+
+// =========================
+// 🔐 LOGIN
+// =========================
+export async function login(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) throw error;
+
+  return data.user;
+}
+
+// =========================
+// 👤 GET USER PROFILE
+// =========================
+export async function getProfile(userId) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle(); // 🔥 prevents crash if missing
+
+  if (error) throw error;
+
+  return data;
+}
+
+// =========================
+// 🔐 CHECK ACCESS
+// =========================
+export async function checkAccess(userId, platform, mode) {
+  const { data, error } = await supabase
+    .from("user_access")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("platform", platform)
+    .eq("mode", mode);
+
+  if (error) throw error;
+
+  return data && data.length > 0;
+}
+
+// =========================
+// 🔁 RESET PASSWORD (EMAIL)
+// =========================
+export async function resetPassword(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+
+  if (error) throw error;
+}
+
+// =========================
+// 🔐 UPDATE PASSWORD (AFTER EMAIL LINK)
+// =========================
+export async function updatePassword(password) {
+  const { error } = await supabase.auth.updateUser({
+    password,
+  });
+
+  if (error) throw error;
 }
 
 // =========================
@@ -27,12 +96,16 @@ export async function signup({
 
   if (error) throw error;
 
+  if (!data?.user) {
+    throw new Error("User creation failed");
+  }
+
   const userId = data.user.id;
 
   // =========================
   // CREATE PROFILE
   // =========================
-  await supabase.from("profiles").insert({
+  const { error: profileError } = await supabase.from("profiles").insert({
     id: userId,
     email,
     full_name,
@@ -41,15 +114,17 @@ export async function signup({
     metadata: extraData,
   });
 
+  if (profileError) throw profileError;
+
   let accountId = null;
 
   // =========================
   // CREATE ACCOUNT
   // =========================
   if (mode === "create") {
-    const code = generateCode(accountType?.toUpperCase());
+    const code = generateCode(accountType?.toUpperCase() || "OIKOS");
 
-    const { data: account } = await supabase
+    const { data: account, error: accountError } = await supabase
       .from("accounts")
       .insert({
         name: accountName,
@@ -60,35 +135,42 @@ export async function signup({
       .select()
       .single();
 
+    if (accountError) throw accountError;
+
     accountId = account.id;
 
     // OWNER MEMBERSHIP
-    await supabase.from("account_members").insert({
+    const { error: memberError } = await supabase.from("account_members").insert({
       account_id: accountId,
       user_id: userId,
       role: "owner",
     });
+
+    if (memberError) throw memberError;
   }
 
   // =========================
   // JOIN ACCOUNT
   // =========================
   if (mode === "join") {
-    const { data: account } = await supabase
+    const { data: account, error: findError } = await supabase
       .from("accounts")
       .select("*")
       .eq("invite_code", inviteCode)
       .maybeSingle();
 
+    if (findError) throw findError;
     if (!account) throw new Error("Invalid invite code");
 
     accountId = account.id;
 
-    await supabase.from("account_members").insert({
+    const { error: joinError } = await supabase.from("account_members").insert({
       account_id: accountId,
       user_id: userId,
       role: "member",
     });
+
+    if (joinError) throw joinError;
   }
 
   return data.user;
