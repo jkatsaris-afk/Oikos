@@ -10,6 +10,9 @@ import GlobalHeader from "./core/layout/GlobalHeader";
 // 🔥 IMPORT THEME PROVIDER
 import ThemeProvider from "./core/theme/ThemeProvider";
 
+// 🔥 AUTH PROTECTION (ADDED)
+import RequireAuth from "./auth/RequireAuth";
+
 // 🔥 Helper for lazy pages
 const load = (path) =>
   lazy(() =>
@@ -134,7 +137,7 @@ export default function App() {
         {/* MODE + THEME */}
         <ModeWrapper>
 
-          {/* 🔥 GLOBAL HEADER (FIX ADDED) */}
+          {/* 🔥 GLOBAL HEADER */}
           <GlobalHeader />
 
           {/* DOCK */}
@@ -149,7 +152,14 @@ export default function App() {
               <Route path="/temp" element={<TemplateDashboard />} />
 
               {/* DISPLAY */}
-              <Route path="/home" element={<DisplayHomeDashboard />} />
+              <Route 
+                path="/home" 
+                element={
+                  <RequireAuth>
+                    <DisplayHomeDashboard />
+                  </RequireAuth>
+                } 
+              />
               <Route path="/business" element={<DisplayBusinessDashboard />} />
               <Route path="/edu" element={<DisplayEduDashboard />} />
               <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
