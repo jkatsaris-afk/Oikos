@@ -1,6 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, createContext, useContext } from "react";
 import useTheme from "./useTheme";
 
+// =========================
+// 🔥 MODE CONTEXT (NEW)
+// =========================
+const ModeContext = createContext();
+
+export const useMode = () => useContext(ModeContext);
+
+// =========================
+// THEME PROVIDER
+// =========================
 export default function ThemeProvider({ mode = "home", children }) {
   const theme = useTheme(mode);
 
@@ -8,14 +18,18 @@ export default function ThemeProvider({ mode = "home", children }) {
     const root = document.documentElement;
 
     const rgb = hexToRgb(theme.primary);
-    const dark = darkenHex(theme.primary, 0.25); // 🔥 25% darker
+    const dark = darkenHex(theme.primary, 0.25);
 
     root.style.setProperty("--color-primary", theme.primary);
     root.style.setProperty("--color-primary-rgb", rgb);
-    root.style.setProperty("--color-primary-dark", dark); // 🔥 NEW
+    root.style.setProperty("--color-primary-dark", dark);
   }, [theme]);
 
-  return children;
+  return (
+    <ModeContext.Provider value={{ mode, theme }}>
+      {children}
+    </ModeContext.Provider>
+  );
 }
 
 /* =========================
@@ -32,7 +46,7 @@ function hexToRgb(hex) {
 
     return `${r}, ${g}, ${b}`;
   } catch (e) {
-    return "47, 110, 163"; // fallback
+    return "47, 110, 163";
   }
 }
 
@@ -54,6 +68,6 @@ function darkenHex(hex, amount = 0.2) {
 
     return `rgb(${r}, ${g}, ${b})`;
   } catch (e) {
-    return "rgb(31, 79, 120)"; // fallback dark blue
+    return "rgb(31, 79, 120)";
   }
 }
