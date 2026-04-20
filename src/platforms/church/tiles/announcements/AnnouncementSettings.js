@@ -1,20 +1,8 @@
-import { useState } from "react";
-
-export default function AnnouncementSettings({ tileId }) {
-  const [enabled, setEnabled] = useState(false);
-
+export default function AnnouncementSettings() {
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Announcement Settings</h2>
-
-      <label>
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={() => setEnabled(!enabled)}
-        />
-        Enable Feature
-      </label>
+    <div style={{ padding: 16 }}>
+      <h3>Announcement Settings</h3>
+      <p>Configure announcement behavior here.</p>
     </div>
   );
 }
