@@ -5,12 +5,7 @@
 .tile-page {
   display: flex;
   flex-direction: column;
-
   height: 100%;
-
-  /* 🔥 FIX HEADER + DOCK OVERLAP */
-  padding-top: 70px;
-  padding-bottom: 120px;
 }
 
 /* ========================= */
@@ -67,6 +62,10 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+
+  /* 🔥 FIX: APPLY OFFSET HERE ONLY */
+  padding-top: 60px;     /* Global header height */
+  padding-bottom: 110px; /* Dock height */
 }
 
 /* FUTURE SIDEBAR */
