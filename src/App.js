@@ -93,7 +93,7 @@ const PaymentManager = load("./master-admin/pages/PaymentManagerPage");
 const BillingOverview = load("./billing/pages/BillingOverviewPage");
 
 /* =========================
-   MODE WRAPPER (FIXED)
+   MODE WRAPPER (UNCHANGED)
 ========================= */
 function ModeWrapper({ children }) {
   const location = useLocation();
@@ -101,13 +101,11 @@ function ModeWrapper({ children }) {
 
   let mode = "home";
 
-  // 🔥 DISPLAY MODES (FIXED)
   if (path.includes("/home") || path === "/") mode = "home";
   else if (path.includes("/business")) mode = "business";
-  else if (path.includes("/edu")) mode = "edu"; // 🔥 FIXED
+  else if (path.includes("/edu")) mode = "edu";
   else if (path.includes("/nightstand")) mode = "nightstand";
 
-  // 🔥 OTHER PLATFORMS
   else if (path.startsWith("/church")) mode = "church";
   else if (path.startsWith("/campus")) mode = "campus";
   else if (path.startsWith("/pages")) mode = "pages";
@@ -118,11 +116,18 @@ function ModeWrapper({ children }) {
 }
 
 /* =========================
-   ROOT DOMAIN ROUTER
+   ROOT DOMAIN ROUTER (FIXED)
 ========================= */
 function HomeOrDomain() {
   const hostname = window.location.hostname;
+  const path = window.location.pathname;
 
+  // 🔥 RESPECT CURRENT PATH (CRITICAL FIX)
+  if (path !== "/" && path !== "") {
+    return <Navigate to={path} replace />;
+  }
+
+  // 🔥 DOMAIN REDIRECTS
   if (hostname.includes("oikoschurch")) {
     return <Navigate to="/church" replace />;
   }
@@ -131,6 +136,11 @@ function HomeOrDomain() {
     return <Navigate to="/campus" replace />;
   }
 
+  if (hostname.includes("oikossports")) {
+    return <Navigate to="/sports" replace />;
+  }
+
+  // 🔥 DEFAULT DISPLAY
   return <Navigate to="/home" replace />;
 }
 
@@ -152,7 +162,7 @@ export default function App() {
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/no-access" element={<NoAccessPage />} />
 
-          {/* 🔒 APP (WITH DOCK + HEADER) */}
+          {/* 🔒 APP */}
           <Route
             path="*"
             element={
