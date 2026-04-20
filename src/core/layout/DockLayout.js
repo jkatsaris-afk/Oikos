@@ -4,25 +4,14 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "react-router-dom"; // 🔥 ADD
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
 import useUserTiles from "../tiles/useUserTiles";
 
-import GlobalHeader from "./GlobalHeader"; // 🔥 ADD
-
 export default function DockLayout({ children }) {
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
-
-  const location = useLocation(); // 🔥 ADD
-
-  // 🔥 MODE DETECTION (KEEP THIS)
-  let mode = "home";
-  if (location.pathname.startsWith("/church")) mode = "church";
-  else if (location.pathname.startsWith("/campus")) mode = "campus";
-  else if (location.pathname.startsWith("/sports")) mode = "sports";
 
   const { tiles } = useUserTiles();
 
@@ -52,15 +41,22 @@ export default function DockLayout({ children }) {
   return (
     <div className="app-container">
 
-      {/* 🔥 ADD HEADER BACK */}
-      <GlobalHeader mode={mode} />
-
-      <div className="content-area">
+      {/* =========================
+          CONTENT AREA (🔥 FIX HERE)
+      ========================= */}
+      <div
+        className="content-area"
+        style={{
+          paddingBottom: "120px", // 🔥 prevents dock overlap globally
+        }}
+      >
         {activeTile === "home" && children}
         {activeTile === "store" && <TileStorePage />}
       </div>
 
-      {/* OVERFLOW */}
+      {/* =========================
+          OVERFLOW
+      ========================= */}
       {showOverflow && (
         <div
           className="overflow-backdrop"
@@ -103,7 +99,9 @@ export default function DockLayout({ children }) {
         </div>
       )}
 
-      {/* DOCK */}
+      {/* =========================
+          DOCK
+      ========================= */}
       <div className="nav-wrap">
 
         <div
@@ -158,6 +156,7 @@ export default function DockLayout({ children }) {
         ))}
 
       </div>
+
     </div>
   );
 }
