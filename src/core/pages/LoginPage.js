@@ -18,19 +18,17 @@ export default function LoginPage() {
   const location = useLocation();
 
   // =========================
-  // 🔥 MODE DETECTION (DOMAIN + PATH)
+  // 🔥 MODE DETECTION
   // =========================
   const hostname = window.location.hostname;
   const path = location.pathname;
 
   let logo = DisplayHomeLogo;
 
-  // DOMAIN FIRST
   if (hostname.includes("oikoschurch")) logo = ChurchLogo;
   else if (hostname.includes("oikoscampus")) logo = CampusLogo;
   else if (hostname.includes("oikossports")) logo = SportsLogo;
 
-  // PATH SECOND
   else if (path.includes("business")) logo = DisplayBusinessLogo;
   else if (path.includes("edu")) logo = DisplayEduLogo;
   else if (path.includes("church")) logo = ChurchLogo;
@@ -59,15 +57,15 @@ export default function LoginPage() {
 
   return (
     <div style={pageStyle}>
-      <div style={containerStyle}>
+      <div style={cardStyle}>
         
-        {/* 🔥 LOGO */}
-        <img src={logo} alt="logo" style={logoStyle} />
+        {/* 🔥 LOGO (NOW INSIDE TILE) */}
+        <div style={logoWrapper}>
+          <img src={logo} alt="logo" style={logoStyle} />
+        </div>
 
-        {/* 🔥 CARD */}
-        <div style={cardStyle}>
-          
-          {/* EMAIL */}
+        {/* 🔥 FORM */}
+        <div style={formStyle}>
           <label style={labelStyle}>Email</label>
           <input
             type="email"
@@ -77,7 +75,6 @@ export default function LoginPage() {
             style={inputStyle}
           />
 
-          {/* PASSWORD */}
           <label style={labelStyle}>Password</label>
           <input
             type="password"
@@ -87,7 +84,6 @@ export default function LoginPage() {
             style={inputStyle}
           />
 
-          {/* BUTTON */}
           <button style={buttonStyle} onClick={handleLogin}>
             Sign In
           </button>
@@ -108,29 +104,33 @@ const pageStyle = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-};
-
-const containerStyle = {
-  textAlign: "center",
-  width: "100%",
-  maxWidth: "400px",
-  padding: "0 20px",
-};
-
-const logoStyle = {
-  width: "200px", // 🔥 slightly larger
-  maxWidth: "100%",
-  marginBottom: "30px",
+  padding: "20px",
 };
 
 const cardStyle = {
   width: "100%",
-  padding: "30px",
-  borderRadius: "16px",
+  maxWidth: "420px",
+  borderRadius: "18px",
   background: "#ffffff",
   border: "1px solid #e5e7eb",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
-  textAlign: "left",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+  overflow: "hidden",
+};
+
+const logoWrapper = {
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  padding: "30px 20px 10px",
+};
+
+const logoStyle = {
+  width: "180px",
+  maxWidth: "80%",
+};
+
+const formStyle = {
+  padding: "20px 30px 30px",
 };
 
 const labelStyle = {
@@ -148,7 +148,7 @@ const inputStyle = {
   borderRadius: "8px",
   border: "1px solid #d1d5db",
   fontSize: "14px",
-  boxSizing: "border-box", // 🔥 fixes overflow
+  boxSizing: "border-box",
 };
 
 const buttonStyle = {
