@@ -126,16 +126,24 @@ export default function DockLayout({ children }) {
 
                 if (!Icon) return null;
 
+                const isActive = activeTile === tile.id;
+
                 return (
                   <div
                     key={tile.id}
-                    className={`nav-item2 ${
-                      activeTile === tile.id ? "active" : ""
-                    }`}
+                    className={`nav-item2 ${isActive ? "active" : ""}`}
                     onClick={() => {
                       setShowOverflow(false);
                       setActiveTile(tile.id);
                     }}
+                    style={
+                      isActive
+                        ? {
+                            background: design?.background,
+                            color: design?.color || "#fff",
+                          }
+                        : {}
+                    }
                   >
                     <Icon size={22} />
                     <span>{design?.label}</span>
@@ -169,16 +177,24 @@ export default function DockLayout({ children }) {
 
           if (!Icon) return null;
 
+          const isActive = activeTile === tile.id;
+
           return (
             <div
               key={tile.id}
-              className={`nav-item2 ${
-                activeTile === tile.id ? "active" : ""
-              }`}
+              className={`nav-item2 ${isActive ? "active" : ""}`}
               onClick={() => {
                 setShowOverflow(false);
                 setActiveTile(tile.id);
               }}
+              style={
+                isActive
+                  ? {
+                      background: design?.background,
+                      color: design?.color || "#fff",
+                    }
+                  : {}
+              }
             >
               <Icon size={22} />
               <span>{design?.label}</span>
