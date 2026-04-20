@@ -4,7 +4,7 @@ import { useAuth } from "./useAuth";
 export default function RequireAuth({ children }) {
   const { user, profile, loading } = useAuth();
 
-  // 🔄 AUTH LOADING
+  // 🔄 AUTH LOADING ONLY
   if (loading) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
@@ -18,20 +18,13 @@ export default function RequireAuth({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  // 🔄 PROFILE LOADING (FIXED)
-  if (!profile) {
-    return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Loading Profile...
-      </div>
-    );
-  }
+  // ✅ DO NOT BLOCK ON PROFILE
+  // Profile will load in background
 
-  // ❌ NOT APPROVED
-  if (!profile.is_approved) {
+  // OPTIONAL (safe check later)
+  if (profile && profile.is_approved === false) {
     return <Navigate to="/pending-approval" replace />;
   }
 
-  // ✅ ALLOWED
   return children;
 }
