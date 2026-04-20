@@ -17,17 +17,30 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 MODE DETECTION
-  let logo = DisplayHomeLogo;
+  // =========================
+  // 🔥 MODE DETECTION (DOMAIN + PATH)
+  // =========================
+  const hostname = window.location.hostname;
   const path = location.pathname;
 
-  if (path.includes("business")) logo = DisplayBusinessLogo;
+  let logo = DisplayHomeLogo;
+
+  // DOMAIN FIRST
+  if (hostname.includes("oikoschurch")) logo = ChurchLogo;
+  else if (hostname.includes("oikoscampus")) logo = CampusLogo;
+  else if (hostname.includes("oikossports")) logo = SportsLogo;
+
+  // PATH SECOND
+  else if (path.includes("business")) logo = DisplayBusinessLogo;
   else if (path.includes("edu")) logo = DisplayEduLogo;
   else if (path.includes("church")) logo = ChurchLogo;
   else if (path.includes("campus")) logo = CampusLogo;
   else if (path.includes("pages")) logo = PagesLogo;
   else if (path.includes("sports")) logo = SportsLogo;
 
+  // =========================
+  // 🔐 LOGIN
+  // =========================
   const handleLogin = async () => {
     try {
       const user = await login(email, password);
@@ -53,21 +66,28 @@ export default function LoginPage() {
 
         {/* 🔥 CARD */}
         <div style={cardStyle}>
+          
+          {/* EMAIL */}
+          <label style={labelStyle}>Email</label>
           <input
-            placeholder="Email"
+            type="email"
+            placeholder="you@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={inputStyle}
           />
 
+          {/* PASSWORD */}
+          <label style={labelStyle}>Password</label>
           <input
             type="password"
-            placeholder="Password"
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={inputStyle}
           />
 
+          {/* BUTTON */}
           <button style={buttonStyle} onClick={handleLogin}>
             Sign In
           </button>
@@ -78,11 +98,12 @@ export default function LoginPage() {
 }
 
 // =========================
-// STYLES
+// 🎨 STYLES
 // =========================
 
 const pageStyle = {
   height: "100vh",
+  width: "100%",
   background: "#f7f8fa",
   display: "flex",
   justifyContent: "center",
@@ -91,29 +112,43 @@ const pageStyle = {
 
 const containerStyle = {
   textAlign: "center",
+  width: "100%",
+  maxWidth: "400px",
+  padding: "0 20px",
 };
 
 const logoStyle = {
-  width: 180,
-  marginBottom: 30,
+  width: "200px", // 🔥 slightly larger
+  maxWidth: "100%",
+  marginBottom: "30px",
 };
 
 const cardStyle = {
-  width: 340,
-  padding: 30,
-  borderRadius: 16,
+  width: "100%",
+  padding: "30px",
+  borderRadius: "16px",
   background: "#ffffff",
   border: "1px solid #e5e7eb",
   boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
+  textAlign: "left",
+};
+
+const labelStyle = {
+  fontSize: "13px",
+  fontWeight: "600",
+  color: "#374151",
+  marginBottom: "6px",
+  display: "block",
 };
 
 const inputStyle = {
   width: "100%",
   padding: "12px",
-  marginBottom: "12px",
+  marginBottom: "16px",
   borderRadius: "8px",
   border: "1px solid #d1d5db",
   fontSize: "14px",
+  boxSizing: "border-box", // 🔥 fixes overflow
 };
 
 const buttonStyle = {
@@ -124,5 +159,6 @@ const buttonStyle = {
   background: "#2f6ea3",
   color: "#fff",
   fontWeight: "600",
+  fontSize: "14px",
   cursor: "pointer",
 };
