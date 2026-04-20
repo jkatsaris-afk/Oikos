@@ -5,6 +5,7 @@
 import ChurchLogo from "../../assets/logos/Church-Logo.png";
 import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
+import PagesLogo from "../../assets/logos/Pages-Logo.png";
 
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
 import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
@@ -43,6 +44,12 @@ export const modeConfig = {
   sports: {
     label: "Sports",
     logo: SportsLogo,
+  },
+
+  /* 🔥 NEW */
+  pages: {
+    label: "Pages",
+    logo: PagesLogo,
   },
 };
 
