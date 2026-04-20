@@ -20,7 +20,7 @@ export default function DockLayout({ children }) {
   const [openTileSettings, setOpenTileSettings] = useState(false);
   const [openTileInfo, setOpenTileInfo] = useState(false);
 
-  const { tiles, uninstallTile } = useUserTiles(); // 🔥 UPDATED
+  const { tiles, uninstallTile } = useUserTiles();
 
   const installedTiles = tiles
     .filter(t => t.installed && t.id !== "home" && t.id !== "store")
@@ -67,7 +67,10 @@ export default function DockLayout({ children }) {
           <>
             {ActiveComponent
               ? React.createElement(ActiveComponent, {
-                  onUninstall: () => uninstallTile(activeTile) // 🔥 ADDED
+                  onUninstall: () => uninstallTile(activeTile),
+                  showUninstall:
+                    !tileRegistry[activeTile]?.system &&
+                    !tileRegistry[activeTile]?.noUninstall,
                 })
               : (
                 <div style={{ padding: 20 }}>
