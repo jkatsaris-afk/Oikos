@@ -1,30 +1,35 @@
-import { Home, StickyNote, Grid } from "lucide-react";
+/**
+ * =========================================
+ * GLOBAL TILE REGISTRY
+ * =========================================
+ * Combines tiles from all platforms
+ * LOGIC ONLY — no UI
+ */
 
-import AnnouncementTile from "../../platforms/church/tiles/announcements/AnnouncementTile";
-import AnnouncementSettings from "../../platforms/church/tiles/announcements/AnnouncementSettings";
-import AnnouncementWidget from "../../platforms/church/tiles/announcements/AnnouncementWidget";
+import { churchTileRegistry } from "../../platforms/church/tiles/tileRegistry";
 
 export const tileRegistry = {
+  /**
+   * =========================================
+   * SYSTEM TILES
+   * =========================================
+   */
+
   home: {
     id: "home",
-    label: "Home",
-    icon: Home,
     system: true,
-  },
-
-  announcements: {
-    id: "announcements",
-    label: "Announcements",
-    icon: StickyNote,
-    component: AnnouncementTile,
-    settings: AnnouncementSettings,
-    widget: AnnouncementWidget,
   },
 
   store: {
     id: "store",
-    label: "Store",
-    icon: Grid,
     noUninstall: true,
   },
+
+  /**
+   * =========================================
+   * PLATFORM TILES
+   * =========================================
+   */
+
+  ...churchTileRegistry,
 };
