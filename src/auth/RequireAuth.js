@@ -10,11 +10,16 @@ export default function RequireAuth({ children }) {
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
 
+  // 🔥 FIRST: HANDLE LOADING
+  if (loading) return null;
+
+  // 🔥 SECOND: NOT LOGGED IN → REDIRECT IMMEDIATELY
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   useEffect(() => {
     async function runCheck() {
-      if (!user) return;
-
-      // 🔥 DETERMINE PLATFORM + MODE FROM PATH
       let platform = "display";
       let mode = "home";
 
@@ -40,7 +45,6 @@ export default function RequireAuth({ children }) {
         mode = "default";
       }
 
-      // 🔥 CHECK ACCESS
       const access = await checkAccess(user.id, platform, mode);
 
       setHasAccess(!!access);
@@ -50,11 +54,8 @@ export default function RequireAuth({ children }) {
     runCheck();
   }, [user, location.pathname]);
 
-  // 🔄 LOADING
-  if (loading || !accessChecked) return null;
-
-  // ❌ NOT LOGGED IN
-  if (!user) return <Navigate to="/login" />;
+  // 🔄 WAIT FOR ACCESS CHECK
+  if (!accessChecked) return null;
 
   // ❌ NOT APPROVED
   if (!profile?.is_approved) {
