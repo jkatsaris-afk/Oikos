@@ -1,39 +1,15 @@
-import { Megaphone, Calendar, CheckSquare, Home } from "lucide-react";
+import AnnouncementTileDesign from "../../platforms/church/tiles/announcements/TileDesign";
+// 🔥 ADD MORE TILE IMPORTS HERE
 
 /**
  * =========================================
- * TILE DESIGN CONFIG
+ * GLOBAL TILE DESIGN REGISTRY
  * =========================================
- * Controls how tiles look in the dock
- * This is the ONLY file you edit for dock visuals
+ * ALL TILE DESIGNS REGISTERED HERE
  */
 
 export const tileDesign = {
-  announcements: {
-    icon: Megaphone,
-    label: "Announcements",
-    color: "#4A4A4A",
-    background: "rgba(255,255,255,0.7)",
-  },
+  [AnnouncementTileDesign.id]: AnnouncementTileDesign,
 
-  calendar: {
-    icon: Calendar,
-    label: "Calendar",
-    color: "#2F6EA3",
-    background: "rgba(255,255,255,0.7)",
-  },
-
-  chores: {
-    icon: CheckSquare,
-    label: "Chores",
-    color: "#96B379",
-    background: "rgba(255,255,255,0.7)",
-  },
-
-  home: {
-    icon: Home,
-    label: "Home",
-    color: "#1f2937",
-    background: "rgba(255,255,255,0.7)",
-  },
+  // 🔥 ADD NEW TILES HERE ONLY
 };
