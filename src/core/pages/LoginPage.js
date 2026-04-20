@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login, getProfile } from "../../auth/authService";
+import { modeTheme } from "../../core/theme/modeTheme";
 
 // 🔥 LOGOS
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
@@ -23,18 +24,39 @@ export default function LoginPage() {
   const hostname = window.location.hostname;
   const path = location.pathname;
 
+  let mode = "home";
   let logo = DisplayHomeLogo;
 
-  if (hostname.includes("oikoschurch")) logo = ChurchLogo;
-  else if (hostname.includes("oikoscampus")) logo = CampusLogo;
-  else if (hostname.includes("oikossports")) logo = SportsLogo;
+  // DOMAIN
+  if (hostname.includes("oikoschurch")) {
+    mode = "church";
+    logo = ChurchLogo;
+  }
+  else if (hostname.includes("oikoscampus")) {
+    mode = "campus";
+    logo = CampusLogo;
+  }
+  else if (hostname.includes("oikossports")) {
+    mode = "sports";
+    logo = SportsLogo;
+  }
 
-  else if (path.includes("business")) logo = DisplayBusinessLogo;
-  else if (path.includes("edu")) logo = DisplayEduLogo;
-  else if (path.includes("church")) logo = ChurchLogo;
-  else if (path.includes("campus")) logo = CampusLogo;
-  else if (path.includes("pages")) logo = PagesLogo;
-  else if (path.includes("sports")) logo = SportsLogo;
+  // PATH
+  else if (path.includes("business")) {
+    mode = "business";
+    logo = DisplayBusinessLogo;
+  }
+  else if (path.includes("edu")) {
+    mode = "edu";
+    logo = DisplayEduLogo;
+  }
+  else if (path.includes("pages")) {
+    mode = "pages";
+    logo = PagesLogo;
+  }
+
+  // 🔥 GET MODE COLOR
+  const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
 
   // =========================
   // 🔐 LOGIN
@@ -58,8 +80,8 @@ export default function LoginPage() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        
-        {/* 🔥 LOGO (NOW INSIDE TILE) */}
+
+        {/* 🔥 LOGO */}
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
         </div>
@@ -84,9 +106,25 @@ export default function LoginPage() {
             style={inputStyle}
           />
 
-          <button style={buttonStyle} onClick={handleLogin}>
+          <button
+            style={{
+              ...buttonStyle,
+              background: primaryColor, // 🔥 MODE COLOR
+            }}
+            onClick={handleLogin}
+          >
             Sign In
           </button>
+
+          {/* LINKS */}
+          <div style={linksStyle}>
+            <span onClick={() => navigate("/signup")} style={{ ...linkStyle, color: primaryColor }}>
+              Create Account
+            </span>
+            <span onClick={() => navigate("/forgot-password")} style={{ ...linkStyle, color: primaryColor }}>
+              Forgot Password?
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -156,9 +194,19 @@ const buttonStyle = {
   padding: "12px",
   borderRadius: "8px",
   border: "none",
-  background: "#2f6ea3",
   color: "#fff",
   fontWeight: "600",
   fontSize: "14px",
+  cursor: "pointer",
+};
+
+const linksStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  marginTop: "10px",
+  fontSize: "13px",
+};
+
+const linkStyle = {
   cursor: "pointer",
 };
