@@ -1,11 +1,18 @@
-import churchBg from "../../../assets/backgrounds/Church-Background.png";
+import { getBackgroundConfig } from "../../../core/theme/backgroundConfig";
 
 export default function ChurchDashboardPage() {
+  const bg = getBackgroundConfig("church");
+
   return (
     <div style={styles.wrapper}>
 
       {/* BACKGROUND */}
-      <div style={styles.background} />
+      <div
+        style={{
+          ...styles.background,
+          backgroundImage: `url(${bg.default})`,
+        }}
+      />
 
       {/* CONTENT */}
       <div style={styles.content}>
@@ -27,10 +34,11 @@ const styles = {
   background: {
     position: "fixed",
     inset: 0,
-    backgroundImage: `url(${churchBg})`,
+
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
+
     zIndex: 0,
   },
 
