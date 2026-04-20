@@ -1,5 +1,4 @@
 import SettingsLayout from "./SettingsLayout";
-import DisplaySettings from "../../platforms/display/settings/DisplaySettings";
 
 export function getModeSettings(mode) {
   let content = null;
@@ -9,15 +8,7 @@ export function getModeSettings(mode) {
     case "business":
     case "education":
     case "nightstand":
-      content = <DisplaySettings />;
-      break;
-
-    case "church":
-      content = <div>Church Settings</div>;
-      break;
-
-    case "campus":
-      content = <div>Campus Settings</div>;
+      content = <div>Display Settings</div>;
       break;
 
     default:
