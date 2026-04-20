@@ -1,13 +1,26 @@
 export default function DisplaySettings() {
-  return (
-    <div>
-      <h2>Display Settings</h2>
+  const sections = [
+    {
+      key: "background",
+      label: "Background",
+      component: <div>Background Settings</div>,
+    },
+    {
+      key: "widgets",
+      label: "Widgets",
+      component: <div>Widget Settings</div>,
+    },
+    {
+      key: "profiles",
+      label: "Profiles",
+      component: <div>Profile Settings</div>,
+    },
+    {
+      key: "night",
+      label: "Night Mode",
+      component: <div>Night Mode Settings</div>,
+    },
+  ];
 
-      <p>Background</p>
-      <p>Widgets</p>
-      <p>Profiles</p>
-      <p>Night Mode</p>
-
-    </div>
-  );
+  return <SettingsLayout sections={sections} />;
 }
