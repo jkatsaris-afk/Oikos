@@ -1,40 +1,15 @@
-import { Home, Calendar, ListTodo, StickyNote } from "lucide-react";
+import CalendarHome from "../../platforms/apps/calendar/CalendarHome";
+import CalendarSettings from "../../platforms/apps/calendar/CalendarSettings";
+import CalendarWidget from "../../platforms/apps/calendar/CalendarWidget";
 
-// 🔥 ALL AVAILABLE TILES IN SYSTEM
 export const tileRegistry = {
-  home: {
-    id: "home",
-    label: "Home",
-    icon: Home,
-    system: true, // 🔥 cannot uninstall
-  },
-
   calendar: {
     id: "calendar",
     label: "Calendar",
     icon: Calendar,
-  },
 
-  chores: {
-    id: "chores",
-    label: "Chores",
-    icon: ListTodo,
+    component: CalendarHome,       // full page
+    settings: CalendarSettings,    // 🔥 NEW
+    widget: CalendarWidget,        // 🔥 NEW
   },
-
-  notes: {
-    id: "notes",
-    label: "Notes",
-    icon: StickyNote,
-  },
-  extra1: {
-  id: "extra1",
-  label: "Extra 1",
-  icon: Calendar,
-},
-
-extra2: {
-  id: "extra2",
-  label: "Extra 2",
-  icon: Calendar,
-},
 };
