@@ -34,7 +34,7 @@ export default function SignupPage() {
   let logo = DisplayHomeLogo;
   let orgLabel = "Organization Name";
 
-  // DOMAIN
+  // DOMAIN (platform)
   if (hostname.includes("oikoschurch")) {
     mode = "church";
     logo = ChurchLogo;
@@ -49,7 +49,7 @@ export default function SignupPage() {
     orgLabel = "League Name";
   }
 
-  // PATH
+  // PATH (mode)
   else if (path.includes("business")) {
     mode = "business";
     logo = DisplayBusinessLogo;
@@ -61,6 +61,12 @@ export default function SignupPage() {
   } else if (path.includes("pages")) {
     mode = "pages";
     logo = PagesLogo;
+  } else if (path.includes("nightstand")) {
+    mode = "nightstand";
+    orgLabel = "Household Name"; // ✅ FIX
+  } else if (path.includes("home")) {
+    mode = "home";
+    orgLabel = "Household Name"; // ✅ FIX
   }
 
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
@@ -97,12 +103,12 @@ export default function SignupPage() {
     <div style={pageStyle}>
       <div style={cardStyle}>
 
-        {/* LOGO */}
+        {/* 🔥 LOGO */}
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
         </div>
 
-        {/* FORM */}
+        {/* 🔥 FORM */}
         <div style={formStyle}>
 
           <label style={labelStyle}>Full Name</label>
@@ -127,7 +133,7 @@ export default function SignupPage() {
             style={inputStyle}
           />
 
-          {/* 🔥 ORG NAME */}
+          {/* 🔥 ORG / HOUSEHOLD */}
           <label style={labelStyle}>{orgLabel}</label>
           <input
             value={form.orgName}
@@ -156,7 +162,7 @@ export default function SignupPage() {
 }
 
 // =========================
-// 🎨 STYLES (MATCH LOGIN)
+// 🎨 STYLES
 // =========================
 
 const pageStyle = {
