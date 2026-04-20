@@ -46,6 +46,11 @@ const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
 
 // =========================
+// 🔥 PAGES (ADDED)
+// =========================
+const PagesDashboard = load("./platforms/pages/PagesDashboard");
+
+// =========================
 // SPORTS
 // =========================
 const SportsDashboard = load("./platforms/sports/pages/SportsDashboardPage");
@@ -80,7 +85,6 @@ function ModeWrapper({ children }) {
 
   let mode = "home";
 
-  // 🔥 DOMAIN FIRST (ADDED CAMPUS ONLY)
   if (hostname.includes("oikoschurch")) mode = "church";
   else if (hostname.includes("oikoscampus")) mode = "campus";
   else if (location.pathname.startsWith("/business")) mode = "business";
@@ -88,6 +92,7 @@ function ModeWrapper({ children }) {
   else if (location.pathname.startsWith("/nightstand")) mode = "nightstand";
   else if (location.pathname.startsWith("/church")) mode = "church";
   else if (location.pathname.startsWith("/campus")) mode = "campus";
+  else if (location.pathname.startsWith("/pages")) mode = "pages"; // 🔥 ADDED
   else if (location.pathname.startsWith("/sports")) mode = "sports";
   else if (location.pathname.startsWith("/farm")) mode = "farm";
 
@@ -99,12 +104,11 @@ function ModeWrapper({ children }) {
 }
 
 /* =========================
-   🔥 ROOT DOMAIN ROUTER (FIX)
+   🔥 ROOT DOMAIN ROUTER
 ========================= */
 function HomeOrDomain() {
   const hostname = window.location.hostname;
 
-  // 🔥 DOMAIN ROUTING (ADDED CAMPUS ONLY)
   if (hostname.includes("oikoschurch")) {
     return <Navigate to="/church" replace />;
   }
@@ -132,7 +136,7 @@ export default function App() {
 
             <Routes>
 
-              {/* 🔥 ROOT FIXED */}
+              {/* ROOT */}
               <Route path="/" element={<HomeOrDomain />} />
 
               {/* TEMPLATE */}
@@ -160,6 +164,9 @@ export default function App() {
 
               {/* CAMPUS */}
               <Route path="/campus" element={<CampusDashboard />} />
+
+              {/* 🔥 PAGES (ADDED) */}
+              <Route path="/pages" element={<PagesDashboard />} />
 
               {/* SPORTS */}
               <Route path="/sports" element={<SportsDashboard />} />
