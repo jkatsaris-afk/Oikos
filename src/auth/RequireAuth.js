@@ -11,7 +11,8 @@ export default function RequireAuth({ children }) {
 
   useEffect(() => {
     async function runCheck() {
-      if (!user) {
+      // 🔥 WAIT FOR USER
+      if (!user?.id) {
         setHasAccess(false);
         return;
       }
@@ -45,12 +46,17 @@ export default function RequireAuth({ children }) {
         mode = "default";
       }
 
-      const access = await checkAccess(user.id, platform, mode);
-      setHasAccess(access);
+      try {
+        const access = await checkAccess(user.id, platform, mode);
+        setHasAccess(access);
+      } catch (err) {
+        console.error("Access check failed:", err);
+        setHasAccess(false);
+      }
     }
 
     runCheck();
-  }, [user, location.pathname]);
+  }, [user?.id, location.pathname]);
 
   // 🔄 WAIT FOR AUTH + ACCESS
   if (loading || hasAccess === null) return null;
