@@ -1,142 +1,84 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { signup } from "../../auth/authService";
-import { signupConfig } from "../config/signupConfig";
-import { modeTheme } from "../theme/modeTheme";
-
-// 🔥 LOGOS (same as login)
-import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
-import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
-import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
-import ChurchLogo from "../../assets/logos/Church-Logo.png";
-import CampusLogo from "../../assets/logos/Campus-Logo.png";
-import PagesLogo from "../../assets/logos/Pages-Logo.png";
-import SportsLogo from "../../assets/logos/Sports-Logo.png";
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const location = useLocation();
+
+  const [mode, setMode] = useState("create");
 
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
+    accountName: "",
+    accountType: "home",
+    inviteCode: "",
   });
 
-  // =========================
-  // 🔥 MODE DETECTION
-  // =========================
-  const hostname = window.location.hostname;
-  const path = location.pathname;
+  const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-  let mode = "home";
-  let logo = DisplayHomeLogo;
-
-  if (hostname.includes("oikoschurch")) {
-    mode = "church";
-    logo = ChurchLogo;
-  } else if (hostname.includes("oikoscampus")) {
-    mode = "campus";
-    logo = CampusLogo;
-  } else if (hostname.includes("oikossports")) {
-    mode = "sports";
-    logo = SportsLogo;
-  }
-
-  else if (path.includes("business")) {
-    mode = "business";
-    logo = DisplayBusinessLogo;
-  } else if (path.includes("edu")) {
-    mode = "edu";
-    logo = DisplayEduLogo;
-  }
-
-  const dynamicFields = signupConfig[mode]?.fields || [];
-  const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
-
-  // =========================
-  // 🔐 SUBMIT
-  // =========================
   const handleSubmit = async () => {
     try {
-      await signup(form.email, form.password, form.name);
-
-      // 🔥 Save extra fields (optional future table)
-      console.log("Extra Fields:", form);
+      await signup({
+        email: form.email,
+        password: form.password,
+        full_name: form.name,
+        mode,
+        accountType: form.accountType,
+        accountName: form.accountName,
+        inviteCode: form.inviteCode,
+        extraData: form,
+      });
 
       navigate("/pending-approval");
-    } catch (err) {
-      alert(err.message);
+    } catch (e) {
+      alert(e.message);
     }
   };
 
-  const updateField = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
   return (
-    <div style={pageStyle}>
-      <div style={cardStyle}>
+    <div style={page}>
+      <div style={card}>
+        <h3>Create Your Account</h3>
 
-        {/* LOGO */}
-        <div style={logoWrapper}>
-          <img src={logo} alt="logo" style={logoStyle} />
+        {/* MODE SWITCH */}
+        <div style={switchRow}>
+          <button onClick={() => setMode("create")}>Create New</button>
+          <button onClick={() => setMode("join")}>Join Existing</button>
         </div>
 
-        {/* FORM */}
-        <div style={formStyle}>
+        {/* BASE */}
+        <input placeholder="Full Name" onChange={(e) => update("name", e.target.value)} />
+        <input placeholder="Email" onChange={(e) => update("email", e.target.value)} />
+        <input type="password" placeholder="Password" onChange={(e) => update("password", e.target.value)} />
 
-          <label style={labelStyle}>Full Name</label>
-          <input
-            value={form.name}
-            onChange={(e) => updateField("name", e.target.value)}
-            style={inputStyle}
-          />
+        {/* CREATE */}
+        {mode === "create" && (
+          <>
+            <input placeholder="Account Name" onChange={(e) => update("accountName", e.target.value)} />
 
-          <label style={labelStyle}>Email</label>
-          <input
-            value={form.email}
-            onChange={(e) => updateField("email", e.target.value)}
-            style={inputStyle}
-          />
+            <select onChange={(e) => update("accountType", e.target.value)}>
+              <option value="home">Home</option>
+              <option value="business">Business</option>
+              <option value="campus">Campus</option>
+              <option value="church">Church</option>
+            </select>
+          </>
+        )}
 
-          <label style={labelStyle}>Password</label>
-          <input
-            type="password"
-            value={form.password}
-            onChange={(e) => updateField("password", e.target.value)}
-            style={inputStyle}
-          />
+        {/* JOIN */}
+        {mode === "join" && (
+          <input placeholder="Invite Code" onChange={(e) => update("inviteCode", e.target.value)} />
+        )}
 
-          {/* 🔥 DYNAMIC FIELDS */}
-          {dynamicFields.map((field) => (
-            <div key={field.name}>
-              <label style={labelStyle}>{field.label}</label>
-              <input
-                value={form[field.name] || ""}
-                onChange={(e) => updateField(field.name, e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-          ))}
-
-          <button
-            style={{ ...buttonStyle, background: primaryColor }}
-            onClick={handleSubmit}
-          >
-            Create Account
-          </button>
-        </div>
+        <button onClick={handleSubmit}>Create Account</button>
       </div>
     </div>
   );
 }
 
-// =========================
-// STYLES (same as login)
-// =========================
-
-const pageStyle = {
+const page = {
   height: "100vh",
   display: "flex",
   justifyContent: "center",
@@ -144,51 +86,15 @@ const pageStyle = {
   background: "#f7f8fa",
 };
 
-const cardStyle = {
-  width: "100%",
-  maxWidth: "420px",
-  borderRadius: "18px",
+const card = {
+  width: 360,
+  padding: 30,
   background: "#fff",
-  border: "1px solid #e5e7eb",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+  borderRadius: 12,
 };
 
-const logoWrapper = {
+const switchRow = {
   display: "flex",
-  justifyContent: "center",
-  padding: "25px",
-};
-
-const logoStyle = {
-  width: "170px",
-};
-
-const formStyle = {
-  padding: "20px 30px 30px",
-};
-
-const labelStyle = {
-  fontSize: "13px",
-  fontWeight: "600",
-  marginBottom: "5px",
-  display: "block",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "12px",
-  marginBottom: "14px",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db",
-  boxSizing: "border-box",
-};
-
-const buttonStyle = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: "8px",
-  border: "none",
-  color: "#fff",
-  fontWeight: "600",
-  cursor: "pointer",
+  gap: 10,
+  marginBottom: 10,
 };
