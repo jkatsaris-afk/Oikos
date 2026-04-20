@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { getProfile } from "./authService";
 
@@ -7,12 +7,15 @@ export function useAuth() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const hasLoaded = useRef(false); // 🔥 prevents double load
+
   useEffect(() => {
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+
     let mounted = true;
 
     async function loadUser() {
-      setLoading(true);
-
       const { data } = await supabase.auth.getUser();
 
       if (!mounted) return;
@@ -24,8 +27,6 @@ export function useAuth() {
         const prof = await getProfile(currentUser.id);
         if (!mounted) return;
         setProfile(prof);
-      } else {
-        setProfile(null);
       }
 
       setLoading(false);
@@ -33,9 +34,24 @@ export function useAuth() {
 
     loadUser();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadUser();
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!mounted) return;
+
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          const prof = await getProfile(currentUser.id);
+          if (!mounted) return;
+          setProfile(prof);
+        } else {
+          setProfile(null);
+        }
+
+        setLoading(false);
+      }
+    );
 
     return () => {
       mounted = false;
