@@ -1,34 +1,28 @@
-/* =========================
-   MODE SETTINGS LOADER (SAFE)
-========================= */
+import SettingsLayout from "./SettingsLayout";
+import DisplaySettings from "../../platforms/display/settings/DisplaySettings";
 
 export function getModeSettings(mode) {
+  let content = null;
+
   switch (mode) {
     case "home":
-      return <div>Home Settings</div>;
+    case "business":
+    case "education":
+    case "nightstand":
+      content = <DisplaySettings />;
+      break;
 
     case "church":
-      return <div>Church Settings</div>;
+      content = <div>Church Settings</div>;
+      break;
 
     case "campus":
-      return <div>Campus Settings</div>;
-
-    case "business":
-      return <div>Business Settings</div>;
-
-    case "education":
-      return <div>Education Settings</div>;
-
-    case "sports":
-      return <div>Sports Settings</div>;
-
-    case "farm":
-      return <div>Farm Settings</div>;
-
-    case "pages":
-      return <div>Pages Settings</div>;
+      content = <div>Campus Settings</div>;
+      break;
 
     default:
-      return <div>No settings available</div>;
+      content = <div>No settings available</div>;
   }
+
+  return <SettingsLayout>{content}</SettingsLayout>;
 }
