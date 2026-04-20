@@ -1,6 +1,6 @@
-import AnnouncementTile from "../../platforms/church/tiles/announcments/AnnouncementTile";
-import AnnouncementSettings from "../../platforms/church/tiles/announcments/AnnouncementSettings";
-import AnnouncementWidget from "../../platforms/church/tiles/announcments/AnnouncementWidget";
+import AnnouncementTile from "../../../platforms/church/tiles/announcments/AnnouncementTile";
+import AnnouncementSettings from "../../../platforms/church/tiles/announcments/AnnouncementSettings";
+import AnnouncementWidget from "../../../platforms/church/tiles/announcments/AnnouncementWidget";
 
 export const tileRegistry = {
   calendar: {
