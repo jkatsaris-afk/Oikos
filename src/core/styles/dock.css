@@ -52,6 +52,8 @@
   backdrop-filter: blur(6px);
 
   border: 1px solid rgba(0,0,0,0.08);
+
+  min-width: 0; /* 🔥 ADDED: allows text to shrink properly */
 }
 
 /* ========================= */
@@ -128,6 +130,34 @@
 .nav-item2.empty {
   pointer-events: none;
   opacity: 0;
+}
+
+/* ========================= */
+/* 🔥 ADDED: TEXT RESPONSIVE */
+/* ========================= */
+
+.nav-item2 span {
+  font-size: clamp(9px, 1.2vw, 12px); /* 🔥 adaptive */
+
+  max-width: 100%;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  line-height: 1;
+  text-align: center;
+
+  opacity: 0.75;
+}
+
+/* ========================= */
+/* 🔥 ADDED: ICON RESPONSIVE */
+/* ========================= */
+
+.nav-item2 svg {
+  width: clamp(18px, 2.5vw, 24px);
+  height: clamp(18px, 2.5vw, 24px);
 }
 
 /* ========================= */
