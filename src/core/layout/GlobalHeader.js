@@ -1,5 +1,5 @@
 import { useLocation } from "react-router-dom";
-import { Settings } from "lucide-react";
+import { Settings, Moon, User } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { getModeConfig } from "../theme/modeConfig";
@@ -17,7 +17,7 @@ export default function GlobalHeader() {
 
   let mode = "home";
 
-  // 🔥 MODE DETECTION (same as app)
+  // 🔥 MODE DETECTION
   if (hostname.includes("oikoschurch")) mode = "church";
   else if (hostname.includes("oikoscampus")) mode = "campus";
   else if (location.pathname.startsWith("/business")) mode = "business";
@@ -32,25 +32,36 @@ export default function GlobalHeader() {
   const modeData = getModeConfig(mode);
 
   /* =========================
-     CLOCK LOGIC
+     DISPLAY / TV CHECK
+  ========================= */
+  const isDisplayMode =
+    mode === "home" ||
+    mode === "business" ||
+    mode === "education" ||
+    mode === "nightstand" ||
+    mode === "tv";
+
+  /* =========================
+     CLOCK
   ========================= */
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
 
-      const timeStr = now.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      setTime(
+        now.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
 
-      const dateStr = now.toLocaleDateString([], {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-
-      setTime(timeStr);
-      setDate(dateStr);
+      setDate(
+        now.toLocaleDateString([], {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })
+      );
     };
 
     updateTime();
@@ -78,10 +89,25 @@ export default function GlobalHeader() {
           <Settings size={20} />
         </button>
 
+        {/* 🔥 DISPLAY / TV ONLY CONTROLS */}
+        {isDisplayMode && (
+          <>
+            {/* PROFILES */}
+            <button style={styles.iconBtn}>
+              <User size={20} />
+            </button>
+
+            {/* NIGHT MODE */}
+            <button style={styles.iconBtn}>
+              <Moon size={20} />
+            </button>
+          </>
+        )}
+
       </div>
 
       {/* =========================
-          RIGHT SIDE (LOGO)
+          RIGHT SIDE
       ========================= */}
       <div style={styles.right}>
         <img
