@@ -18,9 +18,13 @@ export default function RequireAuth({ children }) {
         return;
       }
 
-      // 🔥 DETECT MODE + PLATFORM
-      const path = location.pathname;
-      const mode = getModeFromPath(path, window.location.hostname);
+      // 🔥 USE ORIGINAL PATH (CRITICAL FIX)
+      const originalPath =
+        location.state?.from ||
+        sessionStorage.getItem("lastPath") ||
+        "/home";
+
+      const mode = getModeFromPath(originalPath, window.location.hostname);
 
       let platform = "display";
       let modeKey = mode;
@@ -30,7 +34,14 @@ export default function RequireAuth({ children }) {
         modeKey = "default";
       }
 
-      // 🔥 QUERY USER ACCESS TABLE
+      // 🔍 DEBUG (leave for now)
+      console.log("ACCESS CHECK:", {
+        originalPath,
+        mode,
+        platform,
+        modeKey,
+      });
+
       const { data, error } = await supabase
         .from("user_access")
         .select("*")
@@ -45,7 +56,6 @@ export default function RequireAuth({ children }) {
         return;
       }
 
-      // 🔥 ACCESS LOGIC
       if (!data) {
         setHasAccess(false);
       } else {
@@ -56,7 +66,7 @@ export default function RequireAuth({ children }) {
     }
 
     checkAccess();
-  }, [user, location.pathname]);
+  }, [user, location]);
 
   // 🔄 LOADING
   if (loading || checking) {
