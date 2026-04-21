@@ -13,14 +13,24 @@ export default function MasterModePage() {
   const navigate = useNavigate();
 
   const modes = [
-    { name: "Home", path: "/home", logo: DisplayHomeLogo },
-    { name: "Business", path: "/business", logo: DisplayBusinessLogo },
-    { name: "Education", path: "/edu", logo: DisplayEduLogo },
-    { name: "Pages", path: "/pages", logo: PagesLogo },
-    { name: "Church", path: "/church", logo: ChurchLogo },
-    { name: "Campus", path: "/campus", logo: CampusLogo },
-    { name: "Sports", path: "/sports", logo: SportsLogo },
+    { name: "Home", type: "internal", path: "/home", logo: DisplayHomeLogo },
+    { name: "Business", type: "internal", path: "/business", logo: DisplayBusinessLogo },
+    { name: "Education", type: "internal", path: "/edu", logo: DisplayEduLogo },
+    { name: "Pages", type: "internal", path: "/pages", logo: PagesLogo },
+
+    // 🔥 EXTERNAL DOMAINS
+    { name: "Church", type: "external", url: "https://oikoschurch.app", logo: ChurchLogo },
+    { name: "Campus", type: "external", url: "https://oikoscampus.app", logo: CampusLogo },
+    { name: "Sports", type: "external", url: "https://oikossports.app", logo: SportsLogo },
   ];
+
+  const handleClick = (mode) => {
+    if (mode.type === "external") {
+      window.location.href = mode.url;
+    } else {
+      navigate(mode.path);
+    }
+  };
 
   return (
     <div style={pageStyle}>
@@ -33,7 +43,7 @@ export default function MasterModePage() {
             <div
               key={mode.name}
               style={tileStyle}
-              onClick={() => navigate(mode.path)}
+              onClick={() => handleClick(mode)}
             >
               <img src={mode.logo} alt={mode.name} style={logoStyle} />
               <div style={labelStyle}>{mode.name}</div>
