@@ -3,8 +3,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../auth/authService";
 import { modeTheme } from "../../core/theme/modeTheme";
 import { getModeFromPath } from "../../core/utils/getMode";
+import EmailNotConfirmedModal from "../components/EmailNotConfirmedModal";
 
-// 🔥 LOGOS
+// LOGOS
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
 import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
 import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
@@ -16,19 +17,15 @@ import SportsLogo from "../../assets/logos/Sports-Logo.png";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 GET ORIGINAL PATH
   const originalPath = location.state?.from || "/home";
 
-  // 🔥 MODE
-  const mode = getModeFromPath(
-    originalPath,
-    window.location.hostname
-  );
+  const mode = getModeFromPath(originalPath, window.location.hostname);
 
-  // 🔥 LOGO MAP
   const logoMap = {
     home: DisplayHomeLogo,
     business: DisplayBusinessLogo,
@@ -40,13 +37,8 @@ export default function LoginPage() {
   };
 
   const logo = logoMap[mode] || DisplayHomeLogo;
-
-  // 🔥 COLOR
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
 
-  // =========================
-  // 🔐 LOGIN
-  // =========================
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -69,6 +61,11 @@ export default function LoginPage() {
       }
 
     } catch (err) {
+      if (err.message?.toLowerCase().includes("email not confirmed")) {
+        setShowConfirmModal(true);
+        return;
+      }
+
       alert(err.message);
     }
   };
@@ -77,12 +74,10 @@ export default function LoginPage() {
     <div style={pageStyle}>
       <div style={cardStyle}>
 
-        {/* LOGO */}
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
         </div>
 
-        {/* FORM */}
         <form style={formStyle} onSubmit={handleLogin}>
           <label style={labelStyle}>Email</label>
           <input
@@ -107,40 +102,34 @@ export default function LoginPage() {
             Sign In
           </button>
 
-          {/* 🔥 LINKS */}
           <div style={linksStyle}>
-            <span
-              onClick={() => navigate("/signup", { state: { from: originalPath } })}
-              style={{ ...linkStyle, color: primaryColor }}
-            >
+            <span onClick={() => navigate("/signup", { state: { from: originalPath } })} style={{ ...linkStyle, color: primaryColor }}>
               Create Account
             </span>
 
-            <span
-              onClick={() => navigate("/join", { state: { from: originalPath } })}
-              style={{ ...linkStyle, color: primaryColor }}
-            >
+            <span onClick={() => navigate("/join", { state: { from: originalPath } })} style={{ ...linkStyle, color: primaryColor }}>
               Join with Code
             </span>
 
-            <span
-              onClick={() => navigate("/forgot-password")}
-              style={{ ...linkStyle, color: primaryColor }}
-            >
+            <span onClick={() => navigate("/forgot-password")} style={{ ...linkStyle, color: primaryColor }}>
               Forgot Password?
             </span>
           </div>
         </form>
 
       </div>
+
+      {showConfirmModal && (
+        <EmailNotConfirmedModal
+          email={email}
+          onClose={() => setShowConfirmModal(false)}
+        />
+      )}
     </div>
   );
 }
 
-// =========================
 // STYLES
-// =========================
-
 const pageStyle = {
   height: "100vh",
   display: "flex",
@@ -179,6 +168,7 @@ const labelStyle = {
 const inputStyle = {
   marginBottom: "15px",
   padding: "10px",
+  boxSizing: "border-box",
 };
 
 const buttonStyle = {
