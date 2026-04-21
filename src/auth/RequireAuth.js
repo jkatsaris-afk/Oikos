@@ -2,26 +2,41 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { getModeFromPath } from "../core/utils/getMode";
 
 export default function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  const [status, setStatus] = useState(null);
+  const [hasAccess, setHasAccess] = useState(null);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    async function checkStatus() {
+    async function checkAccess() {
       if (!user) {
         setChecking(false);
         return;
       }
 
+      // 🔥 DETECT MODE + PLATFORM
+      const path = location.pathname;
+      const mode = getModeFromPath(path, window.location.hostname);
+
+      let platform = "display";
+      let modeKey = mode;
+
+      if (["church", "campus", "sports", "pages", "farm"].includes(mode)) {
+        platform = mode;
+        modeKey = "default";
+      }
+
+      // 🔥 QUERY USER ACCESS TABLE
       const { data, error } = await supabase
-        .from("account_members")
-        .select("status")
+        .from("user_access")
+        .select("*")
         .eq("user_id", user.id)
-        .limit(1)
+        .eq("platform", platform)
+        .eq("mode", modeKey)
         .maybeSingle();
 
       if (error) {
@@ -30,20 +45,20 @@ export default function RequireAuth({ children }) {
         return;
       }
 
-      // 🔥 KEY LOGIC
+      // 🔥 ACCESS LOGIC
       if (!data) {
-        setStatus("no_access");
+        setHasAccess(false);
       } else {
-        setStatus(data.status);
+        setHasAccess(data.has_access === true);
       }
 
       setChecking(false);
     }
 
-    checkStatus();
-  }, [user]);
+    checkAccess();
+  }, [user, location.pathname]);
 
-  // 🔄 Loading state
+  // 🔄 LOADING
   if (loading || checking) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
@@ -52,7 +67,7 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // ❌ Not logged in
+  // ❌ NOT LOGGED IN
   if (!user) {
     return (
       <Navigate
@@ -63,19 +78,8 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // ⏳ Pending approval
-  if (status === "pending") {
-    return (
-      <Navigate
-        to="/pending-approval"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
-  }
-
-  // ❌ Denied
-  if (status === "denied") {
+  // ❌ NO ACCESS
+  if (!hasAccess) {
     return (
       <Navigate
         to="/no-access"
@@ -85,28 +89,6 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // 🚫 No account membership
-  if (status === "no_access") {
-    return (
-      <Navigate
-        to="/no-access"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
-  }
-
-  // ✅ Active users only
-  if (status === "active") {
-    return children;
-  }
-
-  // 🔒 Fallback safety
-  return (
-    <Navigate
-      to="/no-access"
-      replace
-      state={{ from: location.pathname }}
-    />
-  );
+  // ✅ ALLOWED
+  return children;
 }
