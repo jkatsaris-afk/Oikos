@@ -8,73 +8,79 @@ export default function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  const [hasAccess, setHasAccess] = useState(null); // null = unknown
-  const [checking, setChecking] = useState(true);
+  const [hasAccess, setHasAccess] = useState(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     async function checkAccess() {
-      if (!user) {
-        setChecking(false);
-        return;
-      }
+      if (!user) return;
 
-      const path = location.pathname;
+      setChecking(true);
 
-      const detectedMode = getModeFromPath(
-        path,
-        window.location.hostname
-      );
+      try {
+        const path = location.pathname;
 
-      let platform = "display";
-      let mode = detectedMode;
+        const detectedMode = getModeFromPath(
+          path,
+          window.location.hostname
+        );
 
-      if (
-        ["church", "campus", "sports", "pages", "farm"].includes(
-          detectedMode
-        )
-      ) {
-        platform = detectedMode;
-        mode = "default";
-      }
+        let platform = "display";
+        let mode = detectedMode;
 
-      console.log("ACCESS CHECK:", {
-        path,
-        detectedMode,
-        platform,
-        mode,
-        user: user.id,
-      });
+        if (
+          ["church", "campus", "sports", "pages", "farm"].includes(
+            detectedMode
+          )
+        ) {
+          platform = detectedMode;
+          mode = "default";
+        }
 
-      const { data, error } = await supabase
-        .from("user_access")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("platform", platform)
-        .eq("mode", mode);
+        console.log("ACCESS CHECK:", {
+          path,
+          detectedMode,
+          platform,
+          mode,
+          user: user.id,
+        });
 
-      if (error) {
-        console.error("Access error:", error);
+        const { data, error } = await supabase
+          .from("user_access")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("platform", platform)
+          .eq("mode", mode);
+
+        if (error) {
+          console.error("Access error:", error);
+          setHasAccess(false);
+          return;
+        }
+
+        console.log("DB RESULT:", data);
+
+        if (!data || data.length === 0) {
+          setHasAccess(false);
+        } else {
+          setHasAccess(Boolean(data[0].has_access));
+        }
+
+      } catch (err) {
+        console.error("Access crash:", err);
         setHasAccess(false);
+      } finally {
         setChecking(false);
-        return;
       }
-
-      console.log("DB RESULT:", data);
-
-      if (!data || data.length === 0) {
-        setHasAccess(false);
-      } else {
-        setHasAccess(Boolean(data[0].has_access));
-      }
-
-      setChecking(false);
     }
 
-    checkAccess();
+    if (user) {
+      checkAccess();
+    }
   }, [user, location.pathname]);
 
-  // 🔄 STILL CHECKING → DO NOT REDIRECT
-  if (loading || checking || hasAccess === null) {
+  // 🔄 Auth loading ONLY
+  if (loading) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
         Loading...
@@ -82,7 +88,7 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // ❌ NOT LOGGED IN
+  // ❌ Not logged in
   if (!user) {
     return (
       <Navigate
@@ -93,11 +99,20 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // ❌ NO ACCESS (ONLY AFTER CONFIRMED)
+  // 🔄 Access checking (short only)
+  if (checking) {
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        Checking access...
+      </div>
+    );
+  }
+
+  // ❌ No access
   if (hasAccess === false) {
     return <Navigate to="/no-access" replace />;
   }
 
-  // ✅ ALLOWED
+  // ✅ Allow if true OR fallback
   return children;
 }
