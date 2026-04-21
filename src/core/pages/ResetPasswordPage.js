@@ -8,19 +8,33 @@ import { getModeFromPath } from "../../core/utils/getMode";
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
 import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
 import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
+import PagesLogo from "../../assets/logos/Pages-Logo.png";
+import ChurchLogo from "../../assets/logos/Church-Logo.png";
+import CampusLogo from "../../assets/logos/Campus-Logo.png";
+import SportsLogo from "../../assets/logos/Sports-Logo.png";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
 
-  const originalPath = location.state?.from || "/home";
-  const mode = getModeFromPath(originalPath, window.location.hostname);
+  const hostname = window.location.hostname;
+
+  const originalPath =
+    typeof location.state?.from === "string"
+      ? location.state.from
+      : sessionStorage.getItem("lastPath") || "/home";
+
+  const mode = getModeFromPath(originalPath, hostname);
 
   const logoMap = {
     home: DisplayHomeLogo,
     business: DisplayBusinessLogo,
     edu: DisplayEduLogo,
+    pages: PagesLogo,
+    church: ChurchLogo,
+    campus: CampusLogo,
+    sports: SportsLogo,
   };
 
   const logo = logoMap[mode] || DisplayHomeLogo;
@@ -29,7 +43,7 @@ export default function ResetPasswordPage() {
   const handleReset = async () => {
     try {
       await updatePassword(password);
-      navigate("/login");
+      navigate("/login", { state: { from: originalPath } });
     } catch (err) {
       alert(err.message);
     }
@@ -38,7 +52,6 @@ export default function ResetPasswordPage() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
         </div>
@@ -47,16 +60,18 @@ export default function ResetPasswordPage() {
 
         <input
           type="password"
-          placeholder="New password"
+          placeholder="New Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={inputStyle}
         />
 
-        <button style={{ ...buttonStyle, background: primaryColor }} onClick={handleReset}>
+        <button
+          style={{ ...buttonStyle, background: primaryColor }}
+          onClick={handleReset}
+        >
           Update Password
         </button>
-
       </div>
     </div>
   );
