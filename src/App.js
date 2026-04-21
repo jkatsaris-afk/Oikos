@@ -12,6 +12,7 @@ import NoAccessPage from "./core/pages/NoAccessPage";
 import SignupPage from "./core/pages/SignupPage";
 import ForgotPasswordPage from "./core/pages/ForgotPasswordPage";
 import ResetPasswordPage from "./core/pages/ResetPasswordPage";
+import JoinPage from "./core/pages/JoinPage";
 
 import { getModeFromPath } from "./core/utils/getMode";
 
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/no-access" element={<NoAccessPage />} />
+          <Route path="/join" element={<JoinPage />} />
 
           {/* PROTECTED */}
           <Route
