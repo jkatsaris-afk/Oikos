@@ -1,8 +1,9 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./useAuth";
 
 export default function RequireAuth({ children }) {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
 
   // 🔄 AUTH LOADING ONLY
   if (loading) {
@@ -15,13 +16,11 @@ export default function RequireAuth({ children }) {
 
   // ❌ NOT LOGGED IN
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // 🔥 FIX: PRESERVE ORIGINAL ROUTE
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  // ✅ DO NOT BLOCK ON PROFILE
-  // Profile will load in background
-
-  // OPTIONAL (safe check later)
+  // OPTIONAL APPROVAL CHECK
   if (profile && profile.is_approved === false) {
     return <Navigate to="/pending-approval" replace />;
   }
