@@ -113,13 +113,6 @@ export default function SignupPage() {
           <img src={logo} alt="logo" style={logoStyle} />
         </div>
 
-        {/* 🔥 DEBUG BLOCK (OPTIONAL - REMOVE LATER) */}
-        <div style={{ textAlign: "center", marginBottom: "10px", fontSize: "12px", color: "#999" }}>
-          <div>Mode: {mode}</div>
-          <div>Original Path: {originalPath}</div>
-          <div>Host: {hostname}</div>
-        </div>
-
         {/* 🔥 FORM */}
         <div style={formStyle}>
 
