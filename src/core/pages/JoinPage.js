@@ -4,11 +4,7 @@ import { signup } from "../../auth/authService";
 import { modeTheme } from "../../core/theme/modeTheme";
 import { getModeFromPath } from "../../core/utils/getMode";
 
-// LOGOS
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
-import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
-import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
-import PagesLogo from "../../assets/logos/Pages-Logo.png";
 
 export default function JoinPage() {
   const navigate = useNavigate();
@@ -21,23 +17,12 @@ export default function JoinPage() {
     inviteCode: "",
   });
 
-  const hostname = window.location.hostname;
-
   const originalPath =
     typeof location.state?.from === "string"
       ? location.state.from
       : sessionStorage.getItem("lastPath") || "/home";
 
-  const mode = getModeFromPath(originalPath, hostname);
-
-  const logoMap = {
-    home: DisplayHomeLogo,
-    business: DisplayBusinessLogo,
-    edu: DisplayEduLogo,
-    pages: PagesLogo,
-  };
-
-  const logo = logoMap[mode] || DisplayHomeLogo;
+  const mode = getModeFromPath(originalPath, window.location.hostname);
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
 
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -61,10 +46,6 @@ export default function JoinPage() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <div style={logoWrapper}>
-          <img src={logo} alt="logo" style={logoStyle} />
-        </div>
-
         <h2 style={titleStyle}>Join Organization</h2>
 
         <input placeholder="Name" onChange={(e) => update("name", e.target.value)} style={inputStyle} />
@@ -79,3 +60,10 @@ export default function JoinPage() {
     </div>
   );
 }
+
+// STYLES
+const pageStyle = { height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#f7f8fa" };
+const cardStyle = { width: "100%", maxWidth: "420px", background: "#fff", borderRadius: "16px", padding: "25px", boxShadow: "0 10px 30px rgba(0,0,0,0.06)", textAlign: "center" };
+const titleStyle = { marginBottom: "15px" };
+const inputStyle = { width: "100%", padding: "10px", marginBottom: "12px" };
+const buttonStyle = { width: "100%", padding: "12px", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" };
