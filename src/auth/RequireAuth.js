@@ -18,28 +18,30 @@ export default function RequireAuth({ children }) {
         return;
       }
 
-      // 🔥 USE ORIGINAL PATH (CRITICAL FIX)
-      const originalPath =
+      const path =
         location.state?.from ||
         sessionStorage.getItem("lastPath") ||
-        "/home";
+        location.pathname;
 
-      const mode = getModeFromPath(originalPath, window.location.hostname);
+      const detectedMode = getModeFromPath(path, window.location.hostname);
 
       let platform = "display";
-      let modeKey = mode;
+      let mode = detectedMode;
 
-      if (["church", "campus", "sports", "pages", "farm"].includes(mode)) {
-        platform = mode;
-        modeKey = "default";
+      // 🔥 NORMALIZATION LAYER (KEY)
+      if (["church", "campus", "sports", "pages", "farm"].includes(detectedMode)) {
+        platform = detectedMode;
+        mode = "default";
+      } else {
+        platform = "display";
+        mode = detectedMode;
       }
 
-      // 🔍 DEBUG (leave for now)
       console.log("ACCESS CHECK:", {
-        originalPath,
-        mode,
+        path,
+        detectedMode,
         platform,
-        modeKey,
+        mode,
       });
 
       const { data, error } = await supabase
@@ -47,58 +49,33 @@ export default function RequireAuth({ children }) {
         .select("*")
         .eq("user_id", user.id)
         .eq("platform", platform)
-        .eq("mode", modeKey)
+        .eq("mode", mode)
         .maybeSingle();
 
       if (error) {
-        console.error("Access check error:", error);
+        console.error("Access error:", error);
         setChecking(false);
         return;
       }
 
-      if (!data) {
-        setHasAccess(false);
-      } else {
-        setHasAccess(data.has_access === true);
-      }
-
+      setHasAccess(data?.has_access === true);
       setChecking(false);
     }
 
     checkAccess();
   }, [user, location]);
 
-  // 🔄 LOADING
   if (loading || checking) {
-    return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Loading...
-      </div>
-    );
+    return <div style={{ padding: 40, textAlign: "center" }}>Loading...</div>;
   }
 
-  // ❌ NOT LOGGED IN
   if (!user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  // ❌ NO ACCESS
   if (!hasAccess) {
-    return (
-      <Navigate
-        to="/no-access"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
+    return <Navigate to="/no-access" replace state={{ from: location.pathname }} />;
   }
 
-  // ✅ ALLOWED
   return children;
 }
