@@ -8,7 +8,7 @@ export default function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  const [hasAccess, setHasAccess] = useState(null);
+  const [hasAccess, setHasAccess] = useState(null); // null = unknown
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -28,7 +28,6 @@ export default function RequireAuth({ children }) {
       let platform = "display";
       let mode = detectedMode;
 
-      // 🔥 Normalize platform + mode
       if (
         ["church", "campus", "sports", "pages", "farm"].includes(
           detectedMode
@@ -36,9 +35,6 @@ export default function RequireAuth({ children }) {
       ) {
         platform = detectedMode;
         mode = "default";
-      } else {
-        platform = "display";
-        mode = detectedMode;
       }
 
       console.log("ACCESS CHECK:", {
@@ -58,6 +54,7 @@ export default function RequireAuth({ children }) {
 
       if (error) {
         console.error("Access error:", error);
+        setHasAccess(false);
         setChecking(false);
         return;
       }
@@ -67,7 +64,6 @@ export default function RequireAuth({ children }) {
       if (!data || data.length === 0) {
         setHasAccess(false);
       } else {
-        // 🔥 FINAL FIX (handles true / "true" / 1)
         setHasAccess(Boolean(data[0].has_access));
       }
 
@@ -77,8 +73,8 @@ export default function RequireAuth({ children }) {
     checkAccess();
   }, [user, location.pathname]);
 
-  // 🔄 Loading state
-  if (loading || checking) {
+  // 🔄 STILL CHECKING → DO NOT REDIRECT
+  if (loading || checking || hasAccess === null) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
         Loading...
@@ -86,7 +82,7 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // ❌ Not logged in
+  // ❌ NOT LOGGED IN
   if (!user) {
     return (
       <Navigate
@@ -97,11 +93,11 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // ❌ No access
-  if (!hasAccess) {
+  // ❌ NO ACCESS (ONLY AFTER CONFIRMED)
+  if (hasAccess === false) {
     return <Navigate to="/no-access" replace />;
   }
 
-  // ✅ Allowed
+  // ✅ ALLOWED
   return children;
 }
