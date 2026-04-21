@@ -1,5 +1,11 @@
 import React, { Suspense, lazy } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 import DockLayout from "./core/layout/DockLayout";
 import GlobalHeader from "./core/layout/GlobalHeader";
@@ -13,19 +19,8 @@ import SignupPage from "./core/pages/SignupPage";
 import ForgotPasswordPage from "./core/pages/ForgotPasswordPage";
 import ResetPasswordPage from "./core/pages/ResetPasswordPage";
 import JoinPage from "./core/pages/JoinPage";
-import MasterModePage from "./core/pages/MasterModePage";
 
 import { getModeFromPath } from "./core/utils/getMode";
-
-// 🔥🔥🔥 ADD THIS BLOCK (GLOBAL PATH TRACKING)
-if (typeof window !== "undefined") {
-  const path = window.location.pathname;
-
-  // don't overwrite with /login
-  if (path !== "/login") {
-    sessionStorage.setItem("lastPath", path);
-  }
-}
 
 // =========================
 // LAZY LOADER
@@ -33,17 +28,29 @@ if (typeof window !== "undefined") {
 const load = (path) =>
   lazy(() =>
     import(`${path}`).catch(() => ({
-      default: () => <div style={{ padding: 20 }}>Page not built yet: {path}</div>,
+      default: () => (
+        <div style={{ padding: 20 }}>
+          Page not built yet: {path}
+        </div>
+      ),
     }))
   );
 
 // =========================
 // PAGES
 // =========================
-const DisplayHomeDashboard = load("./platforms/display/modes/home/pages/DisplayHomeDashboardPage");
-const DisplayBusinessDashboard = load("./platforms/display/modes/business/pages/DisplayBusinessDashboardPage");
-const DisplayEduDashboard = load("./platforms/display/modes/edu/pages/DisplayEduDashboardPage");
-const DisplayNightstandDashboard = load("./platforms/display/modes/nightstand/pages/DisplayNightstandDashboardPage");
+const DisplayHomeDashboard = load(
+  "./platforms/display/modes/home/pages/DisplayHomeDashboardPage"
+);
+const DisplayBusinessDashboard = load(
+  "./platforms/display/modes/business/pages/DisplayBusinessDashboardPage"
+);
+const DisplayEduDashboard = load(
+  "./platforms/display/modes/edu/pages/DisplayEduDashboardPage"
+);
+const DisplayNightstandDashboard = load(
+  "./platforms/display/modes/nightstand/pages/DisplayNightstandDashboardPage"
+);
 
 const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
@@ -70,11 +77,6 @@ function ModeWrapper({ children }) {
 // =========================
 function HomeOrDomain() {
   const hostname = window.location.hostname;
-  const path = window.location.pathname;
-
-  if (path !== "/" && path !== "") {
-    return <Navigate to={path} replace />;
-  }
 
   if (hostname.includes("oikoschurch")) return <Navigate to="/church" replace />;
   if (hostname.includes("oikoscampus")) return <Navigate to="/campus" replace />;
@@ -93,19 +95,24 @@ export default function App() {
 
         <Routes>
 
-          {/* PUBLIC */}
+          {/* =========================
+              🔓 PUBLIC ROUTES (NO AUTH)
+          ========================= */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/join" element={<JoinPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+          {/* These should ALSO be public */}
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/no-access" element={<NoAccessPage />} />
-          <Route path="/join" element={<JoinPage />} />
-          <Route path="/modes" element={<MasterModePage />} />
 
-          {/* PROTECTED */}
+          {/* =========================
+              🔐 PROTECTED ROUTES
+          ========================= */}
           <Route
-            path="*"
+            path="/*"
             element={
               <RequireAuth>
                 <ModeWrapper>
@@ -113,7 +120,6 @@ export default function App() {
                   <DockLayout>
 
                     <Routes>
-
                       <Route path="/" element={<HomeOrDomain />} />
 
                       <Route path="/home" element={<DisplayHomeDashboard />} />
@@ -126,7 +132,6 @@ export default function App() {
                       <Route path="/pages" element={<PagesDashboard />} />
                       <Route path="/sports" element={<SportsDashboard />} />
                       <Route path="/farm" element={<FarmDashboard />} />
-
                     </Routes>
 
                   </DockLayout>
