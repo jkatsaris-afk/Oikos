@@ -23,7 +23,7 @@ export async function login(email, password) {
 }
 
 // =========================
-// 👤 GET USER PROFILE (FIXED ONLY HERE)
+// 👤 GET USER PROFILE
 // =========================
 export async function getProfile(userId) {
   const { data, error } = await supabase
@@ -32,14 +32,7 @@ export async function getProfile(userId) {
     .eq("id", userId)
     .maybeSingle();
 
-  if (error) {
-    console.error("Profile fetch error:", error);
-    return { is_approved: true }; // 🔥 fallback prevents infinite loading
-  }
-
-  if (!data) {
-    return { is_approved: true }; // 🔥 fallback if profile missing
-  }
+  if (error) throw error;
 
   return data;
 }
@@ -72,7 +65,7 @@ export async function resetPassword(email) {
 }
 
 // =========================
-// 🔐 UPDATE PASSWORD (AFTER EMAIL LINK)
+// 🔐 UPDATE PASSWORD
 // =========================
 export async function updatePassword(password) {
   const { error } = await supabase.auth.updateUser({
@@ -83,7 +76,7 @@ export async function updatePassword(password) {
 }
 
 // =========================
-// SIGNUP (FULL FLOW)
+// SIGNUP (CREATE + JOIN)
 // =========================
 export async function signup({
   email,
@@ -95,19 +88,22 @@ export async function signup({
   inviteCode,
   extraData = {},
 }) {
+  // =========================
+  // 🔐 CREATE AUTH USER
+  // =========================
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
   });
 
   if (error) throw error;
-
-  if (!data?.user) {
-    throw new Error("User creation failed");
-  }
+  if (!data?.user) throw new Error("User creation failed");
 
   const userId = data.user.id;
 
+  // =========================
+  // 👤 CREATE PROFILE
+  // =========================
   const { error: profileError } = await supabase.from("profiles").insert({
     id: userId,
     email,
@@ -121,6 +117,9 @@ export async function signup({
 
   let accountId = null;
 
+  // =========================
+  // 🏢 CREATE ACCOUNT
+  // =========================
   if (mode === "create") {
     const code = generateCode(accountType?.toUpperCase() || "OIKOS");
 
@@ -139,15 +138,22 @@ export async function signup({
 
     accountId = account.id;
 
-    const { error: memberError } = await supabase.from("account_members").insert({
-      account_id: accountId,
-      user_id: userId,
-      role: "owner",
-    });
+    // OWNER = AUTO APPROVED
+    const { error: memberError } = await supabase
+      .from("account_members")
+      .insert({
+        account_id: accountId,
+        user_id: userId,
+        role: "owner",
+        status: "active", // 🔥 OWNER IS ACTIVE
+      });
 
     if (memberError) throw memberError;
   }
 
+  // =========================
+  // 🤝 JOIN ACCOUNT (FIXED)
+  // =========================
   if (mode === "join") {
     const { data: account, error: findError } = await supabase
       .from("accounts")
@@ -160,11 +166,14 @@ export async function signup({
 
     accountId = account.id;
 
-    const { error: joinError } = await supabase.from("account_members").insert({
-      account_id: accountId,
-      user_id: userId,
-      role: "member",
-    });
+    const { error: joinError } = await supabase
+      .from("account_members")
+      .insert({
+        account_id: accountId,
+        user_id: userId,
+        role: "member",
+        status: "pending", // 🔥 KEY FIX
+      });
 
     if (joinError) throw joinError;
   }
