@@ -36,13 +36,6 @@ export default function LoginPage() {
     sports: SportsLogo,
   };
 
-  <div style={{ textAlign: "center", marginBottom: "10px", fontSize: "12px", color: "#999" }}>
-  <div>Mode: {mode}</div>
-  <div>Path: {location.pathname}</div>
-  <div>Host: {window.location.hostname}</div>
-  <div>From: {location.state?.from || "none"}</div>
-</div>
-
   const logo = logoMap[mode] || DisplayHomeLogo;
 
   // 🔥 COLOR
@@ -85,6 +78,14 @@ export default function LoginPage() {
         {/* LOGO */}
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
+        </div>
+
+        {/* 🔥 DEBUG BLOCK */}
+        <div style={{ textAlign: "center", marginBottom: "10px", fontSize: "12px", color: "#999" }}>
+          <div>Mode: {mode}</div>
+          <div>Path: {location.pathname}</div>
+          <div>Host: {window.location.hostname}</div>
+          <div>From: {location.state?.from || "none"}</div>
         </div>
 
         {/* FORM */}
