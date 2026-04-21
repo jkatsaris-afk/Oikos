@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { resetPassword } from "../../auth/authService";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { signup } from "../../auth/authService";
 import { modeTheme } from "../../core/theme/modeTheme";
 import { getModeFromPath } from "../../core/utils/getMode";
 
@@ -9,14 +9,17 @@ import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
 import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
 import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
 import PagesLogo from "../../assets/logos/Pages-Logo.png";
-import ChurchLogo from "../../assets/logos/Church-Logo.png";
-import CampusLogo from "../../assets/logos/Campus-Logo.png";
-import SportsLogo from "../../assets/logos/Sports-Logo.png";
 
-export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-  const location = useLocation();
+export default function JoinPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    inviteCode: "",
+  });
 
   const hostname = window.location.hostname;
 
@@ -32,18 +35,24 @@ export default function ForgotPasswordPage() {
     business: DisplayBusinessLogo,
     edu: DisplayEduLogo,
     pages: PagesLogo,
-    church: ChurchLogo,
-    campus: CampusLogo,
-    sports: SportsLogo,
   };
 
   const logo = logoMap[mode] || DisplayHomeLogo;
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
 
-  const handleReset = async () => {
+  const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const handleJoin = async () => {
     try {
-      await resetPassword(email);
-      alert("Reset email sent");
+      await signup({
+        email: form.email,
+        password: form.password,
+        full_name: form.name,
+        mode: "join",
+        inviteCode: form.inviteCode,
+      });
+
+      navigate("/pending-approval");
     } catch (err) {
       alert(err.message);
     }
@@ -56,30 +65,16 @@ export default function ForgotPasswordPage() {
           <img src={logo} alt="logo" style={logoStyle} />
         </div>
 
-        <h2 style={titleStyle}>Forgot Password</h2>
+        <h2 style={titleStyle}>Join Organization</h2>
 
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
-        />
+        <input placeholder="Name" onChange={(e) => update("name", e.target.value)} style={inputStyle} />
+        <input placeholder="Email" onChange={(e) => update("email", e.target.value)} style={inputStyle} />
+        <input type="password" placeholder="Password" onChange={(e) => update("password", e.target.value)} style={inputStyle} />
+        <input placeholder="Invite Code" onChange={(e) => update("inviteCode", e.target.value)} style={inputStyle} />
 
-        <button
-          style={{ ...buttonStyle, background: primaryColor }}
-          onClick={handleReset}
-        >
-          Send Reset Link
+        <button style={{ ...buttonStyle, background: primaryColor }} onClick={handleJoin}>
+          Request Access
         </button>
-
-        <div style={linksStyle}>
-          <span
-            onClick={() => navigate("/login", { state: { from: originalPath } })}
-            style={{ ...linkStyle, color: primaryColor }}
-          >
-            Back to Login
-          </span>
-        </div>
       </div>
     </div>
   );
