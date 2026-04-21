@@ -19,10 +19,10 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 GET ORIGINAL PATH (FIX)
+  // 🔥 GET ORIGINAL PATH
   const originalPath = location.state?.from || "/home";
 
-  // 🔥 MODE FROM ORIGINAL PATH
+  // 🔥 MODE
   const mode = getModeFromPath(
     originalPath,
     window.location.hostname
@@ -65,7 +65,6 @@ export default function LoginPage() {
         navigate("/sports", { replace: true });
       } 
       else {
-        // 🔥 FIX: RETURN TO ORIGINAL PAGE
         navigate(originalPath, { replace: true });
       }
 
@@ -82,7 +81,6 @@ export default function LoginPage() {
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
         </div>
-
 
         {/* FORM */}
         <form style={formStyle} onSubmit={handleLogin}>
@@ -109,11 +107,26 @@ export default function LoginPage() {
             Sign In
           </button>
 
+          {/* 🔥 LINKS */}
           <div style={linksStyle}>
-            <span onClick={() => navigate("/signup")} style={{ ...linkStyle, color: primaryColor }}>
+            <span
+              onClick={() => navigate("/signup", { state: { from: originalPath } })}
+              style={{ ...linkStyle, color: primaryColor }}
+            >
               Create Account
             </span>
-            <span onClick={() => navigate("/forgot-password")} style={{ ...linkStyle, color: primaryColor }}>
+
+            <span
+              onClick={() => navigate("/join", { state: { from: originalPath } })}
+              style={{ ...linkStyle, color: primaryColor }}
+            >
+              Join with Code
+            </span>
+
+            <span
+              onClick={() => navigate("/forgot-password")}
+              style={{ ...linkStyle, color: primaryColor }}
+            >
               Forgot Password?
             </span>
           </div>
@@ -180,8 +193,11 @@ const linksStyle = {
   display: "flex",
   justifyContent: "space-between",
   marginTop: "10px",
+  gap: "10px",
+  flexWrap: "wrap",
 };
 
 const linkStyle = {
   cursor: "pointer",
+  fontSize: "13px",
 };
