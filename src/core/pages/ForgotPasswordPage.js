@@ -57,6 +57,11 @@ export default function ForgotPasswordPage() {
 
         <h2 style={titleStyle}>Forgot Password</h2>
 
+        <div style={{ ...noticeStyle, borderLeft: `4px solid ${primaryColor}` }}>
+          Your login works across all Oikos platforms.<br />
+          You only need one account for everything you’re approved for.
+        </div>
+
         <input
           placeholder="Email"
           value={email}
@@ -64,12 +69,18 @@ export default function ForgotPasswordPage() {
           style={inputStyle}
         />
 
-        <button style={{ ...buttonStyle, background: primaryColor }} onClick={handleReset}>
+        <button
+          style={{ ...buttonStyle, background: primaryColor }}
+          onClick={handleReset}
+        >
           Send Reset Link
         </button>
 
         <div style={linksStyle}>
-          <span onClick={() => navigate("/login", { state: { from: originalPath } })} style={{ ...linkStyle, color: primaryColor }}>
+          <span
+            onClick={() => navigate("/login", { state: { from: originalPath } })}
+            style={{ ...linkStyle, color: primaryColor }}
+          >
             Back to Login
           </span>
         </div>
@@ -78,3 +89,72 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+
+// STYLES
+const pageStyle = {
+  height: "100vh",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  background: "#f7f8fa",
+};
+
+const cardStyle = {
+  width: "100%",
+  maxWidth: "420px",
+  background: "#fff",
+  borderRadius: "16px",
+  padding: "30px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+};
+
+const logoWrapper = {
+  display: "flex",
+  justifyContent: "center",
+  marginBottom: "15px",
+};
+
+const logoStyle = {
+  width: "160px",
+};
+
+const titleStyle = {
+  textAlign: "center",
+  marginBottom: "15px",
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "12px",
+  marginBottom: "15px",
+  borderRadius: "8px",
+  border: "1px solid #ccc",
+  boxSizing: "border-box",
+};
+
+const buttonStyle = {
+  width: "100%",
+  padding: "12px",
+  color: "#fff",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+};
+
+const linksStyle = {
+  marginTop: "10px",
+  textAlign: "center",
+};
+
+const linkStyle = {
+  cursor: "pointer",
+};
+
+const noticeStyle = {
+  background: "#f1f5f9",
+  padding: "10px",
+  marginBottom: "20px",
+  fontSize: "13px",
+  color: "#475569",
+  borderRadius: "6px",
+};
