@@ -11,7 +11,7 @@ export const modeTheme = {
     primary: "#4A4A4A"
   },
 
-  edu: {
+  education: {
     primary: "#E86A1F"
   },
 
