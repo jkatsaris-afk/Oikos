@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { signup } from "../../auth/authService";
 import { modeTheme } from "../../core/theme/modeTheme";
+import { getModeFromPath } from "../../core/utils/getMode";
 
 // 🔥 LOGOS
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
@@ -25,48 +26,52 @@ export default function SignupPage() {
   });
 
   // =========================
-  // 🔥 MODE DETECTION
+  // 🔥 MODE DETECTION (FIXED)
   // =========================
   const hostname = window.location.hostname;
-  const path = location.pathname;
 
-  let mode = "home";
+  const originalPath =
+    location.state?.from ||
+    sessionStorage.getItem("lastPath") ||
+    "/home";
+
+  const mode = getModeFromPath(originalPath, hostname);
+
   let logo = DisplayHomeLogo;
   let orgLabel = "Organization Name";
 
   // DOMAIN (platform)
   if (hostname.includes("oikoschurch")) {
-    mode = "church";
     logo = ChurchLogo;
     orgLabel = "Church Name";
-  } else if (hostname.includes("oikoscampus")) {
-    mode = "campus";
+  } 
+  else if (hostname.includes("oikoscampus")) {
     logo = CampusLogo;
     orgLabel = "School Name";
-  } else if (hostname.includes("oikossports")) {
-    mode = "sports";
+  } 
+  else if (hostname.includes("oikossports")) {
     logo = SportsLogo;
     orgLabel = "League Name";
   }
 
-  // PATH (mode)
-  else if (path.includes("business")) {
-    mode = "business";
+  // DISPLAY MODES
+  else if (mode === "business") {
     logo = DisplayBusinessLogo;
     orgLabel = "Company Name";
-  } else if (path.includes("edu")) {
-    mode = "edu";
+  } 
+  else if (mode === "edu") {
     logo = DisplayEduLogo;
     orgLabel = "School Name";
-  } else if (path.includes("pages")) {
-    mode = "pages";
+  } 
+  else if (mode === "pages") {
     logo = PagesLogo;
-  } else if (path.includes("nightstand")) {
-    mode = "nightstand";
-    orgLabel = "Household Name"; // ✅ FIX
-  } else if (path.includes("home")) {
-    mode = "home";
-    orgLabel = "Household Name"; // ✅ FIX
+    orgLabel = "Page Group Name";
+  } 
+  else if (mode === "nightstand") {
+    orgLabel = "Household Name";
+  } 
+  else if (mode === "home") {
+    orgLabel = "Household Name"; // ✅ YOUR REQUEST
   }
 
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
@@ -106,6 +111,13 @@ export default function SignupPage() {
         {/* 🔥 LOGO */}
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
+        </div>
+
+        {/* 🔥 DEBUG BLOCK (OPTIONAL - REMOVE LATER) */}
+        <div style={{ textAlign: "center", marginBottom: "10px", fontSize: "12px", color: "#999" }}>
+          <div>Mode: {mode}</div>
+          <div>Original Path: {originalPath}</div>
+          <div>Host: {hostname}</div>
         </div>
 
         {/* 🔥 FORM */}
