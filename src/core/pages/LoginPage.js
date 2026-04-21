@@ -19,9 +19,12 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🔥 MODE
+  // 🔥 GET ORIGINAL PATH (FIX)
+  const originalPath = location.state?.from || "/home";
+
+  // 🔥 MODE FROM ORIGINAL PATH
   const mode = getModeFromPath(
-    location.pathname,
+    originalPath,
     window.location.hostname
   );
 
@@ -51,7 +54,6 @@ export default function LoginPage() {
       await login(email, password);
 
       const hostname = window.location.hostname;
-      const from = location.pathname;
 
       if (hostname.includes("oikoschurch")) {
         navigate("/church", { replace: true });
@@ -63,7 +65,8 @@ export default function LoginPage() {
         navigate("/sports", { replace: true });
       } 
       else {
-        navigate(from !== "/login" ? from : "/home", { replace: true });
+        // 🔥 FIX: RETURN TO ORIGINAL PAGE
+        navigate(originalPath, { replace: true });
       }
 
     } catch (err) {
