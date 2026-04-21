@@ -15,6 +15,16 @@ import ResetPasswordPage from "./core/pages/ResetPasswordPage";
 
 import { getModeFromPath } from "./core/utils/getMode";
 
+// 🔥🔥🔥 ADD THIS BLOCK (GLOBAL PATH TRACKING)
+if (typeof window !== "undefined") {
+  const path = window.location.pathname;
+
+  // don't overwrite with /login
+  if (path !== "/login") {
+    sessionStorage.setItem("lastPath", path);
+  }
+}
+
 // =========================
 // LAZY LOADER
 // =========================
