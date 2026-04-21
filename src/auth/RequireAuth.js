@@ -18,17 +18,27 @@ export default function RequireAuth({ children }) {
         return;
       }
 
-      // 🔥 USE ACTUAL PATH ONLY
       const path = location.pathname;
 
-      const detectedMode = getModeFromPath(path, window.location.hostname);
+      const detectedMode = getModeFromPath(
+        path,
+        window.location.hostname
+      );
 
       let platform = "display";
       let mode = detectedMode;
 
-      if (["church", "campus", "sports", "pages", "farm"].includes(detectedMode)) {
+      // 🔥 Normalize platform + mode
+      if (
+        ["church", "campus", "sports", "pages", "farm"].includes(
+          detectedMode
+        )
+      ) {
         platform = detectedMode;
         mode = "default";
+      } else {
+        platform = "display";
+        mode = detectedMode;
       }
 
       console.log("ACCESS CHECK:", {
@@ -57,7 +67,8 @@ export default function RequireAuth({ children }) {
       if (!data || data.length === 0) {
         setHasAccess(false);
       } else {
-        setHasAccess(data[0].has_access === true);
+        // 🔥 FINAL FIX (handles true / "true" / 1)
+        setHasAccess(Boolean(data[0].has_access));
       }
 
       setChecking(false);
@@ -66,17 +77,31 @@ export default function RequireAuth({ children }) {
     checkAccess();
   }, [user, location.pathname]);
 
+  // 🔄 Loading state
   if (loading || checking) {
-    return <div style={{ padding: 40, textAlign: "center" }}>Loading...</div>;
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        Loading...
+      </div>
+    );
   }
 
+  // ❌ Not logged in
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location.pathname }}
+      />
+    );
   }
 
+  // ❌ No access
   if (!hasAccess) {
     return <Navigate to="/no-access" replace />;
   }
 
+  // ✅ Allowed
   return children;
 }
