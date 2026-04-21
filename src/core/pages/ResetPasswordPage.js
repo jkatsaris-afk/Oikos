@@ -31,7 +31,12 @@ export default function ResetPasswordPage() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
+
         <h2 style={titleStyle}>Reset Password</h2>
+
+        <div style={{ ...noticeStyle, borderLeft: `4px solid ${primaryColor}` }}>
+          This password will update your account across all Oikos platforms.
+        </div>
 
         <input
           type="password"
@@ -41,17 +46,64 @@ export default function ResetPasswordPage() {
           style={inputStyle}
         />
 
-        <button style={{ ...buttonStyle, background: primaryColor }} onClick={handleReset}>
+        <button
+          style={{ ...buttonStyle, background: primaryColor }}
+          onClick={handleReset}
+        >
           Update Password
         </button>
+
       </div>
     </div>
   );
 }
 
 // STYLES
-const pageStyle = { height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#f7f8fa" };
-const cardStyle = { width: "100%", maxWidth: "420px", background: "#fff", borderRadius: "16px", padding: "25px", boxShadow: "0 10px 30px rgba(0,0,0,0.06)", textAlign: "center" };
-const titleStyle = { marginBottom: "15px" };
-const inputStyle = { width: "100%", padding: "10px", marginBottom: "12px" };
-const buttonStyle = { width: "100%", padding: "12px", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" };
+const pageStyle = {
+  height: "100vh",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  background: "#f7f8fa",
+};
+
+const cardStyle = {
+  width: "100%",
+  maxWidth: "420px",
+  background: "#fff",
+  borderRadius: "16px",
+  padding: "30px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+};
+
+const titleStyle = {
+  textAlign: "center",
+  marginBottom: "15px",
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "12px",
+  marginBottom: "15px",
+  borderRadius: "8px",
+  border: "1px solid #ccc",
+  boxSizing: "border-box",
+};
+
+const buttonStyle = {
+  width: "100%",
+  padding: "12px",
+  color: "#fff",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+};
+
+const noticeStyle = {
+  background: "#f1f5f9",
+  padding: "10px",
+  marginBottom: "20px",
+  fontSize: "13px",
+  color: "#475569",
+  borderRadius: "6px",
+};
