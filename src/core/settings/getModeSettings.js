@@ -8,7 +8,7 @@ export function getModeSettings(mode) {
   switch (mode) {
     case "home":
     case "business":
-    case "education":
+    case "edu":
     case "nightstand":
       return <DisplaySettings />;
 
