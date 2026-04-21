@@ -19,6 +19,7 @@ import SignupPage from "./core/pages/SignupPage";
 import ForgotPasswordPage from "./core/pages/ForgotPasswordPage";
 import ResetPasswordPage from "./core/pages/ResetPasswordPage";
 import JoinPage from "./core/pages/JoinPage";
+import MasterModePage from "./core/pages/MasterModePage";
 
 import { getModeFromPath } from "./core/utils/getMode";
 
@@ -96,17 +97,18 @@ export default function App() {
         <Routes>
 
           {/* =========================
-              🔓 PUBLIC ROUTES (NO AUTH)
+              🔓 PUBLIC ROUTES
           ========================= */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/join" element={<JoinPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-
-          {/* These should ALSO be public */}
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/no-access" element={<NoAccessPage />} />
+
+          {/* 🔥 THIS FIXES YOUR ISSUE */}
+          <Route path="/modes" element={<MasterModePage />} />
 
           {/* =========================
               🔐 PROTECTED ROUTES
