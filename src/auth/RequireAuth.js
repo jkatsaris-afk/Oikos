@@ -18,23 +18,17 @@ export default function RequireAuth({ children }) {
         return;
       }
 
-      const path =
-        location.state?.from ||
-        sessionStorage.getItem("lastPath") ||
-        location.pathname;
+      // 🔥 USE ACTUAL PATH ONLY
+      const path = location.pathname;
 
       const detectedMode = getModeFromPath(path, window.location.hostname);
 
       let platform = "display";
       let mode = detectedMode;
 
-      // 🔥 NORMALIZATION LAYER (KEY)
       if (["church", "campus", "sports", "pages", "farm"].includes(detectedMode)) {
         platform = detectedMode;
         mode = "default";
-      } else {
-        platform = "display";
-        mode = detectedMode;
       }
 
       console.log("ACCESS CHECK:", {
@@ -42,6 +36,7 @@ export default function RequireAuth({ children }) {
         detectedMode,
         platform,
         mode,
+        user: user.id,
       });
 
       const { data, error } = await supabase
@@ -49,8 +44,7 @@ export default function RequireAuth({ children }) {
         .select("*")
         .eq("user_id", user.id)
         .eq("platform", platform)
-        .eq("mode", mode)
-        .maybeSingle();
+        .eq("mode", mode);
 
       if (error) {
         console.error("Access error:", error);
@@ -58,12 +52,19 @@ export default function RequireAuth({ children }) {
         return;
       }
 
-      setHasAccess(data?.has_access === true);
+      console.log("DB RESULT:", data);
+
+      if (!data || data.length === 0) {
+        setHasAccess(false);
+      } else {
+        setHasAccess(data[0].has_access === true);
+      }
+
       setChecking(false);
     }
 
     checkAccess();
-  }, [user, location]);
+  }, [user, location.pathname]);
 
   if (loading || checking) {
     return <div style={{ padding: 40, textAlign: "center" }}>Loading...</div>;
@@ -74,7 +75,7 @@ export default function RequireAuth({ children }) {
   }
 
   if (!hasAccess) {
-    return <Navigate to="/no-access" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/no-access" replace />;
   }
 
   return children;
