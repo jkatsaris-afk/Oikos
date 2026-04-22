@@ -95,37 +95,54 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
-          
-          {/* 🔥 FIXED */}
           <Route path="/no-access/*" element={<NoAccessPage />} />
-
           <Route path="/modes" element={<MasterModePage />} />
 
           {/* PROTECTED */}
           <Route
             path="/*"
             element={
-              <RequireAuth>
-                <ModeWrapper>
-                  <GlobalHeader />
-                  <DockLayout>
-                    <Routes>
-                      <Route path="/" element={<HomeOrDomain />} />
+              (() => {
+                const path = window.location.pathname;
 
-                      <Route path="/home" element={<DisplayHomeDashboard />} />
-                      <Route path="/business" element={<DisplayBusinessDashboard />} />
-                      <Route path="/edu" element={<DisplayEduDashboard />} />
-                      <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
+                // 🔥 CRITICAL FIX
+                if (
+                  path === "/modes" ||
+                  path === "/no-access" ||
+                  path === "/login" ||
+                  path === "/signup" ||
+                  path === "/join" ||
+                  path === "/forgot-password" ||
+                  path === "/reset-password" ||
+                  path === "/pending-approval"
+                ) {
+                  return null;
+                }
 
-                      <Route path="/church" element={<ChurchDashboard />} />
-                      <Route path="/campus" element={<CampusDashboard />} />
-                      <Route path="/pages" element={<PagesDashboard />} />
-                      <Route path="/sports" element={<SportsDashboard />} />
-                      <Route path="/farm" element={<FarmDashboard />} />
-                    </Routes>
-                  </DockLayout>
-                </ModeWrapper>
-              </RequireAuth>
+                return (
+                  <RequireAuth>
+                    <ModeWrapper>
+                      <GlobalHeader />
+                      <DockLayout>
+                        <Routes>
+                          <Route path="/" element={<HomeOrDomain />} />
+
+                          <Route path="/home" element={<DisplayHomeDashboard />} />
+                          <Route path="/business" element={<DisplayBusinessDashboard />} />
+                          <Route path="/edu" element={<DisplayEduDashboard />} />
+                          <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
+
+                          <Route path="/church" element={<ChurchDashboard />} />
+                          <Route path="/campus" element={<CampusDashboard />} />
+                          <Route path="/pages" element={<PagesDashboard />} />
+                          <Route path="/sports" element={<SportsDashboard />} />
+                          <Route path="/farm" element={<FarmDashboard />} />
+                        </Routes>
+                      </DockLayout>
+                    </ModeWrapper>
+                  </RequireAuth>
+                );
+              })()
             }
           />
 
