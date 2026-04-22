@@ -87,6 +87,35 @@ function HomeOrDomain() {
 }
 
 // =========================
+// 🔥 NEW: PROTECTED APP SHELL
+// =========================
+function AppShell() {
+  return (
+    <RequireAuth>
+      <ModeWrapper>
+        <GlobalHeader />
+        <DockLayout>
+          <Routes>
+            <Route path="/" element={<HomeOrDomain />} />
+
+            <Route path="/home" element={<DisplayHomeDashboard />} />
+            <Route path="/business" element={<DisplayBusinessDashboard />} />
+            <Route path="/edu" element={<DisplayEduDashboard />} />
+            <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
+
+            <Route path="/church" element={<ChurchDashboard />} />
+            <Route path="/campus" element={<CampusDashboard />} />
+            <Route path="/pages" element={<PagesDashboard />} />
+            <Route path="/sports" element={<SportsDashboard />} />
+            <Route path="/farm" element={<FarmDashboard />} />
+          </Routes>
+        </DockLayout>
+      </ModeWrapper>
+    </RequireAuth>
+  );
+}
+
+// =========================
 // APP
 // =========================
 export default function App() {
@@ -96,9 +125,7 @@ export default function App() {
 
         <Routes>
 
-          {/* =========================
-              🔓 PUBLIC ROUTES
-          ========================= */}
+          {/* 🔓 PUBLIC ROUTES */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/join" element={<JoinPage />} />
@@ -106,41 +133,10 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
           <Route path="/no-access" element={<NoAccessPage />} />
-
-          {/* 🔥 THIS FIXES YOUR ISSUE */}
           <Route path="/modes" element={<MasterModePage />} />
 
-          {/* =========================
-              🔐 PROTECTED ROUTES
-          ========================= */}
-          <Route
-            path="/*"
-            element={
-              <RequireAuth>
-                <ModeWrapper>
-                  <GlobalHeader />
-                  <DockLayout>
-
-                    <Routes>
-                      <Route path="/" element={<HomeOrDomain />} />
-
-                      <Route path="/home" element={<DisplayHomeDashboard />} />
-                      <Route path="/business" element={<DisplayBusinessDashboard />} />
-                      <Route path="/edu" element={<DisplayEduDashboard />} />
-                      <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
-
-                      <Route path="/church" element={<ChurchDashboard />} />
-                      <Route path="/campus" element={<CampusDashboard />} />
-                      <Route path="/pages" element={<PagesDashboard />} />
-                      <Route path="/sports" element={<SportsDashboard />} />
-                      <Route path="/farm" element={<FarmDashboard />} />
-                    </Routes>
-
-                  </DockLayout>
-                </ModeWrapper>
-              </RequireAuth>
-            }
-          />
+          {/* 🔐 PROTECTED APP */}
+          <Route path="/*" element={<AppShell />} />
 
         </Routes>
 
