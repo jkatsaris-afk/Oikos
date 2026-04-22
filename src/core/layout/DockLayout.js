@@ -1,3 +1,5 @@
+console.log("🚨 DOCK LAYOUT MOUNTED:", window.location.pathname);
+
 import {
   Home,
   Grid,
