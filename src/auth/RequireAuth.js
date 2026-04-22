@@ -11,20 +11,21 @@ export default function RequireAuth({ children }) {
   const [hasAccess, setHasAccess] = useState(null);
   const [checked, setChecked] = useState(false);
 
-  const hasRun = useRef(false); // 🔥 prevents re-runs
+  const hasRun = useRef(false); // 🔥 prevents loop
 
   const path = location.pathname;
 
   useEffect(() => {
     const checkAccess = async () => {
       if (loading) return;
+
       if (!user) {
         setHasAccess(false);
         setChecked(true);
         return;
       }
 
-      // 🔥 prevent duplicate runs
+      // 🔥 STOP LOOPING
       if (hasRun.current) return;
       hasRun.current = true;
 
@@ -54,23 +55,13 @@ export default function RequireAuth({ children }) {
           user: user.id,
         });
 
-        // 🔥 SAFETY TIMEOUT (never hang again)
-        const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("timeout")), 5000)
-        );
-
-        const query = supabase
+        const { data, error } = await supabase
           .from("user_access")
           .select("*")
           .eq("user_id", user.id)
           .eq("platform", platform)
           .eq("mode", mode)
           .limit(1);
-
-        const { data, error } = await Promise.race([
-          query,
-          timeout,
-        ]);
 
         if (error) {
           console.error("Access error:", error);
