@@ -13,8 +13,25 @@ import useUserTiles from "../tiles/useUserTiles";
 import TilePageLayout from "./TilePageLayout";
 import SettingsModal from "../settings/SettingsModal";
 import React from "react";
+import { useLocation } from "react-router-dom";
 
 export default function DockLayout({ children }) {
+
+  // 🔥 CRITICAL FIX (DO NOT REMOVE)
+  const location = useLocation();
+
+  if (
+    location.pathname === "/no-access" ||
+    location.pathname === "/pending-approval" ||
+    location.pathname === "/login" ||
+    location.pathname === "/signup" ||
+    location.pathname === "/join" ||
+    location.pathname === "/forgot-password" ||
+    location.pathname === "/reset-password"
+  ) {
+    return null;
+  }
+
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
   const [openTileSettings, setOpenTileSettings] = useState(false);
