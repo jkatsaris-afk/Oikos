@@ -95,34 +95,130 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/pending-approval" element={<PendingApprovalPage />} />
-          
-          {/* 🔥 FIXED */}
-          <Route path="/no-access/*" element={<NoAccessPage />} />
-
+          <Route path="/no-access" element={<NoAccessPage />} />
           <Route path="/modes" element={<MasterModePage />} />
 
-          {/* PROTECTED */}
+          {/* 🔐 PROTECTED (ONLY REAL APP ROUTES) */}
           <Route
-            path="/*"
+            path="/home"
             element={
               <RequireAuth>
                 <ModeWrapper>
                   <GlobalHeader />
                   <DockLayout>
-                    <Routes>
-                      <Route path="/" element={<HomeOrDomain />} />
+                    <DisplayHomeDashboard />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
 
-                      <Route path="/home" element={<DisplayHomeDashboard />} />
-                      <Route path="/business" element={<DisplayBusinessDashboard />} />
-                      <Route path="/edu" element={<DisplayEduDashboard />} />
-                      <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
+          <Route
+            path="/business"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
+                    <DisplayBusinessDashboard />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
 
-                      <Route path="/church" element={<ChurchDashboard />} />
-                      <Route path="/campus" element={<CampusDashboard />} />
-                      <Route path="/pages" element={<PagesDashboard />} />
-                      <Route path="/sports" element={<SportsDashboard />} />
-                      <Route path="/farm" element={<FarmDashboard />} />
-                    </Routes>
+          <Route
+            path="/edu"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
+                    <DisplayEduDashboard />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/nightstand"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
+                    <DisplayNightstandDashboard />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/church"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
+                    <ChurchDashboard />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/campus"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
+                    <CampusDashboard />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/pages"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
+                    <PagesDashboard />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/sports"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
+                    <SportsDashboard />
+                  </DockLayout>
+                </ModeWrapper>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/farm"
+            element={
+              <RequireAuth>
+                <ModeWrapper>
+                  <GlobalHeader />
+                  <DockLayout>
+                    <FarmDashboard />
                   </DockLayout>
                 </ModeWrapper>
               </RequireAuth>
