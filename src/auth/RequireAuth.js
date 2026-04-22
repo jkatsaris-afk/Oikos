@@ -17,21 +17,24 @@ export default function RequireAuth({ children }) {
   console.log("RequireAuth Render", {
     user,
     loading,
+    ready,
     checked,
     hasAccess,
-    ready,
     path,
   });
 
   // =========================
-  // AUTH READY LISTENER
+  // AUTH READY (CRITICAL FIX)
   // =========================
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log("Auth State Change", event);
-        console.log("Session Object", session);
-        setReady(true);
+
+        if (session) {
+          console.log("Session Ready for Queries");
+          setReady(true);
+        }
       }
     );
 
@@ -44,20 +47,17 @@ export default function RequireAuth({ children }) {
   // ACCESS CHECK
   // =========================
   useEffect(() => {
-    if (loading || !ready) {
-      console.log("Waiting for loading/ready", { loading, ready });
+    if (loading || !ready || !user) {
+      console.log("Waiting for auth readiness", {
+        loading,
+        ready,
+        user,
+      });
       return;
     }
 
     const checkAccess = async () => {
       console.log("Access Check Start");
-
-      if (!user) {
-        console.log("No user in checkAccess");
-        setHasAccess(false);
-        setChecked(true);
-        return;
-      }
 
       try {
         const detectedMode = getModeFromPath(
@@ -85,14 +85,10 @@ export default function RequireAuth({ children }) {
           user: user.id,
         });
 
-        // 🔥 TIMING START
-        const start = Date.now();
-        console.log("Query Start Time", start);
+        // 🔥 CRITICAL FIX: FORCE AUTH SYNC
+        await supabase.auth.getUser();
 
-        // 🔥 NON-BLOCKING TIMEOUT LOGGER
-        setTimeout(() => {
-          console.log("Query still pending after 3 seconds...");
-        }, 3000);
+        const start = Date.now();
 
         const { data, error } = await supabase
           .from("user_access")
@@ -102,13 +98,10 @@ export default function RequireAuth({ children }) {
           .eq("mode", mode)
           .limit(1);
 
-        // 🔥 TIMING END
         const end = Date.now();
-        console.log("Query End Time", end);
-        console.log("Query Duration (ms)", end - start);
 
-        console.log("Access Query Result", data);
-        console.log("Access Query Error", error);
+        console.log("Query Duration (ms)", end - start);
+        console.log("Access Query Result", data, error);
 
         if (error) {
           setHasAccess(false);
