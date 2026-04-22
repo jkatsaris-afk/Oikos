@@ -13,23 +13,17 @@ export default function RequireAuth({ children }) {
 
   const path = location.pathname;
 
-  // 🔥 HARD BYPASS FOR PUBLIC ROUTES
-  if (
-    path === "/login" ||
-    path === "/signup" ||
-    path === "/join" ||
-    path === "/forgot-password" ||
-    path === "/reset-password" ||
-    path === "/pending-approval" ||
-    path === "/no-access" ||
-    path === "/modes"
-  ) {
-    return children;
-  }
-
   useEffect(() => {
     async function checkAccess() {
-      if (!user) return;
+      // 🔥 WAIT until auth is done
+      if (loading) return;
+
+      // 🔥 If no user, stop checking
+      if (!user) {
+        setChecking(false);
+        setHasAccess(false);
+        return;
+      }
 
       setChecking(true);
 
@@ -69,12 +63,7 @@ export default function RequireAuth({ children }) {
         if (error) {
           console.error("Access error:", error);
           setHasAccess(false);
-          return;
-        }
-
-        console.log("DB RESULT:", data);
-
-        if (!data || data.length === 0) {
+        } else if (!data || data.length === 0) {
           setHasAccess(false);
         } else {
           setHasAccess(Boolean(data[0].has_access));
@@ -84,30 +73,39 @@ export default function RequireAuth({ children }) {
         console.error("Access crash:", err);
         setHasAccess(false);
       } finally {
-        setChecking(false);
+        setChecking(false); // 🔥 ALWAYS clears
       }
     }
 
-    if (user) {
-      checkAccess();
-    }
-  }, [user, path]);
+    checkAccess();
+  }, [user, loading, path]);
 
+  // 🔄 WAIT for auth FIRST
   if (loading) {
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
+  // ❌ Not logged in
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: path }} />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: path }}
+      />
+    );
   }
 
+  // 🔄 Access check in progress
   if (checking) {
     return <div style={{ padding: 40 }}>Checking access...</div>;
   }
 
+  // ❌ No access
   if (hasAccess === false) {
     return <Navigate to="/no-access" replace />;
   }
 
+  // ✅ Allow
   return children;
 }
