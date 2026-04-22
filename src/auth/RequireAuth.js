@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./useAuth";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { getModeFromPath } from "../core/utils/getMode";
 
@@ -9,19 +9,24 @@ export default function RequireAuth({ children }) {
   const location = useLocation();
 
   const [hasAccess, setHasAccess] = useState(null);
-  const [checked, setChecked] = useState(false); // 🔥 NEW
+  const [checked, setChecked] = useState(false);
+
+  const hasRun = useRef(false); // 🔥 prevents re-runs
 
   const path = location.pathname;
 
   useEffect(() => {
     const checkAccess = async () => {
       if (loading) return;
-
       if (!user) {
         setHasAccess(false);
         setChecked(true);
         return;
       }
+
+      // 🔥 prevent duplicate runs
+      if (hasRun.current) return;
+      hasRun.current = true;
 
       try {
         const detectedMode = getModeFromPath(
@@ -49,13 +54,23 @@ export default function RequireAuth({ children }) {
           user: user.id,
         });
 
-        const { data, error } = await supabase
+        // 🔥 SAFETY TIMEOUT (never hang again)
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), 5000)
+        );
+
+        const query = supabase
           .from("user_access")
           .select("*")
           .eq("user_id", user.id)
           .eq("platform", platform)
           .eq("mode", mode)
           .limit(1);
+
+        const { data, error } = await Promise.race([
+          query,
+          timeout,
+        ]);
 
         if (error) {
           console.error("Access error:", error);
@@ -70,14 +85,14 @@ export default function RequireAuth({ children }) {
         console.error("Access crash:", err);
         setHasAccess(false);
       } finally {
-        setChecked(true); // 🔥 ALWAYS COMPLETE
+        setChecked(true); // 🔥 ALWAYS RESOLVE
       }
     };
 
     checkAccess();
   }, [user, loading, path]);
 
-  // 🔄 WAIT FOR AUTH FIRST
+  // 🔄 WAIT FOR AUTH
   if (loading) {
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
