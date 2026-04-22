@@ -9,23 +9,19 @@ export default function RequireAuth({ children }) {
   const location = useLocation();
 
   const [hasAccess, setHasAccess] = useState(null);
-  const [checking, setChecking] = useState(false);
+  const [checked, setChecked] = useState(false); // 🔥 NEW
 
   const path = location.pathname;
 
   useEffect(() => {
-    async function checkAccess() {
-      // 🔥 WAIT until auth is done
+    const checkAccess = async () => {
       if (loading) return;
 
-      // 🔥 If no user, stop checking
       if (!user) {
-        setChecking(false);
         setHasAccess(false);
+        setChecked(true);
         return;
       }
-
-      setChecking(true);
 
       try {
         const detectedMode = getModeFromPath(
@@ -58,7 +54,8 @@ export default function RequireAuth({ children }) {
           .select("*")
           .eq("user_id", user.id)
           .eq("platform", platform)
-          .eq("mode", mode);
+          .eq("mode", mode)
+          .limit(1);
 
         if (error) {
           console.error("Access error:", error);
@@ -73,19 +70,19 @@ export default function RequireAuth({ children }) {
         console.error("Access crash:", err);
         setHasAccess(false);
       } finally {
-        setChecking(false); // 🔥 ALWAYS clears
+        setChecked(true); // 🔥 ALWAYS COMPLETE
       }
-    }
+    };
 
     checkAccess();
   }, [user, loading, path]);
 
-  // 🔄 WAIT for auth FIRST
+  // 🔄 WAIT FOR AUTH FIRST
   if (loading) {
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
-  // ❌ Not logged in
+  // ❌ NOT LOGGED IN
   if (!user) {
     return (
       <Navigate
@@ -96,16 +93,16 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // 🔄 Access check in progress
-  if (checking) {
+  // 🔄 WAIT FOR ACCESS CHECK
+  if (!checked) {
     return <div style={{ padding: 40 }}>Checking access...</div>;
   }
 
-  // ❌ No access
+  // ❌ NO ACCESS
   if (hasAccess === false) {
     return <Navigate to="/no-access" replace />;
   }
 
-  // ✅ Allow
+  // ✅ ALLOW
   return children;
 }
