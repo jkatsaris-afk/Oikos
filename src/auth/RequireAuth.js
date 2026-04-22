@@ -13,7 +13,7 @@ export default function RequireAuth({ children }) {
 
   const path = location.pathname;
 
-  console.log("🔥 REQUIRE AUTH RENDER", {
+  console.log("RequireAuth Render", {
     user,
     loading,
     checked,
@@ -22,18 +22,18 @@ export default function RequireAuth({ children }) {
   });
 
   useEffect(() => {
-    console.log("🟡 EFFECT TRIGGERED", { user, loading, path });
-
-    if (loading) {
-      console.log("⏳ STILL LOADING AUTH...");
-      return;
-    }
-
     const checkAccess = async () => {
-      console.log("🚀 RUNNING ACCESS CHECK");
+      console.log("Access Check Start");
 
-      if (!user) {
-        console.log("❌ NO USER");
+      // Wait for full session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      console.log("Session", session);
+
+      if (!session || !user) {
+        console.log("No session or user");
         setHasAccess(false);
         setChecked(true);
         return;
@@ -57,7 +57,7 @@ export default function RequireAuth({ children }) {
           mode = "default";
         }
 
-        console.log("📡 ACCESS QUERY:", {
+        console.log("Access Query Params", {
           path,
           detectedMode,
           platform,
@@ -73,30 +73,29 @@ export default function RequireAuth({ children }) {
           .eq("mode", mode)
           .limit(1);
 
-        console.log("📦 QUERY RESULT:", data, error);
+        console.log("Access Query Result", data, error);
 
         if (error) {
-          console.log("❌ QUERY ERROR");
           setHasAccess(false);
         } else if (!data || data.length === 0) {
-          console.log("❌ NO ACCESS ROW FOUND");
           setHasAccess(false);
         } else {
-          console.log("✅ ACCESS FOUND:", data[0]);
           setHasAccess(Boolean(data[0].has_access));
         }
 
       } catch (err) {
-        console.log("💥 CRASH:", err);
+        console.log("Access Crash", err);
         setHasAccess(false);
       } finally {
-        console.log("✅ CHECK COMPLETE");
+        console.log("Access Check Complete");
         setChecked(true);
       }
     };
 
-    setChecked(false);
-    checkAccess();
+    if (!loading) {
+      setChecked(false);
+      checkAccess();
+    }
 
   }, [user, loading, path]);
 
@@ -105,12 +104,12 @@ export default function RequireAuth({ children }) {
   // =========================
 
   if (loading) {
-    console.log("🔵 RENDER: loading");
+    console.log("Render State: loading");
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
   if (!user) {
-    console.log("🔴 RENDER: no user → login");
+    console.log("Render State: no user, redirect to login");
     return (
       <Navigate
         to="/login"
@@ -121,16 +120,16 @@ export default function RequireAuth({ children }) {
   }
 
   if (!checked) {
-    console.log("🟡 RENDER: checking access...");
+    console.log("Render State: checking access");
     return <div style={{ padding: 40 }}>Checking access...</div>;
   }
 
   if (hasAccess === false) {
-    console.log("🔴 RENDER: no access page");
+    console.log("Render State: no access, redirect");
     return <Navigate to="/no-access" replace />;
   }
 
-  console.log("🟢 RENDER: allow access");
+  console.log("Render State: access granted");
 
   return children;
 }
