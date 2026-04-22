@@ -11,6 +11,14 @@ export default function RequireAuth({ children }) {
   const [hasAccess, setHasAccess] = useState(null);
   const [checking, setChecking] = useState(false);
 
+  // 🔥 CRITICAL FIX — allow access pages to render
+  if (
+    location.pathname === "/no-access" ||
+    location.pathname === "/pending-approval"
+  ) {
+    return children;
+  }
+
   useEffect(() => {
     async function checkAccess() {
       if (!user) return;
@@ -99,7 +107,7 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // 🔄 Access checking (short only)
+  // 🔄 Access checking
   if (checking) {
     return (
       <div style={{ padding: 40, textAlign: "center" }}>
@@ -113,6 +121,6 @@ export default function RequireAuth({ children }) {
     return <Navigate to="/no-access" replace />;
   }
 
-  // ✅ Allow if true OR fallback
+  // ✅ Allow
   return children;
 }
