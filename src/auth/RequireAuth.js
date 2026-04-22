@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./useAuth";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { getModeFromPath } from "../core/utils/getMode";
 
@@ -11,23 +11,33 @@ export default function RequireAuth({ children }) {
   const [hasAccess, setHasAccess] = useState(null);
   const [checked, setChecked] = useState(false);
 
-  const hasRun = useRef(false); // 🔥 prevents loop
-
   const path = location.pathname;
 
+  console.log("🔥 REQUIRE AUTH RENDER", {
+    user,
+    loading,
+    checked,
+    hasAccess,
+    path,
+  });
+
   useEffect(() => {
+    console.log("🟡 EFFECT TRIGGERED", { user, loading, path });
+
+    if (loading) {
+      console.log("⏳ STILL LOADING AUTH...");
+      return;
+    }
+
     const checkAccess = async () => {
-      if (loading) return;
+      console.log("🚀 RUNNING ACCESS CHECK");
 
       if (!user) {
+        console.log("❌ NO USER");
         setHasAccess(false);
         setChecked(true);
         return;
       }
-
-      // 🔥 STOP LOOPING
-      if (hasRun.current) return;
-      hasRun.current = true;
 
       try {
         const detectedMode = getModeFromPath(
@@ -47,7 +57,7 @@ export default function RequireAuth({ children }) {
           mode = "default";
         }
 
-        console.log("ACCESS CHECK:", {
+        console.log("📡 ACCESS QUERY:", {
           path,
           detectedMode,
           platform,
@@ -63,33 +73,44 @@ export default function RequireAuth({ children }) {
           .eq("mode", mode)
           .limit(1);
 
+        console.log("📦 QUERY RESULT:", data, error);
+
         if (error) {
-          console.error("Access error:", error);
+          console.log("❌ QUERY ERROR");
           setHasAccess(false);
         } else if (!data || data.length === 0) {
+          console.log("❌ NO ACCESS ROW FOUND");
           setHasAccess(false);
         } else {
+          console.log("✅ ACCESS FOUND:", data[0]);
           setHasAccess(Boolean(data[0].has_access));
         }
 
       } catch (err) {
-        console.error("Access crash:", err);
+        console.log("💥 CRASH:", err);
         setHasAccess(false);
       } finally {
-        setChecked(true); // 🔥 ALWAYS RESOLVE
+        console.log("✅ CHECK COMPLETE");
+        setChecked(true);
       }
     };
 
+    setChecked(false);
     checkAccess();
+
   }, [user, loading, path]);
 
-  // 🔄 WAIT FOR AUTH
+  // =========================
+  // RENDER STATES
+  // =========================
+
   if (loading) {
+    console.log("🔵 RENDER: loading");
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
-  // ❌ NOT LOGGED IN
   if (!user) {
+    console.log("🔴 RENDER: no user → login");
     return (
       <Navigate
         to="/login"
@@ -99,16 +120,17 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // 🔄 WAIT FOR ACCESS CHECK
   if (!checked) {
+    console.log("🟡 RENDER: checking access...");
     return <div style={{ padding: 40 }}>Checking access...</div>;
   }
 
-  // ❌ NO ACCESS
   if (hasAccess === false) {
+    console.log("🔴 RENDER: no access page");
     return <Navigate to="/no-access" replace />;
   }
 
-  // ✅ ALLOW
+  console.log("🟢 RENDER: allow access");
+
   return children;
 }
