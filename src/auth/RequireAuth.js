@@ -11,6 +11,14 @@ export default function RequireAuth({ children }) {
   const [hasAccess, setHasAccess] = useState(null);
   const [checking, setChecking] = useState(false);
 
+  // 🔓 ALWAYS ALLOW THESE ROUTES
+  if (
+    location.pathname === "/no-access" ||
+    location.pathname === "/pending-approval"
+  ) {
+    return children;
+  }
+
   useEffect(() => {
     async function checkAccess() {
       if (!user) return;
@@ -37,14 +45,6 @@ export default function RequireAuth({ children }) {
           mode = "default";
         }
 
-        console.log("ACCESS CHECK:", {
-          path,
-          detectedMode,
-          platform,
-          mode,
-          user: user.id,
-        });
-
         const { data, error } = await supabase
           .from("user_access")
           .select("*")
@@ -53,66 +53,38 @@ export default function RequireAuth({ children }) {
           .eq("mode", mode);
 
         if (error) {
-          console.error("Access error:", error);
-          setHasAccess(false);
-          return;
-        }
-
-        console.log("DB RESULT:", data);
-
-        if (!data || data.length === 0) {
+          console.error(error);
           setHasAccess(false);
         } else {
-          setHasAccess(Boolean(data[0].has_access));
+          setHasAccess(Boolean(data?.[0]?.has_access));
         }
 
       } catch (err) {
-        console.error("Access crash:", err);
+        console.error(err);
         setHasAccess(false);
       } finally {
         setChecking(false);
       }
     }
 
-    if (user) {
-      checkAccess();
-    }
+    if (user) checkAccess();
   }, [user, location.pathname]);
 
-  // 🔄 Auth loading ONLY
   if (loading) {
-    return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Loading...
-      </div>
-    );
+    return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
-  // ❌ Not logged in
   if (!user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
-  // 🔄 Access checking (short only)
   if (checking) {
-    return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Checking access...
-      </div>
-    );
+    return <div style={{ padding: 40 }}>Checking access...</div>;
   }
 
-  // ❌ No access
   if (hasAccess === false) {
     return <Navigate to="/no-access" replace />;
   }
 
-  // ✅ Allow if true OR fallback
   return children;
 }
