@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
-import { getTileDesign } from "../tiles/tileDesign"; // 🔥 FIX
+import { getTileDesign } from "../tiles/tileDesign";
 import useUserTiles from "../tiles/useUserTiles";
 
 import SettingsModal from "../settings/SettingsModal";
@@ -41,6 +41,9 @@ export default function DockLayout({ children }) {
 
   const { tiles = [], uninstallTile } = useUserTiles();
 
+  // =========================
+  // 🔥 USER TILES
+  // =========================
   const installedTiles = tiles
     .filter(t => t?.installed && t.id !== "home" && t.id !== "store")
     .map(t => {
@@ -58,19 +61,32 @@ export default function DockLayout({ children }) {
     })
     .filter(Boolean);
 
-  const storeTile = {
-    id: "store",
-  };
-
+  // =========================
+  // 🔥 DOCK (MAX 3 USER TILES)
+  // =========================
   const visibleTiles = installedTiles.slice(0, 3);
 
-  let overflowTiles = [
+  // =========================
+  // 🔥 STORE TILE (ALWAYS EXISTS)
+  // =========================
+  const storeTile = {
+    id: "store",
+    installed: true,
+  };
+
+  // =========================
+  // 🔥 OVERFLOW (STORE FIRST ALWAYS)
+  // =========================
+  const overflowTiles = [
     storeTile,
     ...installedTiles.slice(3),
   ];
 
   const showMore = overflowTiles.length > 0;
 
+  // =========================
+  // 🔥 ACTIVE TILE
+  // =========================
   const ActiveComponent =
     tileRegistry[activeTile] &&
     tileRegistry[activeTile].page
@@ -80,6 +96,9 @@ export default function DockLayout({ children }) {
   return (
     <div className="app-container">
 
+      {/* =========================
+          🔥 CONTENT
+      ========================= */}
       <div className="content-area">
 
         {activeTile === "home" && children}
@@ -105,20 +124,77 @@ export default function DockLayout({ children }) {
 
       </div>
 
+      {/* =========================
+          🔥 OVERFLOW PANEL
+      ========================= */}
+      {showOverflow && (
+        <div
+          className="overflow-backdrop"
+          onClick={() => setShowOverflow(false)}
+        >
+          <div
+            className="overflow-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="overflow-header">
+              All Tile Apps
+            </div>
+
+            <div className="overflow-grid">
+              {overflowTiles.map(tile => {
+                const design = getTileDesign(tile.id);
+                const Icon = design?.icon || Grid;
+
+                const isActive = activeTile === tile.id;
+
+                return (
+                  <div
+                    key={tile.id}
+                    className={`nav-item2 ${isActive ? "active" : ""}`}
+                    onClick={() => {
+                      setShowOverflow(false);
+                      setActiveTile(tile.id);
+                    }}
+                    style={
+                      isActive
+                        ? {
+                            background: design.background,
+                            color: design.color || "#fff",
+                          }
+                        : {}
+                    }
+                  >
+                    <Icon size={22} />
+                    <span>{design.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================
+          🔥 DOCK
+      ========================= */}
       <div className="nav-wrap">
 
+        {/* HOME */}
         <div
           className={`nav-item2 home ${activeTile === "home" ? "active" : ""}`}
-          onClick={() => setActiveTile("home")}
+          onClick={() => {
+            setShowOverflow(false);
+            setActiveTile("home");
+          }}
         >
           <Home size={22} />
           <span>Home</span>
         </div>
 
+        {/* USER TILES */}
         {visibleTiles.map(tile => {
-          const design = getTileDesign(tile.id); // 🔥 FIX
-
-          const Icon = design?.icon || Grid; // 🔥 FIX
+          const design = getTileDesign(tile.id);
+          const Icon = design?.icon || Grid;
 
           const isActive = activeTile === tile.id;
 
@@ -126,7 +202,10 @@ export default function DockLayout({ children }) {
             <div
               key={tile.id}
               className={`nav-item2 ${isActive ? "active" : ""}`}
-              onClick={() => setActiveTile(tile.id)}
+              onClick={() => {
+                setShowOverflow(false);
+                setActiveTile(tile.id);
+              }}
               style={
                 isActive
                   ? {
@@ -142,6 +221,7 @@ export default function DockLayout({ children }) {
           );
         })}
 
+        {/* OVERFLOW BUTTON */}
         {showMore && (
           <div
             className={`nav-item2 more ${showOverflow ? "active" : ""}`}
@@ -151,6 +231,13 @@ export default function DockLayout({ children }) {
             <span>More</span>
           </div>
         )}
+
+        {/* FILL EMPTY SLOTS */}
+        {Array.from({
+          length: 5 - (1 + visibleTiles.length + (showMore ? 1 : 0))
+        }).map((_, i) => (
+          <div key={i} className="nav-item2 empty" />
+        ))}
 
       </div>
 
