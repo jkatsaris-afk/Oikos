@@ -1,5 +1,3 @@
-console.log("🚨 DOCK LAYOUT MOUNTED:", window.location.pathname);
-
 import {
   Home,
   Grid,
@@ -19,9 +17,11 @@ import { useLocation } from "react-router-dom";
 
 export default function DockLayout({ children }) {
 
-  // 🔥 CRITICAL FIX (DO NOT REMOVE)
   const location = useLocation();
 
+  console.log("🚨 DOCK LAYOUT MOUNTED:", location.pathname);
+
+  // 🔥 HARD STOP BEFORE HOOKS RUN
   if (
     location.pathname === "/no-access" ||
     location.pathname === "/pending-approval" ||
@@ -29,7 +29,8 @@ export default function DockLayout({ children }) {
     location.pathname === "/signup" ||
     location.pathname === "/join" ||
     location.pathname === "/forgot-password" ||
-    location.pathname === "/reset-password"
+    location.pathname === "/reset-password" ||
+    location.pathname === "/modes"
   ) {
     return null;
   }
@@ -124,121 +125,14 @@ export default function DockLayout({ children }) {
         </SettingsModal>
       )}
 
-      {showOverflow && (
-        <div
-          className="overflow-backdrop"
-          onClick={() => setShowOverflow(false)}
-        >
-          <div
-            className="overflow-panel"
-            onClick={(e) => e.stopPropagation()}
-          >
-
-            <div className="overflow-header">
-              All Tile Apps
-            </div>
-
-            <div className="overflow-grid">
-              {overflowTiles.map(tile => {
-                const design = tileDesign[tile.id];
-                const Icon = design?.icon;
-
-                if (!Icon) return null;
-
-                const isActive = activeTile === tile.id;
-
-                return (
-                  <div
-                    key={tile.id}
-                    className={`nav-item2 ${isActive ? "active" : ""}`}
-                    onClick={() => {
-                      setShowOverflow(false);
-                      setActiveTile(tile.id);
-                    }}
-                    style={
-                      isActive
-                        ? {
-                            background: design?.background,
-                            color: design?.color || "#fff",
-                          }
-                        : {}
-                    }
-                  >
-                    <Icon size={22} />
-                    <span>{design?.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-
-          </div>
-        </div>
-      )}
-
       <div className="nav-wrap">
-
         <div
-          className={`nav-item2 home ${
-            activeTile === "home" ? "active" : ""
-          }`}
-          onClick={() => {
-            setShowOverflow(false);
-            setActiveTile("home");
-          }}
+          className={`nav-item2 home ${activeTile === "home" ? "active" : ""}`}
+          onClick={() => setActiveTile("home")}
         >
           <Home size={22} />
           <span>Home</span>
         </div>
-
-        {visibleTiles.map(tile => {
-          const design = tileDesign[tile.id];
-          const Icon = design?.icon;
-
-          if (!Icon) return null;
-
-          const isActive = activeTile === tile.id;
-
-          return (
-            <div
-              key={tile.id}
-              className={`nav-item2 ${isActive ? "active" : ""}`}
-              onClick={() => {
-                setShowOverflow(false);
-                setActiveTile(tile.id);
-              }}
-              style={
-                isActive
-                  ? {
-                      background: design?.background,
-                      color: design?.color || "#fff",
-                    }
-                  : {}
-              }
-            >
-              <Icon size={22} />
-              <span>{design?.label}</span>
-            </div>
-          );
-        })}
-
-        {showMore && (
-          <div
-            className={`nav-item2 more ${
-              showOverflow ? "active" : ""
-            }`}
-            onClick={() => setShowOverflow(prev => !prev)}
-          >
-            <MoreHorizontal size={22} />
-            <span>More</span>
-          </div>
-        )}
-
-        {Array.from({
-          length: 5 - (1 + visibleTiles.length + (showMore ? 1 : 0))
-        }).map((_, i) => (
-          <div key={i} className="nav-item2 empty" />
-        ))}
-
       </div>
 
     </div>
