@@ -10,6 +10,7 @@ export default function RequireAuth({ children }) {
 
   const [hasAccess, setHasAccess] = useState(null);
   const [checked, setChecked] = useState(false);
+  const [ready, setReady] = useState(false); // 🔥 NEW
 
   const path = location.pathname;
 
@@ -18,18 +19,36 @@ export default function RequireAuth({ children }) {
     loading,
     checked,
     hasAccess,
+    ready,
     path,
   });
 
+  // =========================
+  // 🔥 WAIT FOR SUPABASE READY
+  // =========================
   useEffect(() => {
-    if (loading) return;
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("Auth State Change", event, session);
+        setReady(true);
+      }
+    );
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // =========================
+  // 🔥 ACCESS CHECK
+  // =========================
+  useEffect(() => {
+    if (loading || !ready) return;
 
     const checkAccess = async () => {
       console.log("Access Check Start");
 
-      // 🔥 DO NOT CALL getSession
       if (!user) {
-        console.log("No user");
         setHasAccess(false);
         setChecked(true);
         return;
@@ -91,13 +110,13 @@ export default function RequireAuth({ children }) {
     setChecked(false);
     checkAccess();
 
-  }, [user, loading, path]);
+  }, [user, loading, ready, path]);
 
   // =========================
   // RENDER STATES
   // =========================
 
-  if (loading) {
+  if (loading || !ready) {
     console.log("Render State: loading");
     return <div style={{ padding: 40 }}>Loading...</div>;
   }
