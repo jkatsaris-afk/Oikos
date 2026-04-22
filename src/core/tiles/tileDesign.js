@@ -1,7 +1,7 @@
 import { Grid } from "lucide-react";
 
 import AnnouncementTileDesign from "../../platforms/church/tiles/announcements/TileDesign";
-import SermonTileDesign from "../../platforms/church/tiles/Sermon/TileDesign"; // 🔥 also fix lowercase path
+import SermonTileDesign from "../../platforms/church/tiles/Sermon/TileDesign";
 
 /**
  * =========================================
@@ -37,7 +37,7 @@ export const tileDesign = {
 
   /* APP TILES */
   [AnnouncementTileDesign.id]: AnnouncementTileDesign,
-  [SermonTileDesign.id]: SermonTileDesign, // ✅ 🔥 THIS FIXES IT
+  [SermonTileDesign.id]: SermonTileDesign,
 };
 
 /* SAFE GETTER */
