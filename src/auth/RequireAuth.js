@@ -10,7 +10,7 @@ export default function RequireAuth({ children }) {
 
   const [hasAccess, setHasAccess] = useState(null);
   const [checked, setChecked] = useState(false);
-  const [ready, setReady] = useState(false); // 🔥 NEW
+  const [ready, setReady] = useState(false);
 
   const path = location.pathname;
 
@@ -24,12 +24,13 @@ export default function RequireAuth({ children }) {
   });
 
   // =========================
-  // 🔥 WAIT FOR SUPABASE READY
+  // AUTH READY LISTENER
   // =========================
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log("Auth State Change", event, session);
+        console.log("Auth State Change", event);
+        console.log("Session Object", session);
         setReady(true);
       }
     );
@@ -40,15 +41,19 @@ export default function RequireAuth({ children }) {
   }, []);
 
   // =========================
-  // 🔥 ACCESS CHECK
+  // ACCESS CHECK
   // =========================
   useEffect(() => {
-    if (loading || !ready) return;
+    if (loading || !ready) {
+      console.log("Waiting for loading/ready", { loading, ready });
+      return;
+    }
 
     const checkAccess = async () => {
       console.log("Access Check Start");
 
       if (!user) {
+        console.log("No user in checkAccess");
         setHasAccess(false);
         setChecked(true);
         return;
@@ -80,6 +85,15 @@ export default function RequireAuth({ children }) {
           user: user.id,
         });
 
+        // 🔥 TIMING START
+        const start = Date.now();
+        console.log("Query Start Time", start);
+
+        // 🔥 NON-BLOCKING TIMEOUT LOGGER
+        setTimeout(() => {
+          console.log("Query still pending after 3 seconds...");
+        }, 3000);
+
         const { data, error } = await supabase
           .from("user_access")
           .select("*")
@@ -88,7 +102,13 @@ export default function RequireAuth({ children }) {
           .eq("mode", mode)
           .limit(1);
 
-        console.log("Access Query Result", data, error);
+        // 🔥 TIMING END
+        const end = Date.now();
+        console.log("Query End Time", end);
+        console.log("Query Duration (ms)", end - start);
+
+        console.log("Access Query Result", data);
+        console.log("Access Query Error", error);
 
         if (error) {
           setHasAccess(false);
