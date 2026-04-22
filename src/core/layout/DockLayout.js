@@ -7,10 +7,9 @@ import { useState } from "react";
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
-import { tileDesign } from "../tiles/tileDesign";
+import { getTileDesign } from "../tiles/tileDesign"; // 🔥 FIX
 import useUserTiles from "../tiles/useUserTiles";
 
-import TilePageLayout from "./TilePageLayout";
 import SettingsModal from "../settings/SettingsModal";
 import React from "react";
 import { useLocation } from "react-router-dom";
@@ -21,7 +20,7 @@ export default function DockLayout({ children }) {
 
   console.log("🚨 DOCK LAYOUT MOUNTED:", location.pathname);
 
-  // 🔥 HARD STOP BEFORE HOOKS RUN
+  // 🔥 BLOCK PUBLIC PAGES
   if (
     location.pathname === "/no-access" ||
     location.pathname === "/pending-approval" ||
@@ -40,10 +39,10 @@ export default function DockLayout({ children }) {
   const [openTileSettings, setOpenTileSettings] = useState(false);
   const [openTileInfo, setOpenTileInfo] = useState(false);
 
-  const { tiles, uninstallTile } = useUserTiles();
+  const { tiles = [], uninstallTile } = useUserTiles();
 
   const installedTiles = tiles
-    .filter(t => t.installed && t.id !== "home" && t.id !== "store")
+    .filter(t => t?.installed && t.id !== "home" && t.id !== "store")
     .map(t => {
       const registryTile = tileRegistry[t.id];
 
@@ -72,7 +71,11 @@ export default function DockLayout({ children }) {
 
   const showMore = overflowTiles.length > 0;
 
-  const ActiveComponent = tileRegistry[activeTile]?.page;
+  const ActiveComponent =
+    tileRegistry[activeTile] &&
+    tileRegistry[activeTile].page
+      ? tileRegistry[activeTile].page
+      : null;
 
   return (
     <div className="app-container">
@@ -85,47 +88,25 @@ export default function DockLayout({ children }) {
 
         {activeTile !== "home" && activeTile !== "store" && (
           <>
-            {ActiveComponent
-              ? React.createElement(ActiveComponent, {
-                  onUninstall: () => uninstallTile(activeTile),
-                  showUninstall:
-                    !tileRegistry[activeTile]?.system &&
-                    !tileRegistry[activeTile]?.noUninstall,
-                })
-              : (
-                <div style={{ padding: 20 }}>
-                  ⚠️ Tile component is undefined
-                </div>
-              )
-            }
+            {ActiveComponent ? (
+              React.createElement(ActiveComponent, {
+                onUninstall: () => uninstallTile(activeTile),
+                showUninstall:
+                  !tileRegistry[activeTile]?.system &&
+                  !tileRegistry[activeTile]?.noUninstall,
+              })
+            ) : (
+              <div style={{ padding: 20 }}>
+                ⚠️ Tile not available
+              </div>
+            )}
           </>
         )}
 
       </div>
 
-      {openTileSettings && tileRegistry[activeTile]?.settings && (
-        <SettingsModal
-          open={openTileSettings}
-          onClose={() => setOpenTileSettings(false)}
-        >
-          {React.createElement(tileRegistry[activeTile].settings, {
-            tileId: activeTile,
-          })}
-        </SettingsModal>
-      )}
-
-      {openTileInfo && tileRegistry[activeTile]?.info && (
-        <SettingsModal
-          open={openTileInfo}
-          onClose={() => setOpenTileInfo(false)}
-        >
-          {React.createElement(tileRegistry[activeTile].info, {
-            tileId: activeTile,
-          })}
-        </SettingsModal>
-      )}
-
       <div className="nav-wrap">
+
         <div
           className={`nav-item2 home ${activeTile === "home" ? "active" : ""}`}
           onClick={() => setActiveTile("home")}
@@ -133,6 +114,44 @@ export default function DockLayout({ children }) {
           <Home size={22} />
           <span>Home</span>
         </div>
+
+        {visibleTiles.map(tile => {
+          const design = getTileDesign(tile.id); // 🔥 FIX
+
+          const Icon = design?.icon || Grid; // 🔥 FIX
+
+          const isActive = activeTile === tile.id;
+
+          return (
+            <div
+              key={tile.id}
+              className={`nav-item2 ${isActive ? "active" : ""}`}
+              onClick={() => setActiveTile(tile.id)}
+              style={
+                isActive
+                  ? {
+                      background: design.background,
+                      color: design.color || "#fff",
+                    }
+                  : {}
+              }
+            >
+              <Icon size={22} />
+              <span>{design.label}</span>
+            </div>
+          );
+        })}
+
+        {showMore && (
+          <div
+            className={`nav-item2 more ${showOverflow ? "active" : ""}`}
+            onClick={() => setShowOverflow(prev => !prev)}
+          >
+            <MoreHorizontal size={22} />
+            <span>More</span>
+          </div>
+        )}
+
       </div>
 
     </div>
