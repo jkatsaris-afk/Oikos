@@ -11,10 +11,18 @@ export default function RequireAuth({ children }) {
   const [hasAccess, setHasAccess] = useState(null);
   const [checking, setChecking] = useState(false);
 
-  // 🔥 CRITICAL FIX — allow access pages to render
+  const path = location.pathname;
+
+  // 🔥 HARD BYPASS FOR PUBLIC ROUTES
   if (
-    location.pathname === "/no-access" ||
-    location.pathname === "/pending-approval"
+    path === "/login" ||
+    path === "/signup" ||
+    path === "/join" ||
+    path === "/forgot-password" ||
+    path === "/reset-password" ||
+    path === "/pending-approval" ||
+    path === "/no-access" ||
+    path === "/modes"
   ) {
     return children;
   }
@@ -26,8 +34,6 @@ export default function RequireAuth({ children }) {
       setChecking(true);
 
       try {
-        const path = location.pathname;
-
         const detectedMode = getModeFromPath(
           path,
           window.location.hostname
@@ -85,42 +91,23 @@ export default function RequireAuth({ children }) {
     if (user) {
       checkAccess();
     }
-  }, [user, location.pathname]);
+  }, [user, path]);
 
-  // 🔄 Auth loading ONLY
   if (loading) {
-    return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Loading...
-      </div>
-    );
+    return <div style={{ padding: 40 }}>Loading...</div>;
   }
 
-  // ❌ Not logged in
   if (!user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location.pathname }}
-      />
-    );
+    return <Navigate to="/login" replace state={{ from: path }} />;
   }
 
-  // 🔄 Access checking
   if (checking) {
-    return (
-      <div style={{ padding: 40, textAlign: "center" }}>
-        Checking access...
-      </div>
-    );
+    return <div style={{ padding: 40 }}>Checking access...</div>;
   }
 
-  // ❌ No access
   if (hasAccess === false) {
     return <Navigate to="/no-access" replace />;
   }
 
-  // ✅ Allow
   return children;
 }
