@@ -22,18 +22,14 @@ export default function RequireAuth({ children }) {
   });
 
   useEffect(() => {
+    if (loading) return;
+
     const checkAccess = async () => {
       console.log("Access Check Start");
 
-      // Wait for full session
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      console.log("Session", session);
-
-      if (!session || !user) {
-        console.log("No session or user");
+      // 🔥 DO NOT CALL getSession
+      if (!user) {
+        console.log("No user");
         setHasAccess(false);
         setChecked(true);
         return;
@@ -92,10 +88,8 @@ export default function RequireAuth({ children }) {
       }
     };
 
-    if (!loading) {
-      setChecked(false);
-      checkAccess();
-    }
+    setChecked(false);
+    checkAccess();
 
   }, [user, loading, path]);
 
@@ -109,7 +103,7 @@ export default function RequireAuth({ children }) {
   }
 
   if (!user) {
-    console.log("Render State: no user, redirect to login");
+    console.log("Render State: no user");
     return (
       <Navigate
         to="/login"
@@ -125,7 +119,7 @@ export default function RequireAuth({ children }) {
   }
 
   if (hasAccess === false) {
-    console.log("Render State: no access, redirect");
+    console.log("Render State: no access");
     return <Navigate to="/no-access" replace />;
   }
 
