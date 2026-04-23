@@ -357,11 +357,41 @@ values
     true
   ),
   (
+    'events',
+    'Events',
+    'Church',
+    'List church events with location and time details.',
+    'Manage church events with titles, locations, times, and notes for the dashboard and live display loop.',
+    'Oikos Church',
+    '1.0',
+    true
+  ),
+  (
+    'hymns',
+    'Hymns',
+    'Church',
+    'Search hymns by number or title and send them into service.',
+    'Build a searchable hymn library with imported song files, then add selected hymns into the service slideshow workflow.',
+    'Oikos Church',
+    '1.0',
+    true
+  ),
+  (
     'service',
     'Service',
     'Media',
     'Manage service slides and screen-ready content.',
     'Manage the service slideshow pipeline and review items sent from sermon and future church tile apps.',
+    'Oikos Church',
+    '1.0',
+    true
+  ),
+  (
+    'remote',
+    'Remote',
+    'Media',
+    'Control the live service slideshow from another device.',
+    'Remote gives you back, next, and direct slide selection for the church live service slideshow from another logged-in device.',
     'Oikos Church',
     '1.0',
     true
@@ -402,12 +432,21 @@ values
   ('announcements', 'Create announcement content', 1),
   ('announcements', 'Prepare church display messaging', 2),
   ('announcements', 'Connects with the church tile system', 3),
+  ('events', 'Create church events', 1),
+  ('events', 'Manage location and time details', 2),
+  ('events', 'Feeds the pre-service display loop', 3),
+  ('hymns', 'Search songs by hymn number or title', 1),
+  ('hymns', 'Connect imported hymn records to service planning', 2),
+  ('hymns', 'Send selected hymns into the service queue', 3),
   ('sermon', 'Create sermon drafts', 1),
   ('sermon', 'Add scripture and custom slides', 2),
   ('sermon', 'Open a live preacher view with notes', 3),
   ('service', 'Review service items', 1),
   ('service', 'Prepare screen content', 2),
   ('service', 'Connect sermon slides to the service flow', 3),
+  ('remote', 'Move forward and backward through live slides', 1),
+  ('remote', 'Jump directly to a selected live slide', 2),
+  ('remote', 'Control the live display from another device', 3),
   ('global-users', 'View total, approved, pending, denied, and paused users', 1),
   ('global-users', 'Search and filter global user accounts', 2),
   ('global-users', 'Open detailed user management panels', 3),
@@ -424,8 +463,11 @@ values
   ('global-users', 'admin', true, 1),
   ('tile-store-manager', 'admin', true, 2),
   ('announcements', 'church', true, 1),
-  ('sermon', 'church', true, 2),
-  ('service', 'church', true, 3)
+  ('events', 'church', true, 2),
+  ('hymns', 'church', true, 3),
+  ('sermon', 'church', true, 4),
+  ('service', 'church', true, 5),
+  ('remote', 'church', true, 6)
 on conflict (tile_id, mode) do update
 set
   is_enabled = excluded.is_enabled,
@@ -435,6 +477,7 @@ set
 insert into public.tile_store_widget_configs (tile_id, primary_stat, secondary_stat)
 values
   ('announcements', 'recent-updates', 'second-message'),
+  ('events', 'event-count', 'first-event'),
   ('sermon', 'draft-title', 'sermon-slides'),
   ('service', 'service-items', 'service-slides'),
   ('global-users', 'total-users', 'approved-users'),

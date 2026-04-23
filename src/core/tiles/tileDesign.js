@@ -1,6 +1,10 @@
 import { Grid } from "lucide-react";
 
 import AnnouncementTileDesign from "../../platforms/church/tiles/announcements/TileDesign";
+import EventsTileDesign from "../../platforms/church/tiles/Events/TileDesign";
+import HymnsTileDesign from "../../platforms/church/tiles/Hymns/TileDesign";
+import LiveDisplayTileDesign from "../../platforms/church/tiles/LiveDisplay/TileDesign";
+import RemoteTileDesign from "../../platforms/church/tiles/Remote/TileDesign";
 import SermonTileDesign from "../../platforms/church/tiles/Sermon/TileDesign";
 import ServiceTileDesign from "../../platforms/church/tiles/Service/TileDesign";
 import GlobalUsersTileDesign from "../../platforms/admin/tiles/GlobalUsers/TileDesign";
@@ -40,8 +44,12 @@ export const tileDesign = {
 
   /* APP TILES */
   [AnnouncementTileDesign.id]: AnnouncementTileDesign,
+  [EventsTileDesign.id]: EventsTileDesign,
+  [HymnsTileDesign.id]: HymnsTileDesign,
   [SermonTileDesign.id]: SermonTileDesign,
   [ServiceTileDesign.id]: ServiceTileDesign,
+  [LiveDisplayTileDesign.id]: LiveDisplayTileDesign,
+  [RemoteTileDesign.id]: RemoteTileDesign,
   [GlobalUsersTileDesign.id]: GlobalUsersTileDesign,
   [TileStoreManagerTileDesign.id]: TileStoreManagerTileDesign,
 };

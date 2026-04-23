@@ -3,6 +3,7 @@ import { supabase } from "../../auth/supabaseClient";
 const ACCOUNTS_TABLE = "accounts";
 const ACCOUNT_MEMBERS_TABLE = "account_members";
 const PROFILES_TABLE = "profiles";
+const ORGANIZATION_BUCKET = "organization-assets";
 
 function generateCode(prefix = "OIKOS") {
   const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -79,12 +80,22 @@ async function fetchMembers(accountId) {
   });
 }
 
+function normalizeAccount(row) {
+  return row
+    ? {
+        ...row,
+        logo_url: row.logo_url || "",
+        logo_path: row.logo_path || "",
+      }
+    : null;
+}
+
 export async function fetchOrganizationAccess(userId, mode) {
   const accountType = getAccountTypeForMode(mode);
 
   const { data: ownedAccount, error: ownedError } = await supabase
     .from(ACCOUNTS_TABLE)
-    .select("id, name, type, owner_user_id, created_at, invite_code")
+    .select("id, name, type, owner_user_id, created_at, invite_code, logo_url, logo_path")
     .eq("owner_user_id", userId)
     .eq("type", accountType)
     .maybeSingle();
@@ -98,7 +109,7 @@ export async function fetchOrganizationAccess(userId, mode) {
 
     return {
       accountType,
-      account: ownedAccount,
+      account: normalizeAccount(ownedAccount),
       members,
       isOwner: true,
       membership: {
@@ -131,7 +142,7 @@ export async function fetchOrganizationAccess(userId, mode) {
 
   const { data: accounts, error: accountsError } = await supabase
     .from(ACCOUNTS_TABLE)
-    .select("id, name, type, owner_user_id, created_at, invite_code")
+    .select("id, name, type, owner_user_id, created_at, invite_code, logo_url, logo_path")
     .in("id", accountIds)
     .eq("type", accountType);
 
@@ -139,7 +150,7 @@ export async function fetchOrganizationAccess(userId, mode) {
     throw accountsError;
   }
 
-  const account = (accounts || [])[0] || null;
+  const account = normalizeAccount((accounts || [])[0] || null);
   const membership = (memberships || []).find(
     (item) => item.account_id === account?.id
   ) || null;
@@ -162,14 +173,14 @@ export async function regenerateOrganizationInviteCode(accountId, accountType) {
       invite_code: nextCode,
     })
     .eq("id", accountId)
-    .select("id, name, type, owner_user_id, created_at, invite_code")
+    .select("id, name, type, owner_user_id, created_at, invite_code, logo_url, logo_path")
     .single();
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return normalizeAccount(data);
 }
 
 export async function removeOrganizationMember(accountId, memberUserId) {
@@ -182,4 +193,116 @@ export async function removeOrganizationMember(accountId, memberUserId) {
   if (error) {
     throw error;
   }
+}
+
+export async function updateOrganizationSettings(accountId, updates = {}) {
+  const payload = {};
+
+  if (typeof updates.name === "string") {
+    payload.name = updates.name.trim();
+  }
+
+  if (typeof updates.logoUrl === "string") {
+    payload.logo_url = updates.logoUrl;
+  }
+
+  if (typeof updates.logoPath === "string") {
+    payload.logo_path = updates.logoPath;
+  }
+
+  const { data, error } = await supabase
+    .from(ACCOUNTS_TABLE)
+    .update(payload)
+    .eq("id", accountId)
+    .select("id, name, type, owner_user_id, created_at, invite_code, logo_url, logo_path")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return normalizeAccount(data);
+}
+
+export async function uploadOrganizationLogo({ account, file }) {
+  if (!account?.id) {
+    throw new Error("Missing organization account.");
+  }
+
+  const safeName = file.name.replace(/\s+/g, "-").toLowerCase();
+  const filePath = `${account.id}/${Date.now()}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(ORGANIZATION_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(ORGANIZATION_BUCKET).getPublicUrl(filePath);
+
+  if (account.logo_path) {
+    await supabase.storage
+      .from(ORGANIZATION_BUCKET)
+      .remove([account.logo_path]);
+  }
+
+  return updateOrganizationSettings(account.id, {
+    logoUrl: publicUrl,
+    logoPath: filePath,
+  });
+}
+
+export async function fetchOrganizationBranding(userId, mode) {
+  const accountType = getAccountTypeForMode(mode);
+
+  const { data, error } = await supabase
+    .from(ACCOUNTS_TABLE)
+    .select("id, name, type, logo_url, logo_path")
+    .eq("owner_user_id", userId)
+    .eq("type", accountType)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (data) {
+    return normalizeAccount(data);
+  }
+
+  const { data: memberships, error: membershipError } = await supabase
+    .from(ACCOUNT_MEMBERS_TABLE)
+    .select("account_id")
+    .eq("user_id", userId);
+
+  if (membershipError) {
+    throw membershipError;
+  }
+
+  const accountIds = (memberships || []).map((item) => item.account_id);
+
+  if (accountIds.length === 0) {
+    return null;
+  }
+
+  const { data: memberAccount, error: memberAccountError } = await supabase
+    .from(ACCOUNTS_TABLE)
+    .select("id, name, type, logo_url, logo_path")
+    .in("id", accountIds)
+    .eq("type", accountType)
+    .limit(1)
+    .maybeSingle();
+
+  if (memberAccountError) {
+    throw memberAccountError;
+  }
+
+  return normalizeAccount(memberAccount);
 }

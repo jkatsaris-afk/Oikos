@@ -181,6 +181,17 @@ export default function ServicePage() {
                   </div>
                 ) : null}
 
+                {selectedSlide.itemType === "hymn" ? (
+                  <div style={styles.customSlide}>
+                    <div style={styles.customTitle}>
+                      {selectedSlide.songNumber
+                        ? `#${selectedSlide.songNumber} ${selectedSlide.title}`
+                        : selectedSlide.title}
+                    </div>
+                    <div style={styles.customBody}>{selectedSlide.body}</div>
+                  </div>
+                ) : null}
+
                 {selectedSlide.itemType === "custom_slide" ? (
                   <div style={styles.customSlide}>
                     <div style={styles.customTitle}>{selectedSlide.title}</div>

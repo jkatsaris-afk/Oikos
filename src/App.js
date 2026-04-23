@@ -22,6 +22,7 @@ import JoinPage from "./core/pages/JoinPage";
 import MasterModePage from "./core/pages/MasterModePage";
 import GlobalLoadingPage from "./core/components/GlobalLoadingPage";
 import { TilePreferencesProvider } from "./core/tiles/TilePreferencesProvider";
+import ChurchLiveDisplayViewerPage from "./platforms/church/pages/ChurchLiveDisplayViewerPage";
 
 import { getModeFromPath } from "./core/utils/getMode";
 import { getDefaultPathForHostname } from "./core/utils/modeRouting";
@@ -84,6 +85,7 @@ function AppRoutes() {
     path === "/login" ||
     path === "/signup" ||
     path === "/join" ||
+    path.startsWith("/live/") ||
     path === "/forgot-password" ||
     path === "/reset-password" ||
     path === "/pending-approval" ||
@@ -96,6 +98,7 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/join" element={<JoinPage />} />
+        <Route path="/live/:displayCode" element={<ChurchLiveDisplayViewerPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/pending-approval" element={<PendingApprovalPage />} />

@@ -1,5 +1,6 @@
 node_modules/
 build/
+Songs/
 .env
 .env.local
 .env.development
@@ -11,3 +12,4 @@ build/
 .vercel/
 *.log
 .DS_Store
+**/Thumbs.db

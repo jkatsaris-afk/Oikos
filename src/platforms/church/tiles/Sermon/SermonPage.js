@@ -6,6 +6,7 @@ import {
   buildTitleSlide,
   createDraftFromSermon,
   createCustomSlideItem,
+  deleteSermon,
   fetchScriptureSlides,
   getDefaultSermonDraft,
   listPastSermons,
@@ -246,6 +247,26 @@ export default function SermonPage() {
     setSelectedItemId("title-slide");
     setViewMode("live");
     setStatusMessage("");
+  };
+
+  const handleDeleteSermon = async (sermon) => {
+    try {
+      await deleteSermon(user?.id, sermon);
+
+      if (sermon.isDraft) {
+        setDraft(getDefaultSermonDraft());
+        setSelectedItemId("title-slide");
+      } else {
+        await refreshPastSermons();
+      }
+
+      setStatusMessage(
+        `"${getDisplayTitle(sermon)}" was removed from your sermon library.`
+      );
+    } catch (error) {
+      console.error("Delete sermon error:", error);
+      setStatusMessage(error.message || "We could not delete that sermon.");
+    }
   };
 
   const handleAddCustomSlide = () => {
@@ -515,6 +536,12 @@ export default function SermonPage() {
                         disabled={Boolean(pushState)}
                       >
                         Send to Service
+                      </button>
+                      <button
+                        style={styles.deleteWideButton}
+                        onClick={() => handleDeleteSermon(sermon)}
+                      >
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -1252,6 +1279,16 @@ const styles = {
     border: "1px solid #b7cfab",
     borderRadius: 12,
     color: "#4b6b3a",
+    cursor: "pointer",
+    fontWeight: 700,
+    padding: "12px 14px",
+  },
+
+  deleteWideButton: {
+    background: "#fff7ed",
+    border: "1px solid #fdba74",
+    borderRadius: 12,
+    color: "#c2410c",
     cursor: "pointer",
     fontWeight: 700,
     padding: "12px 14px",

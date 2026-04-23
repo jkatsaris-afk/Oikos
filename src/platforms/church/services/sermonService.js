@@ -400,6 +400,14 @@ async function pushServiceItemsToSupabase(serviceId, serviceItems) {
   }
 }
 
+async function deleteSermonFromSupabase(sermonId) {
+  const { error } = await supabase.from(SERMONS_TABLE).delete().eq("id", sermonId);
+
+  if (error && !isMissingRelationError(error)) {
+    throw error;
+  }
+}
+
 export function getDefaultSermonDraft() {
   return {
     id: crypto.randomUUID(),
@@ -646,6 +654,41 @@ export async function listPastSermons(userId) {
   }
 
   return listPastSermonsLocally(userId);
+}
+
+export async function deleteSermon(userId, sermon) {
+  if (!sermon) {
+    return;
+  }
+
+  if (typeof window !== "undefined") {
+    if (sermon.isDraft) {
+      window.localStorage.removeItem(getDraftStorageKey(userId));
+    } else {
+      try {
+        const raw = window.localStorage.getItem(getArchiveStorageKey(userId));
+        const currentEntries = raw ? JSON.parse(raw) : [];
+        const nextEntries = Array.isArray(currentEntries)
+          ? currentEntries.filter(
+              (entry) =>
+                entry.archiveId !== sermon.archiveId &&
+                entry.id !== sermon.id
+            )
+          : [];
+
+        window.localStorage.setItem(
+          getArchiveStorageKey(userId),
+          JSON.stringify(nextEntries)
+        );
+      } catch (error) {
+        console.error("Local sermon delete error:", error);
+      }
+    }
+  }
+
+  if (userId && sermon.id) {
+    await deleteSermonFromSupabase(sermon.id);
+  }
 }
 
 export async function fetchScriptureSlides({

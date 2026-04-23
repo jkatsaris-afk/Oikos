@@ -84,6 +84,12 @@ export async function loadServiceItems(userId) {
 }
 
 export function getItemLabel(item) {
+  if (item.itemType === "hymn") {
+    const songNumber = item.payload?.songNumber || "";
+    const label = item.title || item.payload?.hymnTitle || "Hymn";
+    return songNumber ? `#${songNumber} ${label}` : label;
+  }
+
   if (item.itemType === "verse") {
     return item.title || item.payload?.reference || "Scripture";
   }
@@ -98,6 +104,10 @@ export function getItemLabel(item) {
 export function getItemMeta(item) {
   const slideCount = Array.isArray(item.slides) ? item.slides.length : 0;
 
+  if (item.itemType === "hymn") {
+    return `${slideCount} hymn slide${slideCount === 1 ? "" : "s"}`;
+  }
+
   if (item.itemType === "verse") {
     return `${slideCount} scripture slide${slideCount === 1 ? "" : "s"}`;
   }
@@ -111,6 +121,17 @@ export function getItemMeta(item) {
 
 export function buildSlidesFromServiceItems(items) {
   return items.flatMap((item) => {
+    if (item.itemType === "hymn") {
+      return (item.slides || []).map((slide, index) => ({
+        id: `${item.id || item.source_id}-hymn-${index}`,
+        parentId: item.id || item.source_id,
+        itemType: "hymn",
+        title: slide.title || item.title || item.payload?.hymnTitle || "Hymn",
+        body: slide.body || slide.text || "",
+        songNumber: item.payload?.songNumber || "",
+      }));
+    }
+
     if (item.itemType === "title_slide") {
       return (item.slides || []).map((slide, index) => ({
         id: `${item.id || item.source_id}-title-${index}`,

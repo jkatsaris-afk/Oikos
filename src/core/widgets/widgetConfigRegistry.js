@@ -17,6 +17,23 @@ export const widgetConfigRegistry = {
       secondary: "second-message",
     },
   },
+  events: {
+    title: "Events Widget",
+    description:
+      "Choose which event data shows on the widget.",
+    primaryLabel: "Primary Stat",
+    secondaryLabel: "Secondary Stat",
+    options: [
+      { id: "event-count", label: "Event Count" },
+      { id: "first-event", label: "First Event" },
+      { id: "first-location", label: "First Location" },
+      { id: "first-time", label: "First Time" },
+    ],
+    defaults: {
+      primary: "event-count",
+      secondary: "first-event",
+    },
+  },
   sermon: {
     title: "Sermon Widget",
     description:
@@ -51,6 +68,23 @@ export const widgetConfigRegistry = {
     defaults: {
       primary: "service-items",
       secondary: "service-slides",
+    },
+  },
+  "live-display": {
+    title: "Live Display Widget",
+    description:
+      "Choose which live display data shows on the widget.",
+    primaryLabel: "Primary Stat",
+    secondaryLabel: "Secondary Stat",
+    options: [
+      { id: "display-state", label: "Display State" },
+      { id: "screen-count", label: "Connected Screens" },
+      { id: "loop-count", label: "Loop Cards" },
+      { id: "slide-count", label: "Live Slides" },
+    ],
+    defaults: {
+      primary: "display-state",
+      secondary: "screen-count",
     },
   },
   "global-users": {

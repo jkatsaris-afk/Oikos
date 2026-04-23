@@ -34,3 +34,14 @@ export async function fetchGlobalUsers() {
 
   return (data || []).map(normalizeUser);
 }
+
+export async function setHymnTileAccess(userId, enabled) {
+  const { error } = await supabase.rpc("admin_set_hymn_tile_access", {
+    target_user_id: userId,
+    enabled,
+  });
+
+  if (error) {
+    throw error;
+  }
+}

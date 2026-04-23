@@ -1,31 +1,10 @@
 import { useEffect, useState } from "react";
 
 import { fetchWidgetConfig } from "../../../../core/widgets/widgetConfigService";
-
-const announcementContent = {
-  "recent-updates": {
-    title: "Recent Updates",
-    text: "See the latest announcement cards for this church mode.",
-  },
-  "quick-view": {
-    title: "Quick View",
-    text: "Open announcements fast and jump into message editing.",
-  },
-  "first-message": {
-    title: "This is your first tile app",
-    text: "Current first announcement card from the app home screen.",
-  },
-  "second-message": {
-    title: "Add announcements, alerts, or messages here.",
-    text: "Current second announcement card from the app home screen.",
-  },
-  "open-prompt": {
-    title: "Open Announcements",
-    text: "Jump into the tile app to manage church updates and alerts.",
-  },
-};
+import { getAnnouncementWidgetContent } from "../../services/churchContentService";
 
 export default function AnnouncementWidget() {
+  const announcementContent = getAnnouncementWidgetContent();
   const [content, setContent] = useState({
     primaryTitle: announcementContent["recent-updates"].title,
     secondaryText: announcementContent["second-message"].text,
@@ -36,10 +15,11 @@ export default function AnnouncementWidget() {
 
     async function loadConfig() {
       try {
+        const nextContent = getAnnouncementWidgetContent();
         const config = await fetchWidgetConfig("announcements");
-        const primary = announcementContent[config.primaryStat] || announcementContent["recent-updates"];
+        const primary = nextContent[config.primaryStat] || nextContent["recent-updates"];
         const secondary =
-          announcementContent[config.secondaryStat] || announcementContent["second-message"];
+          nextContent[config.secondaryStat] || nextContent["second-message"];
 
         if (!mounted) return;
 

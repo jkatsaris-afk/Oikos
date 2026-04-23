@@ -1,5 +1,5 @@
-import { Copy, RefreshCcw, Shield, Trash2, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Camera, Copy, RefreshCcw, Save, Shield, Trash2, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth";
@@ -8,6 +8,8 @@ import {
   fetchOrganizationAccess,
   regenerateOrganizationInviteCode,
   removeOrganizationMember,
+  updateOrganizationSettings,
+  uploadOrganizationLogo,
 } from "./organizationAccessService";
 
 function getModeLabel(mode = "") {
@@ -36,6 +38,7 @@ function getModeLabel(mode = "") {
 }
 
 export default function OrganizationAccessPanel() {
+  const fileInputRef = useRef(null);
   const location = useLocation();
   const { user } = useAuth();
   const mode = getModeFromPath(location.pathname, window.location.hostname);
@@ -49,6 +52,7 @@ export default function OrganizationAccessPanel() {
   });
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -72,6 +76,7 @@ export default function OrganizationAccessPanel() {
         if (!mounted) return;
 
         setState(nextState);
+        setOrganizationName(nextState.account?.name || "");
       } catch (loadError) {
         console.error("Organization access load error:", loadError);
 
@@ -91,6 +96,10 @@ export default function OrganizationAccessPanel() {
       mounted = false;
     };
   }, [mode, user?.id]);
+
+  useEffect(() => {
+    setOrganizationName(state.account?.name || "");
+  }, [state.account?.name]);
 
   async function refreshInviteCode() {
     if (!state.account) return;
@@ -150,6 +159,62 @@ export default function OrganizationAccessPanel() {
     } catch (copyError) {
       console.error("Invite code copy error:", copyError);
       setError("Could not copy invite code.");
+    }
+  }
+
+  async function saveOrganizationDetails() {
+    if (!state.account) return;
+
+    setNotice("");
+    setError("");
+    setBusyUserId("save-organization");
+
+    try {
+      const nextAccount = await updateOrganizationSettings(state.account.id, {
+        name: organizationName,
+      });
+
+      setState((current) => ({
+        ...current,
+        account: nextAccount,
+      }));
+      setNotice("Organization updated.");
+    } catch (saveError) {
+      console.error("Organization save error:", saveError);
+      setError(saveError?.message || "Could not update the organization.");
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
+  async function handleLogoChange(event) {
+    const file = event.target.files?.[0];
+
+    if (!file || !state.account) {
+      return;
+    }
+
+    setNotice("");
+    setError("");
+    setBusyUserId("upload-logo");
+
+    try {
+      const nextAccount = await uploadOrganizationLogo({
+        account: state.account,
+        file,
+      });
+
+      setState((current) => ({
+        ...current,
+        account: nextAccount,
+      }));
+      setNotice("Organization logo updated.");
+    } catch (uploadError) {
+      console.error("Organization logo upload error:", uploadError);
+      setError(uploadError?.message || "Could not upload the organization logo.");
+    } finally {
+      setBusyUserId("");
+      event.target.value = "";
     }
   }
 
@@ -222,6 +287,64 @@ export default function OrganizationAccessPanel() {
             Your tile layout and widget layout stay personal to your own account.
           </p>
         )}
+
+        {state.isOwner ? (
+          <div style={styles.ownerPanel}>
+            <div style={styles.ownerHeader}>
+              {state.account.logo_url ? (
+                <img
+                  src={state.account.logo_url}
+                  alt={state.account.name || "Organization logo"}
+                  style={styles.logoImage}
+                />
+              ) : (
+                <div style={styles.logoFallback}>
+                  {(state.account.name || "O").slice(0, 1).toUpperCase()}
+                </div>
+              )}
+
+              <div style={styles.ownerActions}>
+                <button
+                  type="button"
+                  style={styles.actionButton}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={busyUserId === "upload-logo"}
+                >
+                  <Camera size={15} />
+                  {busyUserId === "upload-logo" ? "Uploading..." : "Upload Logo"}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  style={{ display: "none" }}
+                />
+              </div>
+            </div>
+
+            <label style={styles.field}>
+              <span style={styles.fieldLabel}>Organization Name</span>
+              <input
+                type="text"
+                value={organizationName}
+                onChange={(event) => setOrganizationName(event.target.value)}
+                style={styles.input}
+                placeholder="Organization name"
+              />
+            </label>
+
+            <button
+              type="button"
+              style={styles.saveButton}
+              onClick={saveOrganizationDetails}
+              disabled={busyUserId === "save-organization"}
+            >
+              <Save size={15} />
+              {busyUserId === "save-organization" ? "Saving..." : "Save Organization"}
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {state.isOwner ? (
@@ -336,6 +459,48 @@ const styles = {
     marginTop: 16,
     padding: 16,
   },
+  ownerPanel: {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 14,
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    marginTop: 16,
+    padding: 16,
+  },
+  ownerHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: 14,
+    justifyContent: "space-between",
+  },
+  logoImage: {
+    background: "#ffffff",
+    border: "1px solid #dbe4ea",
+    borderRadius: 16,
+    height: 92,
+    objectFit: "contain",
+    padding: 10,
+    width: 92,
+  },
+  logoFallback: {
+    alignItems: "center",
+    background: "#e2e8f0",
+    borderRadius: 16,
+    color: "#334155",
+    display: "flex",
+    fontSize: 32,
+    fontWeight: 900,
+    height: 92,
+    justifyContent: "center",
+    width: 92,
+  },
+  ownerActions: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
   inviteLabel: {
     color: "#64748b",
     fontSize: 12,
@@ -372,6 +537,39 @@ const styles = {
     gap: 8,
     padding: "10px 14px",
     whiteSpace: "nowrap",
+  },
+  field: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  fieldLabel: {
+    color: "#334155",
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  input: {
+    background: "#ffffff",
+    border: "1px solid #cbd5e1",
+    borderRadius: 12,
+    color: "#0f172a",
+    fontSize: 14,
+    outline: "none",
+    padding: "12px 14px",
+  },
+  saveButton: {
+    alignItems: "center",
+    background: "#0f172a",
+    border: "none",
+    borderRadius: 12,
+    color: "#ffffff",
+    cursor: "pointer",
+    display: "inline-flex",
+    fontSize: 13,
+    fontWeight: 800,
+    gap: 8,
+    justifyContent: "center",
+    padding: "12px 14px",
   },
   membersHeader: {
     alignItems: "center",

@@ -75,12 +75,12 @@ function normalizeTiles(tileCatalog, storedTiles, storedWidgets = []) {
     const stored = storedMap.get(tile.id);
     const storedWidget = widgetMap.get(tile.id);
     const hasWidget = Boolean(tileRegistry[tile.id]?.widget);
-    const installed = stored?.is_installed ?? true;
+    const installed = stored?.is_installed ?? false;
     const visible = installed ? (stored?.is_visible ?? true) : false;
     const sortOrder = stored?.sort_order ?? nextOrder;
     const placement =
       stored?.placement ||
-      (sortOrder <= 3 ? "dock" : "overflow");
+      "overflow";
 
     nextOrder += 1;
 
@@ -183,7 +183,7 @@ export function TilePreferencesProvider({ children }) {
 
       try {
         const [tileCatalog, storedTiles, storedWidgets] = await Promise.all([
-          fetchModeTileCatalog(mode),
+          fetchModeTileCatalog(mode, user.id),
           fetchUserModeTiles(user.id, mode),
           fetchUserModeWidgets(user.id, mode),
         ]);

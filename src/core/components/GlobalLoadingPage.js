@@ -39,9 +39,10 @@ const modeLabelMap = {
 export default function GlobalLoadingPage({
   title = "Loading",
   detail = "Preparing your workspace...",
+  modeOverride = "",
 }) {
   const location = useLocation();
-  const mode = getModeFromPath(location.pathname, window.location.hostname);
+  const mode = modeOverride || getModeFromPath(location.pathname, window.location.hostname);
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
   const logo = logoMap[mode] || DisplayHomeLogo;
   const modeLabel = modeLabelMap[mode] || "Oikos";

@@ -17,7 +17,7 @@ function isMissingRelationError(error) {
   );
 }
 
-export async function fetchModeTileCatalog(mode) {
+async function fetchModeTileCatalogBase(mode) {
   const fallbackTiles = getTileCatalogForMode(mode);
 
   const { data, error } = await supabase
@@ -58,6 +58,46 @@ export async function fetchModeTileCatalog(mode) {
 
       return aIndex - bIndex;
     });
+}
+
+async function canAccessHymnsTile(userId) {
+  if (!userId) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("user_access")
+    .select("platform, mode, has_access")
+    .eq("user_id", userId)
+    .or("and(platform.eq.admin,mode.eq.default,has_access.eq.true),and(platform.eq.church,mode.eq.hymns,has_access.eq.true)");
+
+  if (error) {
+    if (!isMissingRelationError(error)) {
+      console.error("Hymns tile access load error:", error);
+    }
+
+    return false;
+  }
+
+  return Array.isArray(data)
+    ? data.some(
+        (row) =>
+          row.has_access === true &&
+          ((row.platform === "admin" && row.mode === "default") ||
+            (row.platform === "church" && row.mode === "hymns"))
+      )
+    : false;
+}
+
+export async function fetchModeTileCatalog(mode, userId) {
+  const tileCatalog = await fetchModeTileCatalogBase(mode);
+
+  if (mode !== "church") {
+    return tileCatalog;
+  }
+
+  const hymnAccess = await canAccessHymnsTile(userId);
+  return tileCatalog.filter((tile) => tile.id !== "hymns" || hymnAccess);
 }
 
 export async function fetchUserModeTiles(userId, mode) {

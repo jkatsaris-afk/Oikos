@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { fetchGlobalUsers } from "../../services/globalUsersService";
+import { fetchGlobalUsers, setHymnTileAccess } from "../../services/globalUsersService";
 
 const adminColor = "#6D8196";
 
@@ -21,12 +21,21 @@ export default function GlobalUsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [savingAccessId, setSavingAccessId] = useState("");
   const [error, setError] = useState("");
+
+  async function loadUsers(currentSelectedId = "") {
+    const nextUsers = await fetchGlobalUsers();
+    setUsers(nextUsers);
+    setSelectedUser(
+      nextUsers.find((entry) => entry.id === currentSelectedId) || nextUsers[0] || null
+    );
+  }
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadUsers() {
+    async function bootstrap() {
       setLoading(true);
       setError("");
 
@@ -51,12 +60,27 @@ export default function GlobalUsersPage() {
       }
     }
 
-    loadUsers();
+    bootstrap();
 
     return () => {
       mounted = false;
     };
   }, []);
+
+  async function handleHymnAccessChange(user, enabled) {
+    setSavingAccessId(user.id);
+    setError("");
+
+    try {
+      await setHymnTileAccess(user.id, enabled);
+      await loadUsers(user.id);
+    } catch (saveError) {
+      console.error("Hymn tile access save error:", saveError);
+      setError(saveError?.message || "Could not update Hymns tile access.");
+    } finally {
+      setSavingAccessId("");
+    }
+  }
 
   const stats = useMemo(() => {
     return [
@@ -219,7 +243,11 @@ export default function GlobalUsersPage() {
 
         <aside style={styles.detailPanel}>
           {selectedUser ? (
-            <UserDetail user={selectedUser} />
+            <UserDetail
+              user={selectedUser}
+              savingAccessId={savingAccessId}
+              onToggleHymnAccess={handleHymnAccessChange}
+            />
           ) : (
             <div style={styles.detailEmpty}>
               <ShieldCheck size={40} color={adminColor} />
@@ -236,6 +264,15 @@ export default function GlobalUsersPage() {
   );
 }
 
+function hasHymnTileAccess(user) {
+  return (user.access || []).some(
+    (entry) =>
+      entry.platform === "church" &&
+      entry.mode === "hymns" &&
+      entry.has_access === true
+  );
+}
+
 function FilterSelect({ label, options }) {
   return (
     <label style={styles.filterLabel}>
@@ -249,7 +286,9 @@ function FilterSelect({ label, options }) {
   );
 }
 
-function UserDetail({ user }) {
+function UserDetail({ user, savingAccessId, onToggleHymnAccess }) {
+  const hymnAccessEnabled = hasHymnTileAccess(user);
+
   return (
     <div style={styles.detailStack}>
       <div style={styles.detailHeader}>
@@ -296,11 +335,30 @@ function UserDetail({ user }) {
         )}
       </DetailSection>
 
-      <DetailSection title="Account Controls">
-        <p style={styles.smallMuted}>
-          Approve, deny, pause, password reset, and product approvals will be wired
-          into these controls next.
-        </p>
+      <DetailSection title="Tile App Access">
+        <div style={styles.controlRow}>
+          <div>
+            <div style={styles.orgName}>Hymns Tile</div>
+            <div style={styles.smallMuted}>
+              Approve this here before Hymns appears for the user in church mode.
+            </div>
+          </div>
+          <button
+            type="button"
+            style={{
+              ...styles.controlButton,
+              ...(hymnAccessEnabled ? styles.controlButtonDanger : styles.controlButtonPrimary),
+            }}
+            onClick={() => onToggleHymnAccess(user, !hymnAccessEnabled)}
+            disabled={savingAccessId === user.id}
+          >
+            {savingAccessId === user.id
+              ? "Saving..."
+              : hymnAccessEnabled
+                ? "Remove Hymns Access"
+                : "Approve Hymns Access"}
+          </button>
+        </div>
       </DetailSection>
     </div>
   );
@@ -651,6 +709,29 @@ const styles = {
   orgName: {
     color: "#17202b",
     fontWeight: 900,
+  },
+  controlRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 14,
+    flexWrap: "wrap",
+  },
+  controlButton: {
+    minHeight: 40,
+    border: "none",
+    borderRadius: 12,
+    cursor: "pointer",
+    fontWeight: 900,
+    padding: "0 16px",
+  },
+  controlButtonPrimary: {
+    background: "#dbeafe",
+    color: "#1d4ed8",
+  },
+  controlButtonDanger: {
+    background: "#fee2e2",
+    color: "#b91c1c",
   },
   smallMuted: {
     margin: 0,
