@@ -404,28 +404,37 @@ begin
     raise exception 'Only admin users can manage Hymns tile access.';
   end if;
 
-  insert into public.user_access (
-    user_id,
-    platform,
-    mode,
-    has_access,
-    approved_at,
-    approved_by
-  )
-  values (
-    target_user_id,
-    'church',
-    'hymns',
-    enabled,
-    case when enabled then timezone('utc', now()) else null end,
-    case when enabled then auth.uid() else null end
-  )
-  on conflict (user_id, platform, mode) do update
-  set
-    has_access = excluded.has_access,
-    approved_at = excluded.approved_at,
-    approved_by = excluded.approved_by
-  returning * into result_row;
+  update public.user_access
+  set has_access = enabled
+  where
+    user_id = target_user_id
+    and platform = 'church'
+    and mode = 'hymns';
+
+  if not found then
+    insert into public.user_access (
+      user_id,
+      platform,
+      mode,
+      has_access
+    )
+    values (
+      target_user_id,
+      'church',
+      'hymns',
+      enabled
+    );
+  end if;
+
+  select *
+  into result_row
+  from public.user_access
+  where
+    user_id = target_user_id
+    and platform = 'church'
+    and mode = 'hymns'
+  order by has_access desc
+  limit 1;
 
   return result_row;
 end;

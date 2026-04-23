@@ -110,9 +110,9 @@ async function main() {
         row.license_verified === true,
       license_proof_url: row.license_proof_url || "",
       license_proof_path: row.license_proof_path || "",
-      is_admin_approved:
-        String(row.is_admin_approved).toLowerCase() === "true" ||
-        row.is_admin_approved === true,
+      is_admin_approved: true,
+      approved_at: new Date().toISOString(),
+      approved_by: null,
       is_active: String(row.is_active).toLowerCase() !== "false",
     });
 
