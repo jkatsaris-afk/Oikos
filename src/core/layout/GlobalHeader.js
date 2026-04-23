@@ -1,8 +1,10 @@
-import { useLocation } from "react-router-dom";
-import { Settings, Moon, User } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Settings, Moon, User, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { getModeConfig } from "../theme/modeConfig";
+import { supabase } from "../../auth/supabaseClient";
+import { getModeFromPath } from "../utils/getMode";
 
 /* 🔥 ADD THESE */
 import SettingsModal from "../settings/SettingsModal";
@@ -14,6 +16,7 @@ import { getModeSettings } from "../settings/getModeSettings";
 
 export default function GlobalHeader() {
   const location = useLocation();
+  const navigate = useNavigate();
   const hostname = window.location.hostname;
 
   const [time, setTime] = useState("");
@@ -22,19 +25,7 @@ export default function GlobalHeader() {
   /* 🔥 ADD STATE */
   const [openSettings, setOpenSettings] = useState(false);
 
-  let mode = "home";
-
-  // 🔥 MODE DETECTION
-  if (hostname.includes("oikoschurch")) mode = "church";
-  else if (hostname.includes("oikoscampus")) mode = "campus";
-  else if (location.pathname.startsWith("/business")) mode = "business";
-  else if (location.pathname.startsWith("/edu")) mode = "education";
-  else if (location.pathname.startsWith("/nightstand")) mode = "nightstand";
-  else if (location.pathname.startsWith("/church")) mode = "church";
-  else if (location.pathname.startsWith("/campus")) mode = "campus";
-  else if (location.pathname.startsWith("/pages")) mode = "pages";
-  else if (location.pathname.startsWith("/sports")) mode = "sports";
-  else if (location.pathname.startsWith("/farm")) mode = "farm";
+  const mode = getModeFromPath(location.pathname, hostname);
 
   const modeData = getModeConfig(mode);
 
@@ -44,7 +35,7 @@ export default function GlobalHeader() {
   const isDisplayMode =
     mode === "home" ||
     mode === "business" ||
-    mode === "education" ||
+    mode === "edu" ||
     mode === "nightstand" ||
     mode === "tv";
 
@@ -76,6 +67,19 @@ export default function GlobalHeader() {
 
     return () => clearInterval(interval);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/login", {
+        replace: true,
+        state: { from: location.pathname },
+      });
+    } catch (error) {
+      console.error("Logout failed", error);
+      alert("Unable to log out right now.");
+    }
+  };
 
   return (
     <>
@@ -118,6 +122,15 @@ export default function GlobalHeader() {
             <Settings size={20} />
           </button>
 
+          <button
+            style={styles.iconBtn}
+            onClick={handleLogout}
+            aria-label="Log out"
+            title="Log out"
+          >
+            <LogOut size={20} />
+          </button>
+
           {/* CLOCK (FURTHEST RIGHT) */}
           <div style={styles.clock}>
             <div style={styles.time}>{time}</div>
@@ -146,21 +159,25 @@ export default function GlobalHeader() {
 const styles = {
   header: {
     position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
+    top: 12,
+    left: 16,
+    right: 16,
 
-    height: "60px",
+    height: "54px",
 
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
 
-    padding: "0 16px",
+    padding: "0 12px 0 16px",
 
-    background: "#fff",
+    background: "rgba(255,255,255,0.72)",
+    backdropFilter: "blur(18px) saturate(1.12)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.12)",
 
-    borderBottom: "1px solid rgba(0,0,0,0.08)",
+    border: "1px solid rgba(255,255,255,0.56)",
+    borderRadius: "24px",
+    boxShadow: "0 18px 46px rgba(15,23,42,0.14)",
 
     zIndex: 200,
   },
@@ -173,27 +190,39 @@ const styles = {
   right: {
     display: "flex",
     alignItems: "center",
-    gap: "10px",
+    gap: "8px",
   },
 
   iconBtn: {
-    background: "rgba(0,0,0,0.05)",
-    border: "none",
-    borderRadius: "10px",
-    padding: "6px",
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.12)",
+    borderRadius: "14px",
+    color: "var(--color-primary-dark)",
     cursor: "pointer",
+    display: "flex",
+    height: "36px",
+    justifyContent: "center",
+    padding: 0,
+    width: "36px",
   },
 
   clock: {
     display: "flex",
     flexDirection: "column",
     lineHeight: "1",
-    marginLeft: "6px",
+    marginLeft: "4px",
+    minWidth: "68px",
+    padding: "7px 10px",
+    borderRadius: "16px",
+    background: "rgba(255,255,255,0.58)",
+    border: "1px solid rgba(15,23,42,0.06)",
   },
 
   time: {
     fontSize: "14px",
-    fontWeight: "600",
+    fontWeight: "800",
+    color: "#111827",
   },
 
   date: {
@@ -202,7 +231,7 @@ const styles = {
   },
 
   logo: {
-    height: "28px",
+    height: "30px",
     objectFit: "contain",
   },
 };

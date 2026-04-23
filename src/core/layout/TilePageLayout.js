@@ -1,4 +1,4 @@
-import { Settings, Info, Trash2 } from "lucide-react";
+import { Settings, Info, Trash2, X } from "lucide-react";
 import "../styles/TileAppPage.css";
 
 export default function TilePageLayout({
@@ -8,10 +8,12 @@ export default function TilePageLayout({
   showSettings = true,
   showInfo = true,
   showUninstall = false,
+  showClose = true,
 
   onSettings = () => console.log("Settings clicked"),
   onInfo = () => console.log("Info clicked"),
   onUninstall = () => console.log("Uninstall clicked"),
+  onClose = () => console.log("Close clicked"),
 }) {
   return (
     <div className="tile-page">
@@ -26,6 +28,19 @@ export default function TilePageLayout({
         </div>
 
         <div className="tile-actions">
+          {showUninstall && (
+            <button
+              className="tile-icon-btn danger uninstall-btn"
+              onClick={() => {
+                if (window.confirm("Uninstall this app?")) {
+                  onUninstall();
+                }
+              }}
+            >
+              <Trash2 size={18} />
+              <span>Uninstall</span>
+            </button>
+          )}
 
           {showSettings && (
             <button
@@ -45,17 +60,14 @@ export default function TilePageLayout({
             </button>
           )}
 
-          {showUninstall && (
+          {showClose && (
             <button
-              className="tile-icon-btn danger uninstall-btn"
-              onClick={() => {
-                if (window.confirm("Uninstall this app?")) {
-                  onUninstall();
-                }
-              }}
+              className="tile-icon-btn close-btn"
+              onClick={onClose}
+              aria-label="Close tile app"
+              title="Close"
             >
-              <Trash2 size={18} />
-              <span>Uninstall</span>
+              <X size={20} />
             </button>
           )}
 

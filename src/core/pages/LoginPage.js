@@ -3,6 +3,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../auth/authService";
 import { modeTheme } from "../../core/theme/modeTheme";
 import { getModeFromPath } from "../../core/utils/getMode";
+import {
+  getDefaultPathForHostname,
+  getForcedModeForHostname,
+} from "../../core/utils/modeRouting";
 import EmailNotConfirmedModal from "../components/EmailNotConfirmedModal";
 
 // LOGOS
@@ -10,6 +14,7 @@ import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
 import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
 import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
 import ChurchLogo from "../../assets/logos/Church-Logo.png";
+import AdminLogo from "../../assets/logos/Admin-logo.png";
 import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import PagesLogo from "../../assets/logos/Pages-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
@@ -22,9 +27,11 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const originalPath = location.state?.from || "/home";
+  const hostname = window.location.hostname;
+  const originalPath =
+    location.state?.from || getDefaultPathForHostname(hostname);
 
-  const mode = getModeFromPath(originalPath, window.location.hostname);
+  const mode = getModeFromPath(originalPath, hostname);
 
   const logoMap = {
     home: DisplayHomeLogo,
@@ -32,6 +39,7 @@ export default function LoginPage() {
     edu: DisplayEduLogo,
     pages: PagesLogo,
     church: ChurchLogo,
+    admin: AdminLogo,
     campus: CampusLogo,
     sports: SportsLogo,
   };
@@ -45,20 +53,14 @@ export default function LoginPage() {
     try {
       await login(email, password);
 
-      const hostname = window.location.hostname;
+      const forcedMode = getForcedModeForHostname(hostname);
 
-      if (hostname.includes("oikoschurch")) {
-        navigate("/church", { replace: true });
-      } 
-      else if (hostname.includes("oikoscampus")) {
-        navigate("/campus", { replace: true });
-      } 
-      else if (hostname.includes("oikossports")) {
-        navigate("/sports", { replace: true });
-      } 
-      else {
-        navigate(originalPath, { replace: true });
+      if (forcedMode) {
+        navigate(getDefaultPathForHostname(hostname), { replace: true });
+        return;
       }
+
+      navigate(originalPath, { replace: true });
 
     } catch (err) {
       if (err.message?.toLowerCase().includes("email not confirmed")) {

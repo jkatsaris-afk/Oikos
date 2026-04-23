@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Oikos OS</title>
+    <script>
+      (function () {
+        var redirect = window.location.search.match(/[?&]spa=([^&]+)/);
+
+        if (!redirect) {
+          return;
+        }
+
+        var decodedPath = decodeURIComponent(redirect[1]);
+        var cleanUrl = decodedPath + window.location.hash;
+
+        window.history.replaceState(null, "", cleanUrl);
+      })();
+    </script>
   </head>
 
   <body>

@@ -6,22 +6,51 @@ import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
 import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
 import PagesLogo from "../../assets/logos/Pages-Logo.png";
 import ChurchLogo from "../../assets/logos/Church-Logo.png";
+import AdminLogo from "../../assets/logos/Admin-logo.png";
 import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
 
 export default function MasterModePage() {
   const navigate = useNavigate();
+  const hostname = window.location.hostname;
+  const isLocalhost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1";
 
   const modes = [
     { name: "Home", type: "internal", path: "/home", logo: DisplayHomeLogo },
     { name: "Business", type: "internal", path: "/business", logo: DisplayBusinessLogo },
     { name: "Education", type: "internal", path: "/edu", logo: DisplayEduLogo },
     { name: "Pages", type: "internal", path: "/pages", logo: PagesLogo },
-
-    // 🔥 EXTERNAL DOMAINS
-    { name: "Church", type: "external", url: "https://oikoschurch.app", logo: ChurchLogo },
-    { name: "Campus", type: "external", url: "https://oikoscampus.app", logo: CampusLogo },
-    { name: "Sports", type: "external", url: "https://oikossports.app", logo: SportsLogo },
+    {
+      name: "Church",
+      type: isLocalhost ? "internal" : "external",
+      path: "/church",
+      url: "https://oikoschurch.app",
+      logo: ChurchLogo,
+    },
+    {
+      name: "Admin",
+      type: isLocalhost ? "internal" : "external",
+      path: "/admin",
+      url: "https://oikosadmin.app",
+      logo: AdminLogo,
+    },
+    {
+      name: "Campus",
+      type: isLocalhost ? "internal" : "external",
+      path: "/campus",
+      url: "https://oikoscampus.app",
+      logo: CampusLogo,
+    },
+    {
+      name: "Sports",
+      type: isLocalhost ? "internal" : "external",
+      path: "/sports",
+      url: "https://oikossports.app",
+      logo: SportsLogo,
+    },
   ];
 
   const handleClick = (mode) => {

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Oikos OS</title>
+    <script>
+      (function () {
+        var target =
+          "/?spa=" +
+          encodeURIComponent(
+            window.location.pathname +
+              window.location.search +
+              window.location.hash
+          );
+
+        window.location.replace(target);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

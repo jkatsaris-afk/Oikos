@@ -7,6 +7,7 @@
  */
 
 import { churchTileRegistry } from "../../platforms/church/tiles/tileRegistry";
+import { adminTileRegistry } from "../../platforms/admin/tiles/tileRegistry";
 
 export const tileRegistry = {
   /**
@@ -32,4 +33,5 @@ export const tileRegistry = {
    */
 
   ...churchTileRegistry,
+  ...adminTileRegistry,
 };

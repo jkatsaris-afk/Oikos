@@ -20,8 +20,11 @@ import ForgotPasswordPage from "./core/pages/ForgotPasswordPage";
 import ResetPasswordPage from "./core/pages/ResetPasswordPage";
 import JoinPage from "./core/pages/JoinPage";
 import MasterModePage from "./core/pages/MasterModePage";
+import GlobalLoadingPage from "./core/components/GlobalLoadingPage";
+import { TilePreferencesProvider } from "./core/tiles/TilePreferencesProvider";
 
 import { getModeFromPath } from "./core/utils/getMode";
+import { getDefaultPathForHostname } from "./core/utils/modeRouting";
 
 // =========================
 // LAZY LOADER
@@ -46,6 +49,7 @@ const DisplayEduDashboard = load("./platforms/display/modes/edu/pages/DisplayEdu
 const DisplayNightstandDashboard = load("./platforms/display/modes/nightstand/pages/DisplayNightstandDashboardPage");
 
 const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
+const AdminDashboard = load("./platforms/admin/pages/AdminDashboardPage");
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
 const SportsDashboard = load("./platforms/sports/pages/SportsDashboardPage");
@@ -69,13 +73,67 @@ function ModeWrapper({ children }) {
 // ROOT REDIRECT
 // =========================
 function HomeOrDomain() {
-  const hostname = window.location.hostname;
+  return <Navigate to={getDefaultPathForHostname(window.location.hostname)} replace />;
+}
 
-  if (hostname.includes("oikoschurch")) return <Navigate to="/church" replace />;
-  if (hostname.includes("oikoscampus")) return <Navigate to="/campus" replace />;
-  if (hostname.includes("oikossports")) return <Navigate to="/sports" replace />;
+function AppRoutes() {
+  const location = useLocation();
+  const path = location.pathname;
 
-  return <Navigate to="/home" replace />;
+  const isPublicRoute =
+    path === "/login" ||
+    path === "/signup" ||
+    path === "/join" ||
+    path === "/forgot-password" ||
+    path === "/reset-password" ||
+    path === "/pending-approval" ||
+    path === "/modes" ||
+    path.startsWith("/no-access");
+
+  if (isPublicRoute) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/join" element={<JoinPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/pending-approval" element={<PendingApprovalPage />} />
+        <Route path="/no-access/*" element={<NoAccessPage />} />
+        <Route path="/modes" element={<MasterModePage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <RequireAuth>
+      <TilePreferencesProvider>
+        <ModeWrapper>
+          <GlobalHeader />
+          <DockLayout>
+            <Routes>
+              <Route path="/" element={<HomeOrDomain />} />
+
+              <Route path="/home" element={<DisplayHomeDashboard />} />
+              <Route path="/business" element={<DisplayBusinessDashboard />} />
+              <Route path="/edu" element={<DisplayEduDashboard />} />
+              <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
+
+              <Route path="/church" element={<ChurchDashboard />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/campus" element={<CampusDashboard />} />
+              <Route path="/pages" element={<PagesDashboard />} />
+              <Route path="/sports" element={<SportsDashboard />} />
+              <Route path="/farm" element={<FarmDashboard />} />
+
+              <Route path="*" element={<HomeOrDomain />} />
+            </Routes>
+          </DockLayout>
+        </ModeWrapper>
+      </TilePreferencesProvider>
+    </RequireAuth>
+  );
 }
 
 // =========================
@@ -83,70 +141,21 @@ function HomeOrDomain() {
 // =========================
 export default function App() {
   return (
-    <Router>
-      <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
-
-        <Routes>
-
-          {/* PUBLIC */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/join" element={<JoinPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/pending-approval" element={<PendingApprovalPage />} />
-          <Route path="/no-access/*" element={<NoAccessPage />} />
-          <Route path="/modes" element={<MasterModePage />} />
-
-          {/* PROTECTED */}
-          <Route
-            path="/*"
-            element={
-              (() => {
-                const path = window.location.pathname;
-
-                // 🔥 CRITICAL FIX
-                if (
-                  path === "/modes" ||
-                  path === "/no-access" ||
-                  path === "/login" ||
-                  path === "/signup" ||
-                  path === "/join" ||
-                  path === "/forgot-password" ||
-                  path === "/reset-password" ||
-                  path === "/pending-approval"
-                ) {
-                  return null;
-                }
-
-                return (
-                  <RequireAuth>
-                    <ModeWrapper>
-                      <GlobalHeader />
-                      <DockLayout>
-                        <Routes>
-                          <Route path="/" element={<HomeOrDomain />} />
-
-                          <Route path="/home" element={<DisplayHomeDashboard />} />
-                          <Route path="/business" element={<DisplayBusinessDashboard />} />
-                          <Route path="/edu" element={<DisplayEduDashboard />} />
-                          <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
-
-                          <Route path="/church" element={<ChurchDashboard />} />
-                          <Route path="/campus" element={<CampusDashboard />} />
-                          <Route path="/pages" element={<PagesDashboard />} />
-                          <Route path="/sports" element={<SportsDashboard />} />
-                          <Route path="/farm" element={<FarmDashboard />} />
-                        </Routes>
-                      </DockLayout>
-                    </ModeWrapper>
-                  </RequireAuth>
-                );
-              })()
-            }
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
+      <Suspense
+        fallback={
+          <GlobalLoadingPage
+            title="Loading Page"
+            detail="Pulling in the next screen and getting everything ready..."
           />
-
-        </Routes>
+        }
+      >
+        <AppRoutes />
 
       </Suspense>
     </Router>

@@ -3,6 +3,7 @@ import { updatePassword } from "../../auth/authService";
 import { useNavigate, useLocation } from "react-router-dom";
 import { modeTheme } from "../../core/theme/modeTheme";
 import { getModeFromPath } from "../../core/utils/getMode";
+import { resolveOriginalPath } from "../../core/utils/modeRouting";
 
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
 
@@ -11,10 +12,11 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const originalPath =
-    typeof location.state?.from === "string"
-      ? location.state.from
-      : sessionStorage.getItem("lastPath") || "/home";
+  const originalPath = resolveOriginalPath(
+    location.state?.from,
+    window.location.hostname,
+    sessionStorage.getItem("lastPath")
+  );
 
   const mode = getModeFromPath(originalPath, window.location.hostname);
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";

@@ -1,5 +1,6 @@
 import ThemeProvider from "../../../../../core/theme/ThemeProvider";
 import { getBackgroundConfig } from "../../../../../core/theme/backgroundConfig";
+import DashboardWidgets from "../../../../../core/widgets/DashboardWidgets";
 
 export default function DisplayHomeDashboardPage() {
   const bg = getBackgroundConfig("home");
@@ -22,7 +23,7 @@ export default function DisplayHomeDashboardPage() {
             EMPTY CONTENT (INTENTIONAL)
         ========================= */}
         <div style={styles.content}>
-          {/* 🔥 intentionally empty for now */}
+          <DashboardWidgets />
         </div>
 
       </div>

@@ -3,16 +3,31 @@ import {
   Grid,
   MoreHorizontal
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
 import { getTileDesign } from "../tiles/tileDesign";
 import useUserTiles from "../tiles/useUserTiles";
 
-import SettingsModal from "../settings/SettingsModal";
 import React from "react";
 import { useLocation } from "react-router-dom";
+import { DockNavigationProvider } from "./DockNavigationContext";
+
+function getTileStyle(design, isActive) {
+  if (isActive) {
+    return {
+      background: design.background,
+      color: design.color || "#fff",
+    };
+  }
+
+  return {
+    background: design.background,
+    color: design.color || "#fff",
+    border: `1px solid ${design.background}`,
+  };
+}
 
 export default function DockLayout({ children }) {
 
@@ -20,32 +35,16 @@ export default function DockLayout({ children }) {
 
   console.log("🚨 DOCK LAYOUT MOUNTED:", location.pathname);
 
-  // 🔥 BLOCK PUBLIC PAGES
-  if (
-    location.pathname === "/no-access" ||
-    location.pathname === "/pending-approval" ||
-    location.pathname === "/login" ||
-    location.pathname === "/signup" ||
-    location.pathname === "/join" ||
-    location.pathname === "/forgot-password" ||
-    location.pathname === "/reset-password" ||
-    location.pathname === "/modes"
-  ) {
-    return null;
-  }
-
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
-  const [openTileSettings, setOpenTileSettings] = useState(false);
-  const [openTileInfo, setOpenTileInfo] = useState(false);
 
-  const { tiles = [], uninstallTile } = useUserTiles();
+  const { visibleTiles: userVisibleTiles = [], uninstallTile } = useUserTiles();
 
   // =========================
   // 🔥 USER TILES
   // =========================
-  const installedTiles = tiles
-    .filter(t => t?.installed && t.id !== "home" && t.id !== "store")
+  const installedTiles = userVisibleTiles
+    .filter(t => t.id !== "home" && t.id !== "store")
     .map(t => {
       const registryTile = tileRegistry[t.id];
 
@@ -61,10 +60,20 @@ export default function DockLayout({ children }) {
     })
     .filter(Boolean);
 
+  useEffect(() => {
+    if (
+      activeTile !== "home" &&
+      activeTile !== "store" &&
+      !installedTiles.find((tile) => tile.id === activeTile)
+    ) {
+      setActiveTile("home");
+    }
+  }, [activeTile, installedTiles]);
+
   // =========================
   // 🔥 DOCK (MAX 3 USER TILES)
   // =========================
-  const visibleTiles = installedTiles.slice(0, 3);
+  const visibleTiles = installedTiles.filter((tile) => tile.placement !== "overflow").slice(0, 3);
 
   // =========================
   // 🔥 STORE TILE (ALWAYS EXISTS)
@@ -79,7 +88,7 @@ export default function DockLayout({ children }) {
   // =========================
   const overflowTiles = [
     storeTile,
-    ...installedTiles.slice(3),
+    ...installedTiles.filter((tile) => tile.placement === "overflow"),
   ];
 
   const showMore = overflowTiles.length > 0;
@@ -93,7 +102,15 @@ export default function DockLayout({ children }) {
       ? tileRegistry[activeTile].page
       : null;
 
+  const openTile = (tileId) => {
+    if (tileId === "home" || tileId === "store" || tileRegistry[tileId]?.page) {
+      setShowOverflow(false);
+      setActiveTile(tileId);
+    }
+  };
+
   return (
+    <DockNavigationProvider value={{ activeTile, openTile }}>
     <div className="app-container">
 
       {/* =========================
@@ -151,18 +168,10 @@ export default function DockLayout({ children }) {
                   <div
                     key={tile.id}
                     className={`nav-item2 ${isActive ? "active" : ""}`}
-                    onClick={() => {
-                      setShowOverflow(false);
-                      setActiveTile(tile.id);
-                    }}
-                    style={
-                      isActive
-                        ? {
-                            background: design.background,
-                            color: design.color || "#fff",
-                          }
-                        : {}
-                    }
+	                    onClick={() => {
+	                      openTile(tile.id);
+	                    }}
+                    style={getTileStyle(design, isActive)}
                   >
                     <Icon size={22} />
                     <span>{design.label}</span>
@@ -182,10 +191,9 @@ export default function DockLayout({ children }) {
         {/* HOME */}
         <div
           className={`nav-item2 home ${activeTile === "home" ? "active" : ""}`}
-          onClick={() => {
-            setShowOverflow(false);
-            setActiveTile("home");
-          }}
+	          onClick={() => {
+	            openTile("home");
+	          }}
         >
           <Home size={22} />
           <span>Home</span>
@@ -202,18 +210,10 @@ export default function DockLayout({ children }) {
             <div
               key={tile.id}
               className={`nav-item2 ${isActive ? "active" : ""}`}
-              onClick={() => {
-                setShowOverflow(false);
-                setActiveTile(tile.id);
-              }}
-              style={
-                isActive
-                  ? {
-                      background: design.background,
-                      color: design.color || "#fff",
-                    }
-                  : {}
-              }
+	              onClick={() => {
+	                openTile(tile.id);
+	              }}
+              style={getTileStyle(design, isActive)}
             >
               <Icon size={22} />
               <span>{design.label}</span>
@@ -242,5 +242,6 @@ export default function DockLayout({ children }) {
       </div>
 
     </div>
+    </DockNavigationProvider>
   );
 }

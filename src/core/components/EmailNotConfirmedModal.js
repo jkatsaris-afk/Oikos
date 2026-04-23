@@ -8,6 +8,7 @@ import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
 import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
 import PagesLogo from "../../assets/logos/Pages-Logo.png";
 import ChurchLogo from "../../assets/logos/Church-Logo.png";
+import AdminLogo from "../../assets/logos/Admin-logo.png";
 import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
 
@@ -28,6 +29,7 @@ export default function EmailNotConfirmedModal({ onClose, email }) {
     edu: DisplayEduLogo,
     pages: PagesLogo,
     church: ChurchLogo,
+    admin: AdminLogo,
     campus: CampusLogo,
     sports: SportsLogo,
   };

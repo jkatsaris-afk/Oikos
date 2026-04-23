@@ -3,12 +3,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { signup } from "../../auth/authService";
 import { modeTheme } from "../../core/theme/modeTheme";
 import { getModeFromPath } from "../../core/utils/getMode";
+import { resolveOriginalPath } from "../../core/utils/modeRouting";
 
 // 🔥 LOGOS
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
 import DisplayBusinessLogo from "../../assets/logos/Display-Business-Logo.png";
 import DisplayEduLogo from "../../assets/logos/Display-Edu-Logo.png";
 import ChurchLogo from "../../assets/logos/Church-Logo.png";
+import AdminLogo from "../../assets/logos/Admin-logo.png";
 import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import PagesLogo from "../../assets/logos/Pages-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
@@ -30,26 +32,31 @@ export default function SignupPage() {
   // =========================
   const hostname = window.location.hostname;
 
-  const originalPath =
-    location.state?.from ||
-    sessionStorage.getItem("lastPath") ||
-    "/home";
+  const originalPath = resolveOriginalPath(
+    location.state?.from,
+    hostname,
+    sessionStorage.getItem("lastPath")
+  );
 
   const mode = getModeFromPath(originalPath, hostname);
 
   let logo = DisplayHomeLogo;
   let orgLabel = "Organization Name";
 
-  // DOMAIN (platform)
-  if (hostname.includes("oikoschurch")) {
+  // DOMAIN / PATH MODE (platform)
+  if (hostname.includes("oikoschurch") || mode === "church") {
     logo = ChurchLogo;
     orgLabel = "Church Name";
   } 
-  else if (hostname.includes("oikoscampus")) {
+  else if (hostname.includes("oikosadmin") || mode === "admin") {
+    logo = AdminLogo;
+    orgLabel = "Organization Name";
+  }
+  else if (hostname.includes("oikoscampus") || mode === "campus") {
     logo = CampusLogo;
     orgLabel = "School Name";
   } 
-  else if (hostname.includes("oikossports")) {
+  else if (hostname.includes("oikossports") || mode === "sports") {
     logo = SportsLogo;
     orgLabel = "League Name";
   }
@@ -160,6 +167,17 @@ export default function SignupPage() {
           >
             Create Account
           </button>
+
+          <div style={linksStyle}>
+            <span
+              onClick={() =>
+                navigate("/login", { state: { from: originalPath } })
+              }
+              style={{ ...linkStyle, color: primaryColor }}
+            >
+              Back to Login
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -236,4 +254,15 @@ const buttonStyle = {
   color: "#fff",
   fontWeight: "600",
   cursor: "pointer",
+};
+
+const linksStyle = {
+  marginTop: "14px",
+  textAlign: "center",
+};
+
+const linkStyle = {
+  cursor: "pointer",
+  fontSize: "13px",
+  fontWeight: "600",
 };

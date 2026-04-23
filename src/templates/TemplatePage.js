@@ -1,4 +1,4 @@
-import { Settings, Info, Trash2 } from "lucide-react";
+import { Settings, Info, Trash2, X } from "lucide-react";
 
 /* 🔥 FIXED PATH (THIS WAS THE ISSUE) */
 import "../core/styles/TileAppPage.css";
@@ -13,6 +13,7 @@ export default function TemplatePage({
   showSettings = true,
   showInfo = true,
   showUninstall = false,
+  showClose = false,
 
   /* =========================
      ACTION HANDLERS
@@ -20,6 +21,7 @@ export default function TemplatePage({
   onSettings = () => console.log("Settings clicked"),
   onInfo = () => console.log("Info clicked"),
   onUninstall = () => console.log("Uninstall clicked"),
+  onClose = () => console.log("Close clicked"),
 }) {
   return (
     <div className="tile-page">
@@ -64,6 +66,17 @@ export default function TemplatePage({
               aria-label="Uninstall"
             >
               <Trash2 size={20} />
+            </button>
+          )}
+
+          {showClose && (
+            <button
+              className="tile-icon-btn close-btn"
+              onClick={onClose}
+              aria-label="Close tile app"
+              title="Close"
+            >
+              <X size={20} />
             </button>
           )}
 

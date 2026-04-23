@@ -4,7 +4,7 @@ const AnnouncementTileDesign = {
   id: "announcements",
   icon: Megaphone,
   label: "Announcements",
-  background: "#4A4A4A",
+  background: "#7F9F6C",
   color: "#ffffff",
 };
 

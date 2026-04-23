@@ -1,6 +1,7 @@
 import TilePageLayout from "../../layout/TilePageLayout";
 import { useState } from "react";
 import SettingsModal from "../../settings/SettingsModal";
+import { useDockNavigation } from "../../layout/DockNavigationContext";
 
 export default function TilePageTemplate({
   tileId,
@@ -13,6 +14,7 @@ export default function TilePageTemplate({
 }) {
   const [openSettings, setOpenSettings] = useState(false);
   const [openInfo, setOpenInfo] = useState(false);
+  const { openTile } = useDockNavigation();
 
   return (
     <>
@@ -21,6 +23,7 @@ export default function TilePageTemplate({
         onSettings={() => setOpenSettings(true)}
         onInfo={() => setOpenInfo(true)}
         onUninstall={onUninstall}
+        onClose={() => openTile("home")}
         showUninstall={showUninstall}
       >
         <PageComponent />

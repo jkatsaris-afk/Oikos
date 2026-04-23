@@ -1,5 +1,6 @@
 import ThemeProvider from "../../core/theme/ThemeProvider";
 import { getBackgroundConfig } from "../../core/theme/backgroundConfig";
+import DashboardWidgets from "../../core/widgets/DashboardWidgets";
 
 export default function PagesDashboard() {
   const bg = getBackgroundConfig("pages");
@@ -23,8 +24,7 @@ export default function PagesDashboard() {
             CONTENT
         ========================= */}
         <div style={styles.content}>
-          <h1>Pages Dashboard</h1>
-          <p>Pages mode is active</p>
+          <DashboardWidgets />
         </div>
 
       </div>

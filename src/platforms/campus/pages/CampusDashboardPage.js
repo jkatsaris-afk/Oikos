@@ -1,5 +1,6 @@
 import ThemeProvider from "../../../core/theme/ThemeProvider";
 import { getBackgroundConfig } from "../../../core/theme/backgroundConfig";
+import DashboardWidgets from "../../../core/widgets/DashboardWidgets";
 
 export default function CampusDashboardPage() {
   const bg = getBackgroundConfig("campus");
@@ -19,8 +20,7 @@ export default function CampusDashboardPage() {
 
         {/* CONTENT */}
         <div style={styles.content}>
-          <h1>Campus Dashboard</h1>
-          <p>Campus mode is active</p>
+          <DashboardWidgets />
         </div>
 
       </div>

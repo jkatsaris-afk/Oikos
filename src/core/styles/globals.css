@@ -1,0 +1,13 @@
+@keyframes oikos-loading-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0) scale(0.9);
+    opacity: 0.45;
+  }
+
+  40% {
+    transform: translateY(-10px) scale(1);
+    opacity: 1;
+  }
+}

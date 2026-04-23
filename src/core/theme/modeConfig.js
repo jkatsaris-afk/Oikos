@@ -3,6 +3,7 @@
 ========================= */
 
 import ChurchLogo from "../../assets/logos/Church-Logo.png";
+import AdminLogo from "../../assets/logos/Admin-logo.png";
 import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
 import PagesLogo from "../../assets/logos/Pages-Logo.png";
@@ -31,9 +32,19 @@ export const modeConfig = {
     logo: DisplayEduLogo,
   },
 
+  edu: {
+    label: "Education",
+    logo: DisplayEduLogo,
+  },
+
   church: {
     label: "Church",
     logo: ChurchLogo,
+  },
+
+  admin: {
+    label: "Admin",
+    logo: AdminLogo,
   },
 
   campus: {

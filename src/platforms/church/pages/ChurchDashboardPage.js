@@ -1,4 +1,5 @@
 import { getBackgroundConfig } from "../../../core/theme/backgroundConfig";
+import DashboardWidgets from "../../../core/widgets/DashboardWidgets";
 
 export default function ChurchDashboardPage() {
   const bg = getBackgroundConfig("church");
@@ -16,8 +17,7 @@ export default function ChurchDashboardPage() {
 
       {/* CONTENT */}
       <div style={styles.content}>
-        <h1>Church Dashboard</h1>
-        <p>Church mode is active</p>
+        <DashboardWidgets />
       </div>
 
     </div>

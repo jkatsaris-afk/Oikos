@@ -13,7 +13,7 @@ const SermonTileDesign = {
   label: "Sermon",
 
   // 🔥 CHURCH THEME
-  background: "#96B379",
+  background: "#5F7D4D",
   color: "#ffffff",
 };
 

@@ -3,6 +3,7 @@ import { useAuth } from "./useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { getModeFromPath } from "../core/utils/getMode";
+import GlobalLoadingPage from "../core/components/GlobalLoadingPage";
 
 export default function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -13,6 +14,22 @@ export default function RequireAuth({ children }) {
   const [ready, setReady] = useState(false);
 
   const path = location.pathname;
+
+  useEffect(() => {
+    if (
+      path &&
+      path !== "/login" &&
+      path !== "/signup" &&
+      path !== "/join" &&
+      path !== "/forgot-password" &&
+      path !== "/reset-password" &&
+      path !== "/pending-approval" &&
+      path !== "/modes" &&
+      !path.startsWith("/no-access")
+    ) {
+      sessionStorage.setItem("lastPath", path);
+    }
+  }, [path]);
 
   console.log("RequireAuth Render", {
     user,
@@ -27,18 +44,34 @@ export default function RequireAuth({ children }) {
   // AUTH READY (CRITICAL FIX)
   // =========================
   useEffect(() => {
+    let mounted = true;
+
+    async function initAuthReady() {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      console.log("Initial Auth Session", {
+        hasSession: Boolean(data?.session),
+        error,
+      });
+
+      setReady(true);
+    }
+
+    initAuthReady();
+
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log("Auth State Change", event);
 
-        if (session) {
-          console.log("Session Ready for Queries");
-          setReady(true);
-        }
+        console.log("Session Ready State", Boolean(session));
+        setReady(true);
       }
     );
 
     return () => {
+      mounted = false;
       listener.subscription.unsubscribe();
     };
   }, []);
@@ -69,7 +102,7 @@ export default function RequireAuth({ children }) {
         let mode = detectedMode;
 
         if (
-          ["church", "campus", "sports", "pages", "farm"].includes(
+          ["church", "admin", "campus", "sports", "pages", "farm"].includes(
             detectedMode
           )
         ) {
@@ -131,7 +164,12 @@ export default function RequireAuth({ children }) {
 
   if (loading || !ready) {
     console.log("Render State: loading");
-    return <div style={{ padding: 40 }}>Loading...</div>;
+    return (
+      <GlobalLoadingPage
+        title="Loading"
+        detail="Restoring your session and preparing your login state..."
+      />
+    );
   }
 
   if (!user) {
@@ -147,12 +185,23 @@ export default function RequireAuth({ children }) {
 
   if (!checked) {
     console.log("Render State: checking access");
-    return <div style={{ padding: 40 }}>Checking access...</div>;
+    return (
+      <GlobalLoadingPage
+        title="Checking Access"
+        detail="Verifying your permissions for this part of Oikos..."
+      />
+    );
   }
 
   if (hasAccess === false) {
     console.log("Render State: no access");
-    return <Navigate to="/no-access" replace />;
+    return (
+      <Navigate
+        to="/no-access"
+        replace
+        state={{ from: path }}
+      />
+    );
   }
 
   console.log("Render State: access granted");

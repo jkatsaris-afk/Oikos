@@ -4,6 +4,7 @@
 
 /* IMPORT BACKGROUNDS */
 import BusinessBg from "../../assets/backgrounds/Business-Background.png";
+import AdminBg from "../../assets/backgrounds/Admin-Background.png";
 import CampusBg from "../../assets/backgrounds/Campus-Background.png";
 import ChurchBg from "../../assets/backgrounds/Church-Background.png";
 import ClassroomBg from "../../assets/backgrounds/Classroom-Background.png";
@@ -40,6 +41,11 @@ export const backgroundConfig = {
 
   church: {
     default: ChurchBg,
+    allowUserOverride: false,
+  },
+
+  admin: {
+    default: AdminBg,
     allowUserOverride: false,
   },
 

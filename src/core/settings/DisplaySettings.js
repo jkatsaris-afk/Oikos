@@ -1,7 +1,16 @@
 import SettingsLayout from "./SettingsLayout";
+import OrganizationAccessPanel from "./OrganizationAccessPanel";
+import ProfileSettingsPanel from "./ProfileSettingsPanel";
+import TileSettingsPanel from "./TileSettingsPanel";
+import WidgetSettingsPanel from "./WidgetSettingsPanel";
 
 export default function DisplaySettings() {
   const sections = [
+    {
+      key: "tiles",
+      label: "Tile Apps",
+      component: <TileSettingsPanel />,
+    },
     {
       key: "background",
       label: "Background",
@@ -10,12 +19,17 @@ export default function DisplaySettings() {
     {
       key: "widgets",
       label: "Widgets",
-      component: <div>Widget Settings</div>,
+      component: <WidgetSettingsPanel />,
     },
     {
-      key: "profiles",
-      label: "Profiles",
-      component: <div>Profile Settings</div>,
+      key: "organization",
+      label: "Organization",
+      component: <OrganizationAccessPanel />,
+    },
+    {
+      key: "profile",
+      label: "Profile",
+      component: <ProfileSettingsPanel />,
     },
     {
       key: "night",

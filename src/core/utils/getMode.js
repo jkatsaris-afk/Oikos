@@ -1,30 +1,37 @@
-export function getModeFromPath(pathname, hostname) {
-  const fullUrl = `${hostname}${pathname}`;
+import { getForcedModeForHostname, normalizeHostname } from "./modeRouting";
 
-  // =========================
-  // DOMAIN MODES
-  // =========================
-  if (hostname.includes("oikoschurch")) return "church";
-  if (hostname.includes("oikoscampus")) return "campus";
-  if (hostname.includes("oikossports")) return "sports";
+export function getModeFromPath(pathname = "/", hostname = "") {
+  const normalizedPath = String(pathname || "/").toLowerCase();
+  const normalizedHost = normalizeHostname(hostname);
+  const forcedMode = getForcedModeForHostname(normalizedHost);
 
-  // =========================
-  // 🔥 DISPLAY MODES (FULL URL MATCH)
-  // =========================
-  if (fullUrl.includes("oikosdisplay.app/business")) return "business";
-  if (fullUrl.includes("oikosdisplay.app/edu")) return "edu";
-  if (fullUrl.includes("oikosdisplay.app/pages")) return "pages";
-  if (fullUrl.includes("oikosdisplay.app/nightstand")) return "nightstand";
-  if (fullUrl.includes("oikosdisplay.app/home")) return "home";
+  if (forcedMode) {
+    return forcedMode;
+  }
 
-  // =========================
-  // FALLBACK (LOCAL / DEV)
-  // =========================
-  if (pathname.startsWith("/business")) return "business";
-  if (pathname.startsWith("/edu")) return "edu";
-  if (pathname.startsWith("/pages")) return "pages";
-  if (pathname.startsWith("/nightstand")) return "nightstand";
-  if (pathname.startsWith("/home")) return "home";
+  if (normalizedHost.includes("oikosdisplay.app")) {
+    if (normalizedPath.startsWith("/church")) return "church";
+    if (normalizedPath.startsWith("/admin")) return "admin";
+    if (normalizedPath.startsWith("/campus")) return "campus";
+    if (normalizedPath.startsWith("/sports")) return "sports";
+    if (normalizedPath.startsWith("/farm")) return "farm";
+    if (normalizedPath.startsWith("/business")) return "business";
+    if (normalizedPath.startsWith("/edu")) return "edu";
+    if (normalizedPath.startsWith("/pages")) return "pages";
+    if (normalizedPath.startsWith("/nightstand")) return "nightstand";
+    if (normalizedPath.startsWith("/home")) return "home";
+  }
+
+  if (normalizedPath.startsWith("/church")) return "church";
+  if (normalizedPath.startsWith("/admin")) return "admin";
+  if (normalizedPath.startsWith("/campus")) return "campus";
+  if (normalizedPath.startsWith("/sports")) return "sports";
+  if (normalizedPath.startsWith("/farm")) return "farm";
+  if (normalizedPath.startsWith("/business")) return "business";
+  if (normalizedPath.startsWith("/edu")) return "edu";
+  if (normalizedPath.startsWith("/pages")) return "pages";
+  if (normalizedPath.startsWith("/nightstand")) return "nightstand";
+  if (normalizedPath.startsWith("/home")) return "home";
 
   return "home";
 }

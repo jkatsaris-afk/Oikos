@@ -1,4 +1,43 @@
 import DisplaySettings from "./DisplaySettings";
+import OrganizationAccessPanel from "./OrganizationAccessPanel";
+import ProfileSettingsPanel from "./ProfileSettingsPanel";
+import SettingsLayout from "./SettingsLayout";
+import TileSettingsPanel from "./TileSettingsPanel";
+import WidgetSettingsPanel from "./WidgetSettingsPanel";
+
+function buildPlatformSettings(title) {
+  return (
+    <SettingsLayout
+      sections={[
+        {
+          key: "tiles",
+          label: "Tile Apps",
+          component: <TileSettingsPanel />,
+        },
+        {
+          key: "widgets",
+          label: "Widgets",
+          component: <WidgetSettingsPanel />,
+        },
+        {
+          key: "organization",
+          label: "Organization",
+          component: <OrganizationAccessPanel />,
+        },
+        {
+          key: "profile",
+          label: "Profile",
+          component: <ProfileSettingsPanel />,
+        },
+        {
+          key: "general",
+          label: "General",
+          component: <div>{title} settings coming next.</div>,
+        },
+      ]}
+    />
+  );
+}
 
 /* =========================
    MODE SETTINGS LOADER
@@ -13,19 +52,22 @@ export function getModeSettings(mode) {
       return <DisplaySettings />;
 
     case "church":
-      return <div>Church Settings</div>;
+      return buildPlatformSettings("Church");
+
+    case "admin":
+      return buildPlatformSettings("Admin");
 
     case "campus":
-      return <div>Campus Settings</div>;
+      return buildPlatformSettings("Campus");
 
     case "pages":
-      return <div>Pages Settings</div>;
+      return buildPlatformSettings("Pages");
 
     case "sports":
-      return <div>Sports Settings</div>;
+      return buildPlatformSettings("Sports");
 
     case "farm":
-      return <div>Farm Settings</div>;
+      return buildPlatformSettings("Farm");
 
     default:
       return <div>No settings available</div>;

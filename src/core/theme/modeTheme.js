@@ -31,6 +31,10 @@ export const modeTheme = {
     primary: "#8FAF7D"
   },
 
+  admin: {
+    primary: "#6D8196"
+  },
+
   campus: {
     primary: "#E86A1F"
   },
