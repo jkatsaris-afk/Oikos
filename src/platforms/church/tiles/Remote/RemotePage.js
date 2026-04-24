@@ -81,7 +81,7 @@ export default function RemotePage() {
       } catch (loadError) {
         console.error("Remote live sync error:", loadError);
       }
-    }, 1200);
+    }, 350);
 
     return () => window.clearInterval(interval);
   }, [user?.id, display?.state]);
@@ -200,14 +200,24 @@ export default function RemotePage() {
                 </div>
               </div>
             ) : currentSlide.itemType === "hymn" ? (
-              <div style={styles.previewContent}>
-                <div style={styles.previewTitle}>
-                  {currentSlide.songNumber
-                    ? `#${currentSlide.songNumber} ${currentSlide.title}`
-                    : currentSlide.title}
+              currentSlide.imageUrl ? (
+                <div style={styles.previewImageWrap}>
+                  <img
+                    src={currentSlide.imageUrl}
+                    alt={currentSlide.title || "Hymn slide"}
+                    style={styles.previewImage}
+                  />
                 </div>
-                <div style={styles.previewBody}>{currentSlide.body}</div>
-              </div>
+              ) : (
+                <div style={styles.previewContent}>
+                  <div style={styles.previewTitle}>
+                    {currentSlide.songNumber
+                      ? `#${currentSlide.songNumber} ${currentSlide.title}`
+                      : currentSlide.title}
+                  </div>
+                  <div style={styles.previewBody}>{currentSlide.body}</div>
+                </div>
+              )
             ) : (
               <div style={styles.previewContent}>
                 <div style={styles.previewTitle}>{currentSlide.title || "Live Slide"}</div>
@@ -410,6 +420,20 @@ const styles = {
     overflow: "hidden",
     padding: 14,
     textAlign: "center",
+  },
+  previewImageWrap: {
+    alignItems: "center",
+    display: "flex",
+    height: "100%",
+    justifyContent: "center",
+    width: "100%",
+  },
+  previewImage: {
+    display: "block",
+    maxHeight: "100%",
+    maxWidth: "100%",
+    objectFit: "contain",
+    width: "100%",
   },
   previewContent: {
     maxWidth: 320,

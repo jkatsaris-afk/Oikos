@@ -30,6 +30,74 @@ function normalizeSlides(rawSlides = [], hymn = {}) {
     id: slide.id || `${hymn.songNumber || hymn.song_number || "song"}-${index + 1}`,
     title: slide.title || hymn.title || "Untitled Hymn",
     body: slide.body || slide.text || "",
+    imageUrl: slide.imageUrl || slide.image_url || "",
+    imagePath: slide.imagePath || slide.image_path || "",
+    storageBucket: slide.storageBucket || slide.storage_bucket || "global-hymn-files",
+    isEndOfSong:
+      typeof slide.isEndOfSong === "boolean"
+        ? slide.isEndOfSong
+        : typeof slide.is_end_of_song === "boolean"
+          ? slide.is_end_of_song
+          : index === rawSlides.length - 1,
+  }));
+}
+
+async function hydrateHymnSlideUrls(hymns = []) {
+  const groupedPaths = new Map();
+
+  hymns.forEach((hymn) => {
+    (hymn.slides || []).forEach((slide) => {
+      if (!slide?.imagePath || slide?.imageUrl) {
+        return;
+      }
+
+      const bucket = slide.storageBucket || "global-hymn-files";
+      const existing = groupedPaths.get(bucket) || [];
+      existing.push(slide.imagePath);
+      groupedPaths.set(bucket, existing);
+    });
+  });
+
+  if (groupedPaths.size === 0) {
+    return hymns;
+  }
+
+  const signedUrlMap = new Map();
+
+  await Promise.all(
+    Array.from(groupedPaths.entries()).map(async ([bucket, paths]) => {
+      const uniquePaths = Array.from(new Set(paths));
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrls(uniquePaths, 60 * 60 * 24 * 30);
+
+      if (error) {
+        console.error(`Hymn slide URL signing error for ${bucket}:`, error);
+        return;
+      }
+
+      (data || []).forEach((entry, index) => {
+        if (entry?.signedUrl) {
+          signedUrlMap.set(`${bucket}:${uniquePaths[index]}`, entry.signedUrl);
+        }
+      });
+    })
+  );
+
+  return hymns.map((hymn) => ({
+    ...hymn,
+    slides: (hymn.slides || []).map((slide) => {
+      if (!slide?.imagePath || slide?.imageUrl) {
+        return slide;
+      }
+
+      const bucket = slide.storageBucket || "global-hymn-files";
+
+      return {
+        ...slide,
+        imageUrl: signedUrlMap.get(`${bucket}:${slide.imagePath}`) || "",
+      };
+    }),
   }));
 }
 
@@ -73,17 +141,13 @@ export async function loadChurchHymns(userId) {
 
   const canApprove = Boolean(adminAccessRow);
 
-  let query = supabase
+  const query = supabase
     .from(HYMNS_TABLE)
     .select("*")
     .eq("is_global", true)
     .eq("is_active", true)
     .order("song_number", { ascending: true })
     .order("title", { ascending: true });
-
-  if (!canApprove) {
-    query = query.eq("is_admin_approved", true);
-  }
 
   const { data, error } = await query;
 
@@ -95,9 +159,11 @@ export async function loadChurchHymns(userId) {
     throw error;
   }
 
+  const hymns = Array.isArray(data) ? data.map((row) => normalizeHymn(row)) : [];
+
   return {
     canApprove,
-    hymns: Array.isArray(data) ? data.map((row) => normalizeHymn(row)) : [],
+    hymns: await hydrateHymnSlideUrls(hymns),
   };
 }
 
@@ -145,10 +211,6 @@ function buildServiceItemFromHymn(hymn, serviceId, sortOrder) {
 }
 
 export async function addHymnToService(userId, hymn) {
-  if (!hymn?.isAdminApproved) {
-    throw new Error("This hymn still needs admin approval before it can be added to service.");
-  }
-
   const serviceId = getCurrentServiceId();
   const current = await loadServiceItems(userId);
   const nextSortOrder = (current.items || []).length + 1;
@@ -164,6 +226,27 @@ export async function addHymnToService(userId, hymn) {
     serviceId,
     serviceItem,
   };
+}
+
+export async function updateChurchHymnTitle(hymnId, title) {
+  const normalizedTitle = String(title || "").trim();
+
+  const { data, error } = await supabase
+    .from(HYMNS_TABLE)
+    .update({
+      title: normalizedTitle,
+      title_source: normalizedTitle ? "manual" : "unknown",
+    })
+    .eq("id", hymnId)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  const [hydrated] = await hydrateHymnSlideUrls([normalizeHymn(data)]);
+  return hydrated;
 }
 
 export async function setChurchHymnApproval(userId, hymn, isApproved) {

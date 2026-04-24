@@ -19,6 +19,55 @@ const ACTIVE_SCREEN_WINDOW_MS = 1000 * 60 * 2;
 const LEGACY_LOOP_TITLE = "Welcome to Service";
 const LEGACY_LOOP_BODY = "Announcements and event highlights are looping before the service begins.";
 const DEFAULT_LOOP_INTERVAL_SECONDS = 6;
+const QUICK_HYMN_SOURCE_PREFIX = "quick-hymn:";
+
+function buildTodaySongsLoopItem(serviceItems = [], existingItem = null) {
+  const hymnItems = serviceItems.filter((item) => item?.itemType === "hymn");
+
+  if (hymnItems.length === 0) {
+    return null;
+  }
+
+  return {
+    id: "todays-songs-slide",
+    type: "todays-songs",
+    title: "Today's Songs",
+    subtitle: "",
+    body: hymnItems
+      .map((item, index) => {
+        const songNumber = item?.payload?.songNumber || "";
+        const title = item?.title || item?.payload?.hymnTitle || "Untitled Hymn";
+        return `${index + 1}. ${songNumber ? `#${songNumber} ` : ""}${title}`.trim();
+      })
+      .join("\n\n"),
+    tone: "songs",
+    isVisible: existingItem?.isVisible !== false,
+    entries: hymnItems.map((item) => ({
+      id: item.id || item.source_id || crypto.randomUUID(),
+      title: item?.title || item?.payload?.hymnTitle || "Untitled Hymn",
+      subtitle: item?.payload?.songNumber ? `Song #${item.payload.songNumber}` : "",
+      body: "",
+    })),
+  };
+}
+
+function mergeTodaySongsLoopItem(loopItems = [], serviceItems = []) {
+  const nextLoopItems = Array.isArray(loopItems) ? [...loopItems] : [];
+  const existingIndex = nextLoopItems.findIndex((item) => item?.id === "todays-songs-slide");
+  const existingItem = existingIndex >= 0 ? nextLoopItems[existingIndex] : null;
+  const nextItem = buildTodaySongsLoopItem(serviceItems, existingItem);
+
+  if (!nextItem) {
+    return nextLoopItems.filter((item) => item?.id !== "todays-songs-slide");
+  }
+
+  if (existingIndex >= 0) {
+    nextLoopItems.splice(existingIndex, 1, nextItem);
+    return nextLoopItems;
+  }
+
+  return [...nextLoopItems, nextItem];
+}
 
 function mergeLoopVisibility(savedItems = [], nextItems = []) {
   const visibilityMap = new Map(
@@ -78,7 +127,16 @@ function getSourceId(item = {}) {
   return item.id || item.source_id || "";
 }
 
+function isQuickHymnSource(selectedServiceItemId = "") {
+  return typeof selectedServiceItemId === "string" &&
+    selectedServiceItemId.startsWith(QUICK_HYMN_SOURCE_PREFIX);
+}
+
 function buildLiveSlides(serviceItems = [], selectedServiceItemId = "") {
+  if (isQuickHymnSource(selectedServiceItemId)) {
+    return [];
+  }
+
   if (!selectedServiceItemId || selectedServiceItemId === "all-service-items") {
     return buildSlidesFromServiceItems(serviceItems);
   }
@@ -102,7 +160,16 @@ function normalizeLiveSlides(savedSlides = [], serviceItems = [], selectedServic
       verseNumber: slide.verseNumber || "",
       text: slide.text || "",
       body: slide.body || "",
+      imageUrl: slide.imageUrl || slide.image_url || "",
+      imagePath: slide.imagePath || slide.image_path || "",
+      storageBucket: slide.storageBucket || slide.storage_bucket || "global-hymn-files",
       parentId: slide.parentId || "",
+      isEndOfSong:
+        typeof slide.isEndOfSong === "boolean"
+          ? slide.isEndOfSong
+          : typeof slide.is_end_of_song === "boolean"
+            ? slide.is_end_of_song
+            : false,
     }));
   }
 
@@ -255,7 +322,10 @@ function normalizeDisplay(row = {}, serviceItems = [], branding = {}) {
     loopIntervalSeconds,
     organizationName,
     organizationLogoUrl,
-    loopItems: normalizeLoopItems(row.pre_service_items, serviceId, serviceItems, branding),
+    loopItems: mergeTodaySongsLoopItem(
+      normalizeLoopItems(row.pre_service_items, serviceId, serviceItems, branding),
+      serviceItems
+    ),
     serviceItems,
     slides,
   };
@@ -266,8 +336,12 @@ async function buildLoopItemsForUser(userId, branding, existingItems = []) {
     churchName: branding?.name || "Fallon Church of Christ",
     churchLogoUrl: branding?.logo_url || "",
   });
+  const serviceData = await loadServiceItems(userId);
 
-  return mergeLoopVisibility(existingItems, nextItems);
+  return mergeTodaySongsLoopItem(
+    mergeLoopVisibility(existingItems, nextItems),
+    serviceData.items || []
+  );
 }
 
 function normalizeScreen(row = {}) {
@@ -450,12 +524,15 @@ export async function loadChurchLiveDisplay(userId) {
     throw screensError;
   }
 
+  const selectedServiceItemId = row.selected_service_item_id || "all-service-items";
   const hydratedRow = {
     ...row,
-    live_slides: buildLiveSlides(
-      serviceData.items,
-      row.selected_service_item_id || "all-service-items"
-    ),
+    live_slides: isQuickHymnSource(selectedServiceItemId)
+      ? row.live_slides || []
+      : buildLiveSlides(
+          serviceData.items,
+          selectedServiceItemId
+        ),
     organization_name: branding?.name || row.organization_name || "",
     organization_logo_url: branding?.logo_url || row.organization_logo_url || "",
     loop_interval_seconds: row.loop_interval_seconds || DEFAULT_LOOP_INTERVAL_SECONDS,
@@ -483,7 +560,12 @@ export async function updateChurchLiveDisplay(userId, displayId, updates = {}) {
     typeof updates.selectedServiceItemId === "string"
       ? updates.selectedServiceItemId
       : current.display.selectedServiceItemId;
-  const liveSlides = buildLiveSlides(serviceData.items, selectedServiceItemId);
+  const liveSlides =
+    Array.isArray(updates.liveSlides)
+      ? updates.liveSlides
+      : isQuickHymnSource(selectedServiceItemId)
+        ? current.display.slides || []
+        : buildLiveSlides(serviceData.items, selectedServiceItemId);
   const loopItems =
     updates.loopItems ||
     (await buildLoopItemsForUser(userId, branding || {}, current.display.loopItems || []));
@@ -560,6 +642,37 @@ export async function returnChurchDisplayToLoop(userId, display) {
 export async function selectChurchLiveSource(userId, display, selectedServiceItemId) {
   return updateChurchLiveDisplay(userId, display.id, {
     selectedServiceItemId,
+    currentSlideIndex: 0,
+  });
+}
+
+export async function quickLiveChurchHymn(userId, hymn) {
+  const current = await loadChurchLiveDisplay(userId);
+
+  const slides = (Array.isArray(hymn?.slides) ? hymn.slides : []).map((slide, index) => ({
+    id: slide.id || `${hymn?.id || "hymn"}-quick-${index + 1}`,
+    itemType: "hymn",
+    title: slide.title || hymn?.title || "Untitled Hymn",
+    body: slide.body || slide.text || "",
+    imageUrl: slide.imageUrl || slide.image_url || "",
+    imagePath: slide.imagePath || slide.image_path || "",
+    storageBucket: slide.storageBucket || slide.storage_bucket || "global-hymn-files",
+    songNumber: hymn?.songNumber || hymn?.song_number || "",
+    parentId: hymn?.id || "",
+    isEndOfSong:
+      typeof slide.isEndOfSong === "boolean"
+        ? slide.isEndOfSong
+        : typeof slide.is_end_of_song === "boolean"
+          ? slide.is_end_of_song
+          : index === (Array.isArray(hymn?.slides) ? hymn.slides.length : 0) - 1,
+  }));
+
+  return updateChurchLiveDisplay(userId, current.display.id, {
+    selectedServiceItemId: `${QUICK_HYMN_SOURCE_PREFIX}${hymn?.id || "unknown"}`,
+    liveSlides: slides,
+    state: "live",
+    isReady: true,
+    isLive: true,
     currentSlideIndex: 0,
   });
 }

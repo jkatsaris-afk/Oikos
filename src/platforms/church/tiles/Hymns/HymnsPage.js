@@ -6,16 +6,19 @@ import {
   addHymnToService,
   loadChurchHymns,
   searchChurchHymns,
-  setChurchHymnApproval,
+  updateChurchHymnTitle,
 } from "../../services/hymnService";
+import { quickLiveChurchHymn } from "../../services/liveDisplayService";
 
 export default function HymnsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
   const [query, setQuery] = useState("");
   const [hymns, setHymns] = useState([]);
-  const [canApprove, setCanApprove] = useState(false);
+  const [selectedHymnId, setSelectedHymnId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -26,7 +29,6 @@ export default function HymnsPage() {
     try {
       const result = await loadChurchHymns(user?.id);
       setHymns(result.hymns || []);
-      setCanApprove(result.canApprove === true);
     } catch (loadError) {
       console.error("Hymns load error:", loadError);
       setError(loadError?.message || "Could not load hymns.");
@@ -43,6 +45,51 @@ export default function HymnsPage() {
     () => searchChurchHymns(hymns, query),
     [hymns, query]
   );
+
+  const shouldShowResults = query.trim().length > 0;
+
+  const groupedHymns = useMemo(() => {
+    const groups = new Map();
+
+    filteredHymns.forEach((hymn) => {
+      const songNumber = String(hymn.songNumber || "").trim();
+      const numericSong = Number(songNumber);
+      let label = "Unnumbered";
+
+      if (songNumber && Number.isFinite(numericSong) && numericSong > 0) {
+        const start = Math.floor((numericSong - 1) / 25) * 25 + 1;
+        const end = start + 24;
+        label = `${start}-${end}`;
+      }
+
+      if (!groups.has(label)) {
+        groups.set(label, []);
+      }
+
+      groups.get(label).push(hymn);
+    });
+
+    return Array.from(groups.entries());
+  }, [filteredHymns]);
+
+  const selectedHymn = useMemo(
+    () =>
+      filteredHymns.find((hymn) => hymn.id === selectedHymnId) ||
+      filteredHymns[0] ||
+      null,
+    [filteredHymns, selectedHymnId]
+  );
+
+  useEffect(() => {
+    if (!shouldShowResults) {
+      setSelectedHymnId("");
+      return;
+    }
+
+    if (!selectedHymn && filteredHymns[0]?.id) {
+      setSelectedHymnId(filteredHymns[0].id);
+    }
+  }, [shouldShowResults, selectedHymn, filteredHymns]);
 
   async function handleAddToService(hymn) {
     setBusyId(hymn.id);
@@ -62,24 +109,47 @@ export default function HymnsPage() {
     }
   }
 
-  async function handleApprovalChange(hymn, nextApproved) {
-    setBusyId(`approve-${hymn.id}`);
+  async function handleQuickLive(hymn) {
+    setBusyId(`live-${hymn.id}`);
     setMessage("");
     setError("");
 
     try {
-      const updated = await setChurchHymnApproval(user?.id, hymn, nextApproved);
+      await quickLiveChurchHymn(user?.id, hymn);
+      setMessage(`${hymn.title || `Song ${hymn.songNumber}`} is now live for singing service.`);
+    } catch (actionError) {
+      console.error("Quick live hymn error:", actionError);
+      setError(actionError?.message || "Could not send the hymn live.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  function startEditingTitle(hymn) {
+    setEditingId(hymn.id);
+    setDraftTitle(hymn.title || "");
+    setSelectedHymnId(hymn.id);
+    setMessage("");
+    setError("");
+  }
+
+  async function handleSaveTitle(hymn) {
+    setBusyId(`title-${hymn.id}`);
+    setMessage("");
+    setError("");
+
+    try {
+      const updated = await updateChurchHymnTitle(hymn.id, draftTitle);
       setHymns((current) =>
         current.map((entry) => (entry.id === updated.id ? updated : entry))
       );
-      setMessage(
-        nextApproved
-          ? `${updated.title || `Song ${updated.songNumber}`} approved for Service.`
-          : `${updated.title || `Song ${updated.songNumber}`} returned to review.`
-      );
+      setSelectedHymnId(updated.id);
+      setEditingId("");
+      setDraftTitle("");
+      setMessage(`Saved title for #${updated.songNumber || "?"}.`);
     } catch (actionError) {
-      console.error("Hymn approval error:", actionError);
-      setError(actionError?.message || "Could not update hymn approval.");
+      console.error("Hymn title save error:", actionError);
+      setError(actionError?.message || "Could not save the hymn title.");
     } finally {
       setBusyId("");
     }
@@ -100,7 +170,7 @@ export default function HymnsPage() {
         <div>
           <div style={styles.title}>Hymn Library</div>
           <div style={styles.meta}>
-            Search the global hymn library by song number or title, then add approved hymns into the Service queue.
+            Search by hymn number or title, then add the song straight into the Service queue.
           </div>
         </div>
         <button type="button" style={styles.refreshButton} onClick={refreshHymns}>
@@ -117,92 +187,167 @@ export default function HymnsPage() {
           style={styles.searchInput}
         />
         <div style={styles.searchMeta}>
-          {filteredHymns.length} hymn{filteredHymns.length === 1 ? "" : "s"} shown
+          {shouldShowResults
+            ? `${filteredHymns.length} hymn${filteredHymns.length === 1 ? "" : "s"} found`
+            : "Type a hymn number or title to search"}
         </div>
       </div>
 
       {message ? <div style={styles.message}>{message}</div> : null}
       {error ? <div style={styles.error}>{error}</div> : null}
 
-      {filteredHymns.length === 0 ? (
+      {!shouldShowResults ? (
+        <div style={styles.emptyCard}>
+          <div style={styles.emptyTitle}>Filter The Hymn Library</div>
+          <div style={styles.emptyText}>
+            Nothing is shown until a filter is applied. Search by hymn number or title, then choose a result to preview it.
+          </div>
+        </div>
+      ) : filteredHymns.length === 0 ? (
         <div style={styles.emptyCard}>
           <div style={styles.emptyTitle}>No hymns found</div>
           <div style={styles.emptyText}>
-            Import your hymn CSV into Supabase, then refresh this page.
+            Try a different number, a shorter title, or refresh after the next upload finishes.
           </div>
         </div>
       ) : (
-        <div style={styles.grid}>
-          {filteredHymns.map((hymn) => (
-            <div key={hymn.id} style={styles.card}>
+        <div style={styles.resultsLayout}>
+          <div style={styles.groupList}>
+            {groupedHymns.map(([groupLabel, groupItems]) => (
+              <div key={groupLabel} style={styles.groupSection}>
+                <div style={styles.groupHeader}>
+                  <div style={styles.groupTitle}>{groupLabel}</div>
+                  <div style={styles.groupMeta}>
+                    {groupItems.length} hymn{groupItems.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+
+                <div style={styles.grid}>
+                  {groupItems.map((hymn) => (
+                    <button
+                      key={hymn.id}
+                      type="button"
+                      style={{
+                        ...styles.card,
+                        ...(selectedHymn?.id === hymn.id ? styles.cardActive : {}),
+                      }}
+                      onClick={() => setSelectedHymnId(hymn.id)}
+                    >
+                      <div style={styles.cardHeader}>
+                        <div>
+                          <div style={styles.songNumber}>#{hymn.songNumber || "?"}</div>
+                          <div style={styles.songTitle}>{hymn.title || "Untitled hymn"}</div>
+                        </div>
+                        <div style={styles.badges}>
+                          <span style={styles.badge}>
+                            {hymn.slideCount > 0 ? `${hymn.slideCount} slides` : "No slides"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={styles.fileMeta}>
+                        {hymn.sourceFileName || "No source file"}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {selectedHymn ? (
+            <div style={styles.detailCard}>
               <div style={styles.cardHeader}>
                 <div>
-                  <div style={styles.songNumber}>#{hymn.songNumber || "?"}</div>
-                  <div style={styles.songTitle}>{hymn.title || "Needs review"}</div>
+                  <div style={styles.songNumber}>#{selectedHymn.songNumber || "?"}</div>
+                  <div style={styles.songTitle}>{selectedHymn.title || "Untitled hymn"}</div>
                 </div>
                 <div style={styles.badges}>
                   <span style={styles.badge}>
-                    {hymn.slideCount > 0 ? `${hymn.slideCount} slides` : "Metadata only"}
+                    {selectedHymn.slideCount > 0
+                      ? `${selectedHymn.slideCount} slides`
+                      : "No slides"}
                   </span>
-                  {hymn.needsReview ? (
-                    <span style={styles.reviewBadge}>Review</span>
-                  ) : null}
                 </div>
               </div>
 
               <div style={styles.fileMeta}>
-                {hymn.sourceFileName || "No source file"} • {hymn.titleSource}
+                {selectedHymn.sourceFileName || "No source file"}
               </div>
 
-              <div style={styles.statusRow}>
-                <span
-                  style={{
-                    ...styles.statusBadge,
-                    ...(hymn.isAdminApproved ? styles.approvedBadge : styles.pendingBadge),
-                  }}
-                >
-                  {hymn.isAdminApproved ? "Approved for Service" : "Needs Admin Approval"}
-                </span>
-                {hymn.licenseVerified ? (
-                  <span style={styles.statusBadge}>License Verified</span>
-                ) : null}
-              </div>
+              {editingId === selectedHymn.id ? (
+                <div style={styles.editRow}>
+                  <input
+                    type="text"
+                    value={draftTitle}
+                    onChange={(event) => setDraftTitle(event.target.value)}
+                    placeholder="Enter hymn title"
+                    style={styles.editInput}
+                  />
+                  <button
+                    type="button"
+                    style={styles.smallActionButton}
+                    onClick={() => handleSaveTitle(selectedHymn)}
+                    disabled={busyId === `title-${selectedHymn.id}`}
+                  >
+                    {busyId === `title-${selectedHymn.id}` ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    style={styles.smallGhostButton}
+                    onClick={() => {
+                      setEditingId("");
+                      setDraftTitle("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div style={styles.inlineTools}>
+                  <button
+                    type="button"
+                    style={styles.smallGhostButton}
+                    onClick={() => startEditingTitle(selectedHymn)}
+                  >
+                    Edit Name
+                  </button>
+                </div>
+              )}
 
               <div style={styles.previewBody}>
-                {hymn.slides?.[0]?.body ||
-                  "This hymn record can already be found by number or title. Add it to Service now, then enrich the slide content as your import library is reviewed."}
+                {selectedHymn.slides?.[0]?.imageUrl ? (
+                  <img
+                    src={selectedHymn.slides[0].imageUrl}
+                    alt={`${selectedHymn.title || selectedHymn.songNumber || "Hymn"} preview`}
+                    style={styles.previewImage}
+                  />
+                ) : (
+                  selectedHymn.slides?.[0]?.body ||
+                  "This hymn record is ready to send into Service. Search, open it, and the preview will follow the real slide images when they exist."
+                )}
               </div>
 
               <div style={styles.actionRow}>
-                {canApprove ? (
-                  <button
-                    type="button"
-                    style={{
-                      ...styles.secondaryButton,
-                      ...(hymn.isAdminApproved ? styles.reviewButton : styles.approveButton),
-                    }}
-                    onClick={() => handleApprovalChange(hymn, !hymn.isAdminApproved)}
-                    disabled={busyId === `approve-${hymn.id}`}
-                  >
-                    {busyId === `approve-${hymn.id}`
-                      ? "Saving..."
-                      : hymn.isAdminApproved
-                        ? "Return to Review"
-                        : "Approve Hymn"}
-                  </button>
-                ) : null}
-
+                <button
+                  type="button"
+                  style={styles.quickLiveButton}
+                  onClick={() => handleQuickLive(selectedHymn)}
+                  disabled={busyId === `live-${selectedHymn.id}`}
+                >
+                  {busyId === `live-${selectedHymn.id}` ? "Going Live..." : "Quick Live"}
+                </button>
                 <button
                   type="button"
                   style={styles.addButton}
-                  onClick={() => handleAddToService(hymn)}
-                  disabled={busyId === hymn.id || !hymn.isAdminApproved}
+                  onClick={() => handleAddToService(selectedHymn)}
+                  disabled={busyId === selectedHymn.id}
                 >
-                  {busyId === hymn.id ? "Adding..." : "Add to Service"}
+                  {busyId === selectedHymn.id ? "Adding..." : "Add to Service"}
                 </button>
               </div>
             </div>
-          ))}
+          ) : null}
         </div>
       )}
     </div>
@@ -306,13 +451,62 @@ const styles = {
     gap: 14,
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
   },
+  resultsLayout: {
+    alignItems: "start",
+    display: "grid",
+    gap: 16,
+    gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 420px)",
+  },
+  groupList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
+  },
+  groupSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  },
+  groupHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  groupTitle: {
+    color: "#0f172a",
+    fontSize: 18,
+    fontWeight: 800,
+  },
+  groupMeta: {
+    color: "#64748b",
+    fontSize: 13,
+    fontWeight: 700,
+  },
   card: {
+    background: "#ffffff",
+    border: "1px solid #dbe4ea",
+    borderRadius: 20,
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    padding: 16,
+    textAlign: "left",
+  },
+  cardActive: {
+    border: "1px solid #7ea087",
+    boxShadow: "0 0 0 1px rgba(126, 160, 135, 0.2)",
+  },
+  detailCard: {
     background: "#ffffff",
     border: "1px solid #dbe4ea",
     borderRadius: 20,
     display: "flex",
     flexDirection: "column",
     gap: 12,
+    position: "sticky",
+    top: 14,
     padding: 16,
   },
   cardHeader: {
@@ -348,51 +542,72 @@ const styles = {
     fontWeight: 800,
     padding: "6px 10px",
   },
-  reviewBadge: {
-    background: "#fff4dd",
-    borderRadius: 999,
-    color: "#946200",
-    fontSize: 11,
-    fontWeight: 800,
-    padding: "6px 10px",
-  },
   fileMeta: {
     color: "#64748b",
     fontSize: 12,
     lineHeight: 1.5,
   },
-  previewBody: {
-    color: "#334155",
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 1.6,
-    minHeight: 88,
-    whiteSpace: "pre-wrap",
+  inlineTools: {
+    display: "flex",
+    gap: 8,
   },
-  statusRow: {
+  editRow: {
+    alignItems: "center",
     display: "flex",
     flexWrap: "wrap",
     gap: 8,
   },
-  statusBadge: {
-    background: "#eef3f7",
-    borderRadius: 999,
-    color: "#4b5f72",
-    fontSize: 11,
-    fontWeight: 800,
-    padding: "6px 10px",
+  editInput: {
+    border: "1px solid #d6dee6",
+    borderRadius: 10,
+    color: "#0f172a",
+    flex: 1,
+    fontSize: 13,
+    minWidth: 180,
+    outline: "none",
+    padding: "10px 12px",
   },
-  approvedBadge: {
-    background: "#ecf7ed",
-    color: "#2f6a38",
+  previewBody: {
+    alignItems: "center",
+    color: "#334155",
+    display: "flex",
+    flex: 1,
+    fontSize: 14,
+    justifyContent: "center",
+    lineHeight: 1.6,
+    minHeight: 88,
+    whiteSpace: "pre-wrap",
   },
-  pendingBadge: {
-    background: "#fff4dd",
-    color: "#946200",
+  previewImage: {
+    borderRadius: 12,
+    display: "block",
+    maxHeight: 180,
+    maxWidth: "100%",
+    objectFit: "contain",
   },
   actionRow: {
     display: "flex",
     gap: 10,
+  },
+  smallActionButton: {
+    background: "#4f7c74",
+    border: "none",
+    borderRadius: 10,
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 800,
+    padding: "10px 12px",
+  },
+  smallGhostButton: {
+    background: "#ffffff",
+    border: "1px solid #d6dee6",
+    borderRadius: 10,
+    color: "#334155",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 700,
+    padding: "10px 12px",
   },
   addButton: {
     alignItems: "center",
@@ -408,24 +623,18 @@ const styles = {
     minWidth: 120,
     padding: "12px 14px",
   },
-  secondaryButton: {
+  quickLiveButton: {
     alignItems: "center",
-    border: "1px solid #d6dee6",
+    background: "#b42318",
+    border: "none",
     borderRadius: 12,
+    color: "#ffffff",
     cursor: "pointer",
     display: "inline-flex",
     fontSize: 14,
     fontWeight: 800,
     justifyContent: "center",
-    minWidth: 140,
+    minWidth: 120,
     padding: "12px 14px",
-  },
-  approveButton: {
-    background: "#edf7ec",
-    color: "#315a2f",
-  },
-  reviewButton: {
-    background: "#fff4dd",
-    color: "#946200",
   },
 };

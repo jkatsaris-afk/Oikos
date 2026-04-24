@@ -83,6 +83,53 @@ export async function loadServiceItems(userId) {
   };
 }
 
+function saveFallbackItems(userId, serviceId, items = []) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    getServiceStorageKey(userId, serviceId),
+    JSON.stringify(items)
+  );
+}
+
+export async function updateServiceItem(userId, itemId, updates = {}) {
+  const { data, error } = await supabase
+    .from(SERVICE_ITEMS_TABLE)
+    .update(updates)
+    .eq("id", itemId)
+    .select("*")
+    .single();
+
+  if (error) {
+    if (!isMissingRelationError(error)) {
+      throw error;
+    }
+
+    const serviceId = getCurrentServiceId();
+    const items = buildFallbackItems(userId, serviceId).map((item) =>
+      item.id === itemId ? normalizeServiceItem({ ...item, ...updates }) : item
+    );
+    saveFallbackItems(userId, serviceId, items);
+
+    return items.find((item) => item.id === itemId) || null;
+  }
+
+  return normalizeServiceItem(data);
+}
+
+export async function updateServiceItemSlides(userId, item, slides = []) {
+  const nextPayload = {
+    ...(item?.payload || {}),
+    slides,
+  };
+
+  return updateServiceItem(userId, item.id, {
+    payload: nextPayload,
+  });
+}
+
 export function getItemLabel(item) {
   if (item.itemType === "hymn") {
     const songNumber = item.payload?.songNumber || "";
@@ -128,7 +175,16 @@ export function buildSlidesFromServiceItems(items) {
         itemType: "hymn",
         title: slide.title || item.title || item.payload?.hymnTitle || "Hymn",
         body: slide.body || slide.text || "",
+        imageUrl: slide.imageUrl || slide.image_url || "",
+        imagePath: slide.imagePath || slide.image_path || "",
+        storageBucket: slide.storageBucket || slide.storage_bucket || "global-hymn-files",
         songNumber: item.payload?.songNumber || "",
+        isEndOfSong:
+          typeof slide.isEndOfSong === "boolean"
+            ? slide.isEndOfSong
+            : typeof slide.is_end_of_song === "boolean"
+              ? slide.is_end_of_song
+              : index === (item.slides || []).length - 1,
       }));
     }
 

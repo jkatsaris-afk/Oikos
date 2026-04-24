@@ -109,7 +109,7 @@ export default function ChurchLiveDisplayViewerPage() {
 
     const interval = window.setInterval(
       loadDisplay,
-      displayData?.display?.state === "live" ? 1200 : 15000
+      displayData?.display?.state === "live" ? 350 : 15000
     );
 
     return () => {
@@ -212,12 +212,28 @@ export default function ChurchLiveDisplayViewerPage() {
                   </div>
                 </div>
               ) : item?.itemType === "hymn" ? (
-                <div style={styles.verseSlide}>
-                  <div style={styles.title}>
-                    {item.songNumber ? `#${item.songNumber} ${item.title}` : item.title}
+                item?.imageUrl ? (
+                  <div style={styles.imageSlide}>
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title || "Hymn slide"}
+                      style={styles.imageSlideAsset}
+                    />
+                    {item?.isEndOfSong ? (
+                      <div style={styles.endOfSongBadge}>End Of Song</div>
+                    ) : null}
                   </div>
-                  <div style={styles.body}>{item.body}</div>
-                </div>
+                ) : (
+                  <div style={styles.verseSlide}>
+                    <div style={styles.title}>
+                      {item.songNumber ? `#${item.songNumber} ${item.title}` : item.title}
+                    </div>
+                    <div style={styles.body}>{item.body}</div>
+                    {item?.isEndOfSong ? (
+                      <div style={styles.endOfSongText}>End Of Song</div>
+                    ) : null}
+                  </div>
+                )
               ) : (
                 <div style={styles.loopSlide}>
                   <div style={styles.title}>{item?.title || "Live Service"}</div>
@@ -333,6 +349,43 @@ const styles = {
     maxHeight: "100%",
     maxWidth: "min(1080px, 92vw)",
     textAlign: "center",
+  },
+  imageSlide: {
+    alignItems: "center",
+    display: "flex",
+    flex: 1,
+    justifyContent: "center",
+    position: "relative",
+    width: "100%",
+  },
+  imageSlideAsset: {
+    display: "block",
+    maxHeight: "100%",
+    maxWidth: "100%",
+    objectFit: "contain",
+    width: "100%",
+  },
+  endOfSongBadge: {
+    background: "rgba(15, 23, 42, 0.82)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    borderRadius: 999,
+    bottom: 28,
+    color: "#f8fafc",
+    fontSize: 13,
+    fontWeight: 900,
+    left: 28,
+    letterSpacing: "0.08em",
+    padding: "10px 14px",
+    position: "absolute",
+    textTransform: "uppercase",
+  },
+  endOfSongText: {
+    color: "#64748b",
+    fontSize: "clamp(12px, 1vw, 16px)",
+    fontWeight: 900,
+    letterSpacing: "0.08em",
+    marginTop: 24,
+    textTransform: "uppercase",
   },
   kicker: {
     color: "#64748b",

@@ -8,6 +8,7 @@ import {
   getItemLabel,
   getItemMeta,
   loadServiceItems,
+  updateServiceItemSlides,
 } from "../../services/serviceService";
 
 export default function ServicePage() {
@@ -18,6 +19,7 @@ export default function ServicePage() {
   const [items, setItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState("");
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
+  const [busyAction, setBusyAction] = useState("");
 
   const refreshServiceItems = async (isRefresh = false) => {
     if (isRefresh) {
@@ -61,6 +63,35 @@ export default function ServicePage() {
   useEffect(() => {
     setSelectedSlideIndex(0);
   }, [selectedItemId]);
+
+  async function handleSlideAction(actionKey, updater) {
+    if (!selectedItem?.id) {
+      return;
+    }
+
+    const nextSlides = updater(selectedItem.slides || []);
+
+    if (!Array.isArray(nextSlides)) {
+      return;
+    }
+
+    setBusyAction(actionKey);
+
+    try {
+      const updated = await updateServiceItemSlides(user?.id, selectedItem, nextSlides);
+
+      setItems((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item))
+      );
+      setSelectedSlideIndex((current) =>
+        Math.min(current, Math.max(nextSlides.length - 1, 0))
+      );
+    } catch (error) {
+      console.error("Service slide update error:", error);
+    } finally {
+      setBusyAction("");
+    }
+  }
 
   if (loading) {
     return (
@@ -121,6 +152,104 @@ export default function ServicePage() {
                 </button>
               );
             })}
+
+            {selectedItem && slides.length > 0 ? (
+              <div style={styles.slideGroupCard}>
+                <div style={styles.slideListTitle}>Selected Slideshow</div>
+                <div style={styles.slideList}>
+                  {slides.map((slide, index) => {
+                    const isCurrent = index === selectedSlideIndex;
+                    const slideLabel =
+                      slide.title ||
+                      slide.reference ||
+                      slide.songNumber ||
+                      `Slide ${index + 1}`;
+
+                    return (
+                      <div
+                        key={slide.id}
+                        style={{
+                          ...styles.slideRow,
+                          ...(isCurrent ? styles.slideRowActive : {}),
+                        }}
+                      >
+                        <button
+                          type="button"
+                          style={styles.slideSelectButton}
+                          onClick={() => setSelectedSlideIndex(index)}
+                        >
+                          <div style={styles.slideRowNumber}>{index + 1}</div>
+                          <div style={styles.slideRowBody}>
+                            <div style={styles.slideRowTitle}>{slideLabel}</div>
+                            <div style={styles.slideRowMeta}>
+                              {slide.imageUrl ? "Image slide" : "Text slide"}
+                            </div>
+                          </div>
+                        </button>
+
+                        <div style={styles.slideRowActions}>
+                          <button
+                            type="button"
+                            style={styles.smallButton}
+                            onClick={() =>
+                              handleSlideAction(`up-${index}`, (currentSlides) => {
+                                if (index === 0) {
+                                  return currentSlides;
+                                }
+
+                                const next = [...currentSlides];
+                                const [moved] = next.splice(index, 1);
+                                next.splice(index - 1, 0, moved);
+                                setSelectedSlideIndex(index - 1);
+                                return next;
+                              })
+                            }
+                            disabled={busyAction === `up-${index}` || index === 0}
+                          >
+                            Up
+                          </button>
+                          <button
+                            type="button"
+                            style={styles.smallButton}
+                            onClick={() =>
+                              handleSlideAction(`down-${index}`, (currentSlides) => {
+                                if (index >= currentSlides.length - 1) {
+                                  return currentSlides;
+                                }
+
+                                const next = [...currentSlides];
+                                const [moved] = next.splice(index, 1);
+                                next.splice(index + 1, 0, moved);
+                                setSelectedSlideIndex(index + 1);
+                                return next;
+                              })
+                            }
+                            disabled={
+                              busyAction === `down-${index}` ||
+                              index >= slides.length - 1
+                            }
+                          >
+                            Down
+                          </button>
+                          <button
+                            type="button"
+                            style={styles.removeSlideButton}
+                            onClick={() =>
+                              handleSlideAction(`remove-${index}`, (currentSlides) =>
+                                currentSlides.filter((_, slideIndex) => slideIndex !== index)
+                              )
+                            }
+                            disabled={busyAction === `remove-${index}`}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div style={styles.previewPanel}>
@@ -160,45 +289,58 @@ export default function ServicePage() {
             </div>
 
             {selectedSlide ? (
-              <div style={styles.screenPreview}>
-                {selectedSlide.itemType === "title_slide" ? (
-                  <div style={styles.titleSlide}>
-                    <div style={styles.titleHeadline}>{selectedSlide.title}</div>
-                    <div style={styles.titleSubline}>{selectedSlide.subtitle}</div>
-                    <div style={styles.titleDate}>{selectedSlide.date}</div>
-                  </div>
-                ) : null}
-
-                {selectedSlide.itemType === "verse" ? (
-                  <div style={styles.verseSlide}>
-                    <div style={styles.verseReference}>{selectedSlide.title}</div>
-                    <div style={styles.verseText}>
-                      {selectedSlide.verseNumber ? (
-                        <span style={styles.verseNumber}>{selectedSlide.verseNumber}</span>
-                      ) : null}
-                      <span>{selectedSlide.text}</span>
+              <>
+                <div style={styles.screenPreview}>
+                  {selectedSlide.itemType === "title_slide" ? (
+                    <div style={styles.titleSlide}>
+                      <div style={styles.titleHeadline}>{selectedSlide.title}</div>
+                      <div style={styles.titleSubline}>{selectedSlide.subtitle}</div>
+                      <div style={styles.titleDate}>{selectedSlide.date}</div>
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
 
-                {selectedSlide.itemType === "hymn" ? (
-                  <div style={styles.customSlide}>
-                    <div style={styles.customTitle}>
-                      {selectedSlide.songNumber
-                        ? `#${selectedSlide.songNumber} ${selectedSlide.title}`
-                        : selectedSlide.title}
+                  {selectedSlide.itemType === "verse" ? (
+                    <div style={styles.verseSlide}>
+                      <div style={styles.verseReference}>{selectedSlide.title}</div>
+                      <div style={styles.verseText}>
+                        {selectedSlide.verseNumber ? (
+                          <span style={styles.verseNumber}>{selectedSlide.verseNumber}</span>
+                        ) : null}
+                        <span>{selectedSlide.text}</span>
+                      </div>
                     </div>
-                    <div style={styles.customBody}>{selectedSlide.body}</div>
-                  </div>
-                ) : null}
+                  ) : null}
 
-                {selectedSlide.itemType === "custom_slide" ? (
-                  <div style={styles.customSlide}>
-                    <div style={styles.customTitle}>{selectedSlide.title}</div>
-                    <div style={styles.customBody}>{selectedSlide.body}</div>
-                  </div>
-                ) : null}
-              </div>
+                  {selectedSlide.itemType === "hymn" ? (
+                    <div style={styles.customSlide}>
+                      {selectedSlide.imageUrl ? (
+                        <img
+                          src={selectedSlide.imageUrl}
+                          alt={selectedSlide.title || "Hymn slide"}
+                          style={styles.mediaSlide}
+                        />
+                      ) : (
+                        <>
+                          <div style={styles.customTitle}>
+                            {selectedSlide.songNumber
+                              ? `#${selectedSlide.songNumber} ${selectedSlide.title}`
+                              : selectedSlide.title}
+                          </div>
+                          <div style={styles.customBody}>{selectedSlide.body}</div>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {selectedSlide.itemType === "custom_slide" ? (
+                    <div style={styles.customSlide}>
+                      <div style={styles.customTitle}>{selectedSlide.title}</div>
+                      <div style={styles.customBody}>{selectedSlide.body}</div>
+                    </div>
+                  ) : null}
+                </div>
+
+              </>
             ) : (
               <div style={styles.emptyCard}>
                 <div style={styles.emptyTitle}>No slide selected</div>
@@ -256,6 +398,8 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 10,
+    maxHeight: "calc(100vh - 180px)",
+    overflow: "auto",
     padding: 14,
   },
   panelTitle: {
@@ -310,6 +454,7 @@ const styles = {
   },
   previewHeader: {
     alignItems: "center",
+    flexWrap: "wrap",
     display: "flex",
     gap: 14,
     justifyContent: "space-between",
@@ -340,8 +485,11 @@ const styles = {
     fontWeight: 700,
   },
   screenPreview: {
+    alignItems: "center",
     background: "linear-gradient(180deg, #0f172a, #1e293b)",
     borderRadius: 20,
+    display: "flex",
+    justifyContent: "center",
     minHeight: 500,
     overflow: "hidden",
     padding: 24,
@@ -413,6 +561,107 @@ const styles = {
     fontSize: "clamp(22px, 2vw, 30px)",
     lineHeight: 1.6,
     whiteSpace: "pre-wrap",
+  },
+  mediaSlide: {
+    borderRadius: 18,
+    display: "block",
+    maxHeight: "100%",
+    maxWidth: "100%",
+    objectFit: "contain",
+    width: "100%",
+  },
+  slideGroupCard: {
+    background: "#f8fafc",
+    border: "1px solid #dbe4ea",
+    borderRadius: 18,
+    marginTop: 6,
+    padding: 12,
+  },
+  slideListTitle: {
+    color: "#0f172a",
+    fontSize: 14,
+    fontWeight: 800,
+    marginBottom: 10,
+  },
+  slideList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  slideRow: {
+    alignItems: "center",
+    background: "#ffffff",
+    border: "1px solid #dbe4ea",
+    borderRadius: 14,
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+    padding: 10,
+  },
+  slideRowActive: {
+    border: "1px solid #7ea087",
+    boxShadow: "0 0 0 1px rgba(126, 160, 135, 0.18)",
+  },
+  slideSelectButton: {
+    alignItems: "center",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    display: "flex",
+    flex: 1,
+    gap: 12,
+    padding: 0,
+    textAlign: "left",
+  },
+  slideRowNumber: {
+    alignItems: "center",
+    background: "#eef3f7",
+    borderRadius: 999,
+    color: "#334155",
+    display: "inline-flex",
+    fontSize: 12,
+    fontWeight: 800,
+    height: 28,
+    justifyContent: "center",
+    minWidth: 28,
+  },
+  slideRowBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  },
+  slideRowTitle: {
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  slideRowMeta: {
+    color: "#64748b",
+    fontSize: 12,
+  },
+  slideRowActions: {
+    display: "flex",
+    gap: 8,
+  },
+  smallButton: {
+    background: "#ffffff",
+    border: "1px solid #cbd5e1",
+    borderRadius: 10,
+    color: "#334155",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 700,
+    padding: "8px 10px",
+  },
+  removeSlideButton: {
+    background: "#fff1f2",
+    border: "1px solid #fecdd3",
+    borderRadius: 10,
+    color: "#be123c",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 700,
+    padding: "8px 10px",
   },
   emptyCard: {
     background: "#ffffff",

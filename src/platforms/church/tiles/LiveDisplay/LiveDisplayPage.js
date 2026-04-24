@@ -111,6 +111,8 @@ export default function LiveDisplayPage() {
   const selectedSourceLabel =
     selectedSourceId === "all-service-items"
       ? "Full Service Slideshow"
+      : selectedSourceId.startsWith("quick-hymn:")
+        ? "Quick Live Hymn"
       : getItemLabel(
           display?.serviceItems?.find((item) => (item.id || item.source_id) === selectedSourceId) || {}
         );
@@ -454,6 +456,33 @@ export default function LiveDisplayPage() {
                       <span>{previewSlide.text}</span>
                     </div>
                   </div>
+                ) : previewSlide.itemType === "hymn" ? (
+                  previewSlide.imageUrl ? (
+                    <div style={styles.imagePreviewWrap}>
+                      <img
+                        src={previewSlide.imageUrl}
+                        alt={previewSlide.title || "Hymn slide"}
+                        style={styles.previewImageSlide}
+                      />
+                      {previewSlide.isEndOfSong ? (
+                        <div style={styles.endOfSongBadge}>End Of Song</div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div style={styles.loopPreview}>
+                      <div style={styles.previewTitle}>
+                        {previewSlide.songNumber
+                          ? `#${previewSlide.songNumber} ${previewSlide.title}`
+                          : previewSlide.title}
+                      </div>
+                      <div style={styles.previewBody}>
+                        {previewSlide.body || "Hymn slide"}
+                      </div>
+                      {previewSlide.isEndOfSong ? (
+                        <div style={styles.previewFooterNote}>End Of Song</div>
+                      ) : null}
+                    </div>
+                  )
                 ) : (
                   <div style={styles.loopPreview}>
                     <div style={styles.previewTitle}>{previewSlide.title}</div>
@@ -847,6 +876,21 @@ const styles = {
     maxWidth: 620,
     textAlign: "center",
   },
+  imagePreviewWrap: {
+    alignItems: "center",
+    display: "flex",
+    height: "100%",
+    justifyContent: "center",
+    position: "relative",
+    width: "100%",
+  },
+  previewImageSlide: {
+    borderRadius: 18,
+    boxShadow: "0 24px 60px rgba(15, 23, 42, 0.22)",
+    maxHeight: "100%",
+    maxWidth: "100%",
+    objectFit: "contain",
+  },
   previewTitle: {
     fontSize: "clamp(24px, 3vw, 38px)",
     fontWeight: 900,
@@ -863,6 +907,14 @@ const styles = {
     lineHeight: 1.5,
     marginTop: 18,
     whiteSpace: "pre-line",
+  },
+  previewFooterNote: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 900,
+    letterSpacing: "0.08em",
+    marginTop: 18,
+    textTransform: "uppercase",
   },
   previewEntryList: {
     display: "grid",
@@ -917,6 +969,20 @@ const styles = {
     marginBottom: 18,
     objectFit: "contain",
     width: "min(180px, 44vw)",
+  },
+  endOfSongBadge: {
+    background: "rgba(15, 23, 42, 0.82)",
+    border: "1px solid rgba(255,255,255,0.16)",
+    borderRadius: 999,
+    bottom: 18,
+    color: "#f8fafc",
+    fontSize: 12,
+    fontWeight: 900,
+    left: 18,
+    letterSpacing: "0.08em",
+    padding: "8px 12px",
+    position: "absolute",
+    textTransform: "uppercase",
   },
   emptyState: {
     color: "#64748b",
