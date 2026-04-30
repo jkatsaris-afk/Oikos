@@ -18,12 +18,14 @@ import SportsLogo from "../../assets/logos/Sports-Logo.png";
 export default function JoinPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const inviteCodeFromUrl = searchParams.get("inviteCode") || "";
 
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
-    inviteCode: "",
+    inviteCode: inviteCodeFromUrl,
   });
 
   // 🔥 MODE SYSTEM

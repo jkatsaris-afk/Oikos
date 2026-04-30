@@ -6,10 +6,57 @@ alter table public.accounts
 alter table public.accounts
   add column if not exists logo_path text not null default '';
 
+alter table public.accounts
+  add column if not exists brand_color text not null default '';
+
+alter table public.accounts
+  add column if not exists address_line_1 text not null default '';
+
+alter table public.accounts
+  add column if not exists address_line_2 text not null default '';
+
+alter table public.accounts
+  add column if not exists city text not null default '';
+
+alter table public.accounts
+  add column if not exists state_region text not null default '';
+
+alter table public.accounts
+  add column if not exists postal_code text not null default '';
+
+alter table public.accounts
+  add column if not exists country text not null default '';
+
+alter table public.accounts
+  add column if not exists integrations jsonb not null default '{}'::jsonb;
+
 insert into storage.buckets (id, name, public)
 values ('organization-assets', 'organization-assets', true)
 on conflict (id) do update
 set public = excluded.public;
+
+create or replace function public.can_manage_organization_asset(object_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.accounts a
+    left join public.account_members am
+      on am.account_id = a.id
+      and am.user_id = auth.uid()
+    where a.id::text = split_part(object_name, '/', 1)
+      and (
+        a.owner_user_id = auth.uid()
+        or (am.role = 'owner' and coalesce(am.status, 'pending') = 'active')
+      )
+  );
+$$;
+
+grant execute on function public.can_manage_organization_asset(text) to authenticated;
 
 drop policy if exists "organization_assets_public_read" on storage.objects;
 create policy "organization_assets_public_read"
@@ -25,12 +72,7 @@ for insert
 to authenticated
 with check (
   bucket_id = 'organization-assets'
-  and exists (
-    select 1
-    from public.accounts a
-    where a.id::text = (storage.foldername(name))[1]
-      and a.owner_user_id = auth.uid()
-  )
+  and public.can_manage_organization_asset(name)
 );
 
 drop policy if exists "organization_assets_owner_update" on storage.objects;
@@ -40,21 +82,11 @@ for update
 to authenticated
 using (
   bucket_id = 'organization-assets'
-  and exists (
-    select 1
-    from public.accounts a
-    where a.id::text = (storage.foldername(name))[1]
-      and a.owner_user_id = auth.uid()
-  )
+  and public.can_manage_organization_asset(name)
 )
 with check (
   bucket_id = 'organization-assets'
-  and exists (
-    select 1
-    from public.accounts a
-    where a.id::text = (storage.foldername(name))[1]
-      and a.owner_user_id = auth.uid()
-  )
+  and public.can_manage_organization_asset(name)
 );
 
 drop policy if exists "organization_assets_owner_delete" on storage.objects;
@@ -64,10 +96,5 @@ for delete
 to authenticated
 using (
   bucket_id = 'organization-assets'
-  and exists (
-    select 1
-    from public.accounts a
-    where a.id::text = (storage.foldername(name))[1]
-      and a.owner_user_id = auth.uid()
-  )
+  and public.can_manage_organization_asset(name)
 );

@@ -7,6 +7,10 @@ import LiveDisplayTileDesign from "../../platforms/church/tiles/LiveDisplay/Tile
 import RemoteTileDesign from "../../platforms/church/tiles/Remote/TileDesign";
 import SermonTileDesign from "../../platforms/church/tiles/Sermon/TileDesign";
 import ServiceTileDesign from "../../platforms/church/tiles/Service/TileDesign";
+import CommunicationTileDesign from "../../platforms/campus/tiles/Communication/TileDesign";
+import EnrollmentTileDesign from "../../platforms/campus/tiles/Enrollment/TileDesign";
+import StaffTileDesign from "../../platforms/campus/tiles/Staff/TileDesign";
+import StudentsTileDesign from "../../platforms/campus/tiles/Students/TileDesign";
 import GlobalUsersTileDesign from "../../platforms/admin/tiles/GlobalUsers/TileDesign";
 import TileStoreManagerTileDesign from "../../platforms/admin/tiles/TileStoreManager/TileDesign";
 
@@ -50,6 +54,10 @@ export const tileDesign = {
   [ServiceTileDesign.id]: ServiceTileDesign,
   [LiveDisplayTileDesign.id]: LiveDisplayTileDesign,
   [RemoteTileDesign.id]: RemoteTileDesign,
+  [CommunicationTileDesign.id]: CommunicationTileDesign,
+  [EnrollmentTileDesign.id]: EnrollmentTileDesign,
+  [StaffTileDesign.id]: StaffTileDesign,
+  [StudentsTileDesign.id]: StudentsTileDesign,
   [GlobalUsersTileDesign.id]: GlobalUsersTileDesign,
   [TileStoreManagerTileDesign.id]: TileStoreManagerTileDesign,
 };

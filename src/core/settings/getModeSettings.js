@@ -4,11 +4,22 @@ import ProfileSettingsPanel from "./ProfileSettingsPanel";
 import SettingsLayout from "./SettingsLayout";
 import TileSettingsPanel from "./TileSettingsPanel";
 import WidgetSettingsPanel from "./WidgetSettingsPanel";
+import CampusIntegrationsSettingsPanel from "../../platforms/campus/settings/CampusIntegrationsSettingsPanel";
 
-function buildPlatformSettings(title) {
+function buildPlatformSettings(title, integrationsComponent = null) {
   return (
     <SettingsLayout
       sections={[
+        {
+          key: "organization",
+          label: "Organization",
+          component: <OrganizationAccessPanel />,
+        },
+        {
+          key: "integrations",
+          label: "Integrations",
+          component: integrationsComponent || <div>{title} integrations coming next.</div>,
+        },
         {
           key: "tiles",
           label: "Tile Apps",
@@ -20,19 +31,9 @@ function buildPlatformSettings(title) {
           component: <WidgetSettingsPanel />,
         },
         {
-          key: "organization",
-          label: "Organization",
-          component: <OrganizationAccessPanel />,
-        },
-        {
           key: "profile",
           label: "Profile",
           component: <ProfileSettingsPanel />,
-        },
-        {
-          key: "general",
-          label: "General",
-          component: <div>{title} settings coming next.</div>,
         },
       ]}
     />
@@ -58,7 +59,7 @@ export function getModeSettings(mode) {
       return buildPlatformSettings("Admin");
 
     case "campus":
-      return buildPlatformSettings("Campus");
+      return buildPlatformSettings("Campus", <CampusIntegrationsSettingsPanel />);
 
     case "pages":
       return buildPlatformSettings("Pages");

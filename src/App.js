@@ -52,6 +52,7 @@ const DisplayNightstandDashboard = load("./platforms/display/modes/nightstand/pa
 const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
 const AdminDashboard = load("./platforms/admin/pages/AdminDashboardPage");
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
+const CampusEnrollmentPublicPage = load("./platforms/campus/pages/CampusEnrollmentPublicPage");
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
 const SportsDashboard = load("./platforms/sports/pages/SportsDashboardPage");
 const FarmDashboard = load("./platforms/farm/pages/FarmDashboardPage");
@@ -85,6 +86,7 @@ function AppRoutes() {
     path === "/login" ||
     path === "/signup" ||
     path === "/join" ||
+    path.startsWith("/campus/enroll/") ||
     path.startsWith("/live/") ||
     path === "/forgot-password" ||
     path === "/reset-password" ||
@@ -98,6 +100,7 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/join" element={<JoinPage />} />
+        <Route path="/campus/enroll/:publicCode" element={<CampusEnrollmentPublicPage />} />
         <Route path="/live/:displayCode" element={<ChurchLiveDisplayViewerPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />

@@ -1,13 +1,16 @@
-import { Camera, Copy, RefreshCcw, Save, Shield, Trash2, Users } from "lucide-react";
+import { Camera, Copy, Mail, RefreshCcw, Save, Shield, Trash2, UserPlus, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth";
 import { getModeFromPath } from "../utils/getMode";
 import {
+  createOrganizationForCurrentUser,
   fetchOrganizationAccess,
+  joinOrganizationForCurrentUser,
   regenerateOrganizationInviteCode,
   removeOrganizationMember,
+  sendOrganizationInviteEmail,
   updateOrganizationSettings,
   uploadOrganizationLogo,
 } from "./organizationAccessService";
@@ -37,6 +40,21 @@ function getModeLabel(mode = "") {
   }
 }
 
+function announceOrganizationChange(mode, account) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("oikos-organization-change", {
+      detail: {
+        mode,
+        accountId: account?.id || "",
+      },
+    })
+  );
+}
+
 export default function OrganizationAccessPanel() {
   const fileInputRef = useRef(null);
   const location = useLocation();
@@ -53,6 +71,18 @@ export default function OrganizationAccessPanel() {
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState("");
   const [organizationName, setOrganizationName] = useState("");
+  const [organizationColor, setOrganizationColor] = useState("");
+  const [organizationAddress1, setOrganizationAddress1] = useState("");
+  const [organizationAddress2, setOrganizationAddress2] = useState("");
+  const [organizationCity, setOrganizationCity] = useState("");
+  const [organizationStateRegion, setOrganizationStateRegion] = useState("");
+  const [organizationPostalCode, setOrganizationPostalCode] = useState("");
+  const [organizationCountry, setOrganizationCountry] = useState("");
+  const [newOrganizationName, setNewOrganizationName] = useState("");
+  const [joinInviteCode, setJoinInviteCode] = useState("");
+  const [inviteMemberName, setInviteMemberName] = useState("");
+  const [inviteMemberEmail, setInviteMemberEmail] = useState("");
+  const [showInviteMemberForm, setShowInviteMemberForm] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -77,6 +107,13 @@ export default function OrganizationAccessPanel() {
 
         setState(nextState);
         setOrganizationName(nextState.account?.name || "");
+        setOrganizationColor(nextState.account?.brand_color || "");
+        setOrganizationAddress1(nextState.account?.address_line_1 || "");
+        setOrganizationAddress2(nextState.account?.address_line_2 || "");
+        setOrganizationCity(nextState.account?.city || "");
+        setOrganizationStateRegion(nextState.account?.state_region || "");
+        setOrganizationPostalCode(nextState.account?.postal_code || "");
+        setOrganizationCountry(nextState.account?.country || "");
       } catch (loadError) {
         console.error("Organization access load error:", loadError);
 
@@ -99,7 +136,14 @@ export default function OrganizationAccessPanel() {
 
   useEffect(() => {
     setOrganizationName(state.account?.name || "");
-  }, [state.account?.name]);
+    setOrganizationColor(state.account?.brand_color || "");
+    setOrganizationAddress1(state.account?.address_line_1 || "");
+    setOrganizationAddress2(state.account?.address_line_2 || "");
+    setOrganizationCity(state.account?.city || "");
+    setOrganizationStateRegion(state.account?.state_region || "");
+    setOrganizationPostalCode(state.account?.postal_code || "");
+    setOrganizationCountry(state.account?.country || "");
+  }, [state.account]);
 
   async function refreshInviteCode() {
     if (!state.account) return;
@@ -162,6 +206,44 @@ export default function OrganizationAccessPanel() {
     }
   }
 
+  async function handleInviteMember() {
+    if (!state.account?.invite_code) {
+      setError("This organization does not have an invite code yet.");
+      return;
+    }
+
+    if (!inviteMemberEmail.trim()) {
+      setError("Enter the member email before sending an invite.");
+      return;
+    }
+
+    setBusyUserId("invite-member");
+    setError("");
+    setNotice("");
+
+    const emailAddress = inviteMemberEmail.trim();
+
+    try {
+      const result = await sendOrganizationInviteEmail({
+        accountId: state.account.id,
+        email: emailAddress,
+        recipientName: inviteMemberName,
+        redirectTo: `${window.location.origin}/join?inviteCode=${encodeURIComponent(
+          state.account.invite_code
+        )}`,
+      });
+      setInviteMemberName("");
+      setInviteMemberEmail("");
+      setShowInviteMemberForm(false);
+      setNotice(result?.message || `Invite email sent to ${emailAddress}.`);
+    } catch (inviteError) {
+      console.error("Organization invite email error:", inviteError);
+      setError(inviteError?.message || "Could not send the member invite.");
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
   async function saveOrganizationDetails() {
     if (!state.account) return;
 
@@ -172,12 +254,20 @@ export default function OrganizationAccessPanel() {
     try {
       const nextAccount = await updateOrganizationSettings(state.account.id, {
         name: organizationName,
+        brandColor: organizationColor,
+        addressLine1: organizationAddress1,
+        addressLine2: organizationAddress2,
+        city: organizationCity,
+        stateRegion: organizationStateRegion,
+        postalCode: organizationPostalCode,
+        country: organizationCountry,
       });
 
       setState((current) => ({
         ...current,
         account: nextAccount,
       }));
+      announceOrganizationChange(mode, nextAccount);
       setNotice("Organization updated.");
     } catch (saveError) {
       console.error("Organization save error:", saveError);
@@ -208,6 +298,7 @@ export default function OrganizationAccessPanel() {
         ...current,
         account: nextAccount,
       }));
+      announceOrganizationChange(mode, nextAccount);
       setNotice("Organization logo updated.");
     } catch (uploadError) {
       console.error("Organization logo upload error:", uploadError);
@@ -218,19 +309,126 @@ export default function OrganizationAccessPanel() {
     }
   }
 
+  async function handleCreateOrganization() {
+    if (!user?.id) return;
+
+    setBusyUserId("create-organization");
+    setError("");
+    setNotice("");
+
+    try {
+      const account = await createOrganizationForCurrentUser({
+        userId: user.id,
+        mode,
+        organizationName: newOrganizationName,
+      });
+
+      const nextState = await fetchOrganizationAccess(user.id, mode);
+      setState(nextState);
+      setOrganizationName(account?.name || "");
+      setNewOrganizationName("");
+      announceOrganizationChange(mode, nextState.account);
+      setNotice("Organization created.");
+    } catch (createError) {
+      console.error("Organization create error:", createError);
+      setError(createError?.message || "Could not create organization.");
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
+  async function handleJoinOrganization() {
+    if (!user?.id) return;
+
+    setBusyUserId("join-organization");
+    setError("");
+    setNotice("");
+
+    try {
+      await joinOrganizationForCurrentUser({
+        userId: user.id,
+        inviteCode: joinInviteCode,
+      });
+
+      const nextState = await fetchOrganizationAccess(user.id, mode);
+      setState(nextState);
+      setJoinInviteCode("");
+      announceOrganizationChange(mode, nextState.account);
+      setNotice("Join request sent.");
+    } catch (joinError) {
+      console.error("Organization join error:", joinError);
+      setError(joinError?.message || "Could not join organization.");
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
   if (loading) {
     return <div style={styles.emptyState}>Loading organization access...</div>;
   }
 
   if (!state.account) {
     return (
-      <div style={styles.panel}>
-        <div style={styles.sectionTitle}>Organization Access</div>
-        <p style={styles.text}>
-          No {getModeLabel(mode).toLowerCase()} organization is connected to this
-          account yet. When you join or create one, shared tile data will come
-          through that organization while your own layout and widgets stay personal.
-        </p>
+      <div style={styles.stack}>
+        <section style={styles.panel}>
+          <div style={styles.sectionTitle}>Organization Access</div>
+          <p style={styles.text}>
+            No {getModeLabel(mode).toLowerCase()} organization is connected to this
+            account yet. Create one if you lead the campus, or join one with an invite code.
+          </p>
+
+          {error ? <div style={styles.error}>{error}</div> : null}
+          {notice ? <div style={styles.notice}>{notice}</div> : null}
+
+          <div style={styles.emptyActionsGrid}>
+            <div style={styles.ownerPanel}>
+              <div style={styles.sectionTitle}>Create Organization</div>
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Organization Name</span>
+                <input
+                  type="text"
+                  value={newOrganizationName}
+                  onChange={(event) => setNewOrganizationName(event.target.value)}
+                  style={styles.input}
+                  placeholder={`${getModeLabel(mode)} organization name`}
+                />
+              </label>
+
+              <button
+                type="button"
+                style={styles.saveButton}
+                onClick={handleCreateOrganization}
+                disabled={busyUserId === "create-organization"}
+              >
+                <Save size={15} />
+                {busyUserId === "create-organization" ? "Creating..." : "Create Organization"}
+              </button>
+            </div>
+
+            <div style={styles.ownerPanel}>
+              <div style={styles.sectionTitle}>Join Organization</div>
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Invite Code</span>
+                <input
+                  type="text"
+                  value={joinInviteCode}
+                  onChange={(event) => setJoinInviteCode(event.target.value)}
+                  style={styles.input}
+                  placeholder="CAMPUS-ABCDE"
+                />
+              </label>
+
+              <button
+                type="button"
+                style={styles.actionButton}
+                onClick={handleJoinOrganization}
+                disabled={busyUserId === "join-organization"}
+              >
+                {busyUserId === "join-organization" ? "Requesting..." : "Request Access"}
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
@@ -334,6 +532,99 @@ export default function OrganizationAccessPanel() {
               />
             </label>
 
+            <div style={styles.fieldGrid}>
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Organization Color</span>
+                <div style={styles.colorRow}>
+                  <input
+                    type="color"
+                    value={organizationColor || "#E86A1F"}
+                    onChange={(event) => setOrganizationColor(event.target.value)}
+                    style={styles.colorPicker}
+                  />
+                  <input
+                    type="text"
+                    value={organizationColor}
+                    onChange={(event) => setOrganizationColor(event.target.value)}
+                    style={styles.input}
+                    placeholder="#E86A1F"
+                  />
+                </div>
+              </label>
+
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Country</span>
+                <input
+                  type="text"
+                  value={organizationCountry}
+                  onChange={(event) => setOrganizationCountry(event.target.value)}
+                  style={styles.input}
+                  placeholder="United States"
+                />
+              </label>
+            </div>
+
+            <label style={styles.field}>
+              <span style={styles.fieldLabel}>Address Line 1</span>
+              <input
+                type="text"
+                value={organizationAddress1}
+                onChange={(event) => setOrganizationAddress1(event.target.value)}
+                style={styles.input}
+                placeholder="123 Main Street"
+              />
+            </label>
+
+            <label style={styles.field}>
+              <span style={styles.fieldLabel}>Address Line 2</span>
+              <input
+                type="text"
+                value={organizationAddress2}
+                onChange={(event) => setOrganizationAddress2(event.target.value)}
+                style={styles.input}
+                placeholder="Suite, building, or campus details"
+              />
+            </label>
+
+            <div style={styles.fieldGrid}>
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>City</span>
+                <input
+                  type="text"
+                  value={organizationCity}
+                  onChange={(event) => setOrganizationCity(event.target.value)}
+                  style={styles.input}
+                  placeholder="City"
+                />
+              </label>
+
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>State / Region</span>
+                <input
+                  type="text"
+                  value={organizationStateRegion}
+                  onChange={(event) => setOrganizationStateRegion(event.target.value)}
+                  style={styles.input}
+                  placeholder="State"
+                />
+              </label>
+
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Postal Code</span>
+                <input
+                  type="text"
+                  value={organizationPostalCode}
+                  onChange={(event) => setOrganizationPostalCode(event.target.value)}
+                  style={styles.input}
+                  placeholder="ZIP / Postal Code"
+                />
+              </label>
+            </div>
+
+            <div style={styles.helper}>
+              Only organization owners can change the organization name, logo, address, and color.
+            </div>
+
             <button
               type="button"
               style={styles.saveButton}
@@ -351,11 +642,61 @@ export default function OrganizationAccessPanel() {
         <section style={styles.panel}>
           <div style={styles.membersHeader}>
             <div style={styles.sectionTitle}>Members</div>
-            <div style={styles.membersCount}>
-              <Users size={14} />
-              {state.members.length}
+            <div style={styles.membersHeaderActions}>
+              <div style={styles.membersCount}>
+                <Users size={14} />
+                {state.members.length}
+              </div>
+              <button
+                type="button"
+                style={styles.actionButton}
+                onClick={() => setShowInviteMemberForm((current) => !current)}
+              >
+                <UserPlus size={15} />
+                {showInviteMemberForm ? "Close Invite" : "Invite Member"}
+              </button>
             </div>
           </div>
+
+          {showInviteMemberForm ? (
+            <div style={styles.inviteMemberPanel}>
+              <div style={styles.inviteMemberTitle}>Invite Member</div>
+              <div style={styles.fieldGrid}>
+                <label style={styles.field}>
+                  <span style={styles.fieldLabel}>Full Name</span>
+                  <input
+                    type="text"
+                    value={inviteMemberName}
+                    onChange={(event) => setInviteMemberName(event.target.value)}
+                    style={styles.input}
+                    placeholder="Jane Doe"
+                  />
+                </label>
+                <label style={styles.field}>
+                  <span style={styles.fieldLabel}>Email</span>
+                  <input
+                    type="email"
+                    value={inviteMemberEmail}
+                    onChange={(event) => setInviteMemberEmail(event.target.value)}
+                    style={styles.input}
+                    placeholder="jane@example.com"
+                  />
+                </label>
+              </div>
+              <div style={styles.helper}>
+                This opens a ready-to-send invite email with your organization join code.
+              </div>
+              <button
+                type="button"
+                style={styles.saveButton}
+                onClick={handleInviteMember}
+                disabled={busyUserId === "invite-member"}
+              >
+                <Mail size={15} />
+                {busyUserId === "invite-member" ? "Preparing..." : "Send Invite"}
+              </button>
+            </div>
+          ) : null}
 
           <div style={styles.membersList}>
             {state.members.map((member) => {
@@ -469,6 +810,12 @@ const styles = {
     marginTop: 16,
     padding: 16,
   },
+  emptyActionsGrid: {
+    display: "grid",
+    gap: 16,
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    marginTop: 16,
+  },
   ownerHeader: {
     alignItems: "center",
     display: "flex",
@@ -543,10 +890,29 @@ const styles = {
     flexDirection: "column",
     gap: 8,
   },
+  fieldGrid: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  },
   fieldLabel: {
     color: "#334155",
     fontSize: 13,
     fontWeight: 700,
+  },
+  colorRow: {
+    alignItems: "center",
+    display: "flex",
+    gap: 10,
+  },
+  colorPicker: {
+    background: "#ffffff",
+    border: "1px solid #cbd5e1",
+    borderRadius: 12,
+    cursor: "pointer",
+    height: 48,
+    padding: 4,
+    width: 64,
   },
   input: {
     background: "#ffffff",
@@ -576,6 +942,12 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
   },
+  membersHeaderActions: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+  },
   membersCount: {
     alignItems: "center",
     color: "#475569",
@@ -589,6 +961,20 @@ const styles = {
     flexDirection: "column",
     gap: 12,
     marginTop: 16,
+  },
+  inviteMemberPanel: {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 14,
+    display: "grid",
+    gap: 12,
+    marginTop: 16,
+    padding: 16,
+  },
+  inviteMemberTitle: {
+    color: "#0f172a",
+    fontSize: 16,
+    fontWeight: 800,
   },
   memberRow: {
     alignItems: "center",
