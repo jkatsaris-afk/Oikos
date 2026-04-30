@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { getModeFromPath } from "../core/utils/getMode";
 import GlobalLoadingPage from "../core/components/GlobalLoadingPage";
+import { fetchOrganizationAccess } from "../core/settings/organizationAccessService";
 
 export default function RequireAuth({ children }) {
-  const { user, loading } = useAuth();
+  const { user, profile, profileReady, loading } = useAuth();
   const location = useLocation();
 
   const [hasAccess, setHasAccess] = useState(null);
   const [checked, setChecked] = useState(false);
-  const [ready, setReady] = useState(false);
 
   const path = location.pathname;
 
@@ -33,59 +33,35 @@ export default function RequireAuth({ children }) {
 
   console.log("RequireAuth Render", {
     user,
+    profile,
+    profileReady,
     loading,
-    ready,
     checked,
     hasAccess,
     path,
   });
 
   // =========================
-  // AUTH READY (CRITICAL FIX)
-  // =========================
-  useEffect(() => {
-    let mounted = true;
-
-    async function initAuthReady() {
-      const { data, error } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      console.log("Initial Auth Session", {
-        hasSession: Boolean(data?.session),
-        error,
-      });
-
-      setReady(true);
-    }
-
-    initAuthReady();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("Auth State Change", event);
-
-        console.log("Session Ready State", Boolean(session));
-        setReady(true);
-      }
-    );
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, []);
-
-  // =========================
   // ACCESS CHECK
   // =========================
   useEffect(() => {
-    if (loading || !ready || !user) {
+    if (loading || !user || !profileReady) {
       console.log("Waiting for auth readiness", {
         loading,
-        ready,
         user,
+        profileReady,
       });
+      return;
+    }
+
+    if (profile && profile.is_approved === false) {
+      console.log("RequireAuth:pending-detected-from-profile", {
+        userId: user.id,
+        profile,
+        path,
+      });
+      setHasAccess(false);
+      setChecked(true);
       return;
     }
 
@@ -118,9 +94,6 @@ export default function RequireAuth({ children }) {
           user: user.id,
         });
 
-        // 🔥 CRITICAL FIX: FORCE AUTH SYNC
-        await supabase.auth.getUser();
-
         const start = Date.now();
 
         const { data, error } = await supabase
@@ -139,7 +112,28 @@ export default function RequireAuth({ children }) {
         if (error) {
           setHasAccess(false);
         } else if (!data || data.length === 0) {
-          setHasAccess(false);
+          if (platform === "campus" && mode === "default") {
+            try {
+              const orgAccess = await fetchOrganizationAccess(user.id, "campus");
+              const hasCampusOrgAccess =
+                Boolean(orgAccess?.account?.id) &&
+                (orgAccess?.isOwner === true ||
+                  String(orgAccess?.membership?.status || "").toLowerCase() === "active");
+
+              console.log("RequireAuth:campus-org-fallback", {
+                userId: user.id,
+                orgAccess,
+                hasCampusOrgAccess,
+              });
+
+              setHasAccess(hasCampusOrgAccess);
+            } catch (orgAccessError) {
+              console.error("Campus org access fallback error:", orgAccessError);
+              setHasAccess(false);
+            }
+          } else {
+            setHasAccess(false);
+          }
         } else {
           setHasAccess(Boolean(data[0].has_access));
         }
@@ -156,18 +150,18 @@ export default function RequireAuth({ children }) {
     setChecked(false);
     checkAccess();
 
-  }, [user, loading, ready, path]);
+  }, [user, profile, profileReady, loading, path]);
 
   // =========================
   // RENDER STATES
   // =========================
 
-  if (loading || !ready) {
+  if (loading || !profileReady) {
     console.log("Render State: loading");
     return (
       <GlobalLoadingPage
         title="Loading"
-        detail="Restoring your session and preparing your login state..."
+        detail="Restoring your session, profile, and login state..."
       />
     );
   }
@@ -177,6 +171,22 @@ export default function RequireAuth({ children }) {
     return (
       <Navigate
         to="/login"
+        replace
+        state={{ from: path }}
+      />
+    );
+  }
+
+  if (profile && profile.is_approved === false && path !== "/pending-approval") {
+    console.log("Render State: pending approval");
+    console.log("RequireAuth:redirect-pending-approval", {
+      userId: user.id,
+      profile,
+      path,
+    });
+    return (
+      <Navigate
+        to="/pending-approval"
         replace
         state={{ from: path }}
       />

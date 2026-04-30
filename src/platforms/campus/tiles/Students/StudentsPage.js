@@ -21,11 +21,14 @@ import { useAuth } from "../../../../auth/useAuth";
 import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
 import {
   createCampusStudent,
+  inviteCampusParentPortal,
   loadCampusStudents,
   searchCampusStudents,
+  setCampusParentPortalAccess,
   uploadCampusStudentPhoto,
   updateCampusStudent,
 } from "../../services/studentService";
+import { loadCampusStaffDashboard } from "../../services/staffService";
 
 function formatDate(value) {
   if (!value) return "Not set";
@@ -88,6 +91,7 @@ function createGuardian() {
     relationship: "",
     phone: "",
     email: "",
+    linkedUserId: "",
     portalAccess: false,
     pickupApproved: false,
   };
@@ -167,6 +171,22 @@ function LabeledInput({ label, value, onChange, placeholder = "", type = "text" 
   );
 }
 
+function LabeledSelect({ label, value, onChange, options = [], placeholder = "Select an option" }) {
+  return (
+    <label style={styles.field}>
+      <span style={styles.fieldLabel}>{label}</span>
+      <select value={value || ""} onChange={(event) => onChange(event.target.value)} style={styles.input}>
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function LabeledTextarea({ label, value, onChange, placeholder = "", rows = 5 }) {
   return (
     <label style={styles.field}>
@@ -198,7 +218,9 @@ export default function StudentsPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editForm, setEditForm] = useState(null);
+  const [teacherOptions, setTeacherOptions] = useState([]);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [guardianAccessSavingKey, setGuardianAccessSavingKey] = useState("");
   const studentPhotoInputRef = useRef(null);
   const editSectionRefs = useMemo(
     () => ({
@@ -224,14 +246,35 @@ export default function StudentsPage() {
 
       try {
         const nextStudents = await loadCampusStudents(user?.id);
+        let nextTeacherOptions = [];
+
+        try {
+          const staffDashboard = await loadCampusStaffDashboard(user?.id);
+          nextTeacherOptions = (staffDashboard.staff || [])
+            .filter(
+              (staff) =>
+                staff.isActive &&
+                String(staff.staffType || "").toLowerCase() === "teacher" &&
+                String(staff.displayName || "").trim()
+            )
+            .map((staff) => String(staff.displayName || "").trim())
+            .filter((name, index, list) => list.indexOf(name) === index)
+            .sort((a, b) => a.localeCompare(b))
+            .map((name) => ({ label: name, value: name }));
+        } catch (staffError) {
+          console.error("Campus students teacher list load error:", staffError);
+        }
+
         if (!mounted) return;
         setStudents(nextStudents);
+        setTeacherOptions(nextTeacherOptions);
         setSelectedStudentId("");
         setPreviewStudentId(nextStudents[0]?.id || "");
       } catch (loadError) {
         console.error("Campus students page load error:", loadError);
         if (!mounted) return;
         setStudents([]);
+        setTeacherOptions([]);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -403,6 +446,36 @@ export default function StudentsPage() {
     }));
   }
 
+  function syncStudentRecord(nextStudent, noticeMessage = "") {
+    setStudents((current) =>
+      current.map((student) => (student.id === nextStudent.id ? nextStudent : student))
+    );
+    setSelectedStudentId(nextStudent.id);
+    setPreviewStudentId(nextStudent.id);
+    setEditForm((current) =>
+      current && current.id === nextStudent.id
+        ? {
+            ...nextStudent,
+            raceEthnicityText: (nextStudent.raceEthnicity || []).join(", "),
+            tagsText: (nextStudent.tags || []).join(", "),
+            guardians: cloneValue(nextStudent.guardians, []),
+            emergencyContacts: cloneValue(nextStudent.emergencyContacts, []),
+            medical: cloneValue(nextStudent.medical, {}),
+            disciplinary: cloneValue(nextStudent.disciplinary, []),
+            parentContactLog: cloneValue(nextStudent.parentContactLog, []),
+            demographics: cloneValue(nextStudent.demographics, {}),
+            enrollment: cloneValue(nextStudent.enrollment, {}),
+            programParticipation: cloneValue(nextStudent.programParticipation, {}),
+            customFields: cloneValue(nextStudent.customFields, {}),
+          }
+        : current
+    );
+
+    if (noticeMessage) {
+      setNotice(noticeMessage);
+    }
+  }
+
   async function saveStudent() {
     if (!editForm) return;
 
@@ -432,10 +505,7 @@ export default function StudentsPage() {
         customFields: editForm.customFields || {},
       });
 
-      setStudents((current) =>
-        current.map((student) => (student.id === nextStudent.id ? nextStudent : student))
-      );
-      setSelectedStudentId(nextStudent.id);
+      syncStudentRecord(nextStudent);
       setEditMode(false);
       setNotice("Student record updated.");
     } catch (saveError) {
@@ -460,15 +530,7 @@ export default function StudentsPage() {
       setNotice("");
       const nextStudent = await uploadCampusStudentPhoto(user.id, selectedStudent.id, file);
 
-      setStudents((current) =>
-        current.map((student) => (student.id === nextStudent.id ? nextStudent : student))
-      );
-      setEditForm((current) =>
-        current && current.id === nextStudent.id
-          ? { ...current, photoPath: nextStudent.photoPath, photoUrl: nextStudent.photoUrl }
-          : current
-      );
-      setNotice("Student photo updated.");
+      syncStudentRecord(nextStudent, "Student photo updated.");
     } catch (uploadError) {
       console.error("Student photo upload error:", uploadError);
       setError(uploadError?.message || "Could not upload student photo.");
@@ -497,6 +559,102 @@ export default function StudentsPage() {
       setError(createError?.message || "Could not create student.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleGuardianInvite(guardianIndex) {
+    const workingStudent = editForm || selectedStudent;
+    const guardian = workingStudent?.guardians?.[guardianIndex];
+
+    if (!user?.id || !workingStudent?.id || !guardian) {
+      return;
+    }
+
+    try {
+      setGuardianAccessSavingKey(`invite:${guardianIndex}`);
+      setError("");
+      setNotice("");
+      const { result, student: nextStudent } = await inviteCampusParentPortal({
+        userId: user.id,
+        student: workingStudent,
+        guardianIndex,
+      });
+
+      if (nextStudent?.id) {
+        syncStudentRecord(nextStudent);
+      }
+
+      setNotice(result?.message || `Parent portal invite sent to ${guardian.email}.`);
+    } catch (inviteError) {
+      console.error("Campus parent invite error:", inviteError);
+      setError(inviteError.message || "Could not send the parent portal invite.");
+    } finally {
+      setGuardianAccessSavingKey("");
+    }
+  }
+
+  async function handleGuardianPortalAccess(guardianIndex, enabled) {
+    let workingStudent = editForm || selectedStudent;
+    let guardian = workingStudent?.guardians?.[guardianIndex];
+
+    if (!user?.id || !workingStudent?.id || !workingStudent?.accountId || !guardian) {
+      return;
+    }
+
+    try {
+      setGuardianAccessSavingKey(`access:${guardianIndex}`);
+      setError("");
+      setNotice("");
+
+      if (!guardian.linkedUserId) {
+        const { result, student: invitedStudent, guardian: invitedGuardian } =
+          await inviteCampusParentPortal({
+            userId: user.id,
+            student: workingStudent,
+            guardianIndex,
+          });
+
+        if (invitedStudent?.id) {
+          syncStudentRecord(invitedStudent);
+          workingStudent = invitedStudent;
+          guardian = invitedStudent?.guardians?.[guardianIndex] || invitedGuardian || guardian;
+        }
+
+        if (!guardian?.linkedUserId) {
+          throw new Error(
+            result?.message ||
+              "The parent account could not be linked yet. Ask the parent to complete their invite email first, then try again."
+          );
+        }
+      }
+
+      await setCampusParentPortalAccess({
+        userId: user.id,
+        accountId: workingStudent.accountId,
+        targetUserId: guardian.linkedUserId,
+        enabled,
+      });
+
+      const nextGuardians = cloneValue(workingStudent.guardians, []);
+      nextGuardians[guardianIndex] = {
+        ...nextGuardians[guardianIndex],
+        portalAccess: enabled,
+      };
+
+      const nextStudent = await updateCampusStudent(user.id, {
+        ...workingStudent,
+        guardians: nextGuardians,
+      });
+
+      syncStudentRecord(
+        nextStudent,
+        enabled ? "Parent portal access enabled." : "Parent portal access removed."
+      );
+    } catch (accessError) {
+      console.error("Campus parent portal access error:", accessError);
+      setError(accessError.message || "Could not update parent portal access.");
+    } finally {
+      setGuardianAccessSavingKey("");
     }
   }
 
@@ -542,7 +700,7 @@ export default function StudentsPage() {
       { label: "Grade Level", value: renderPill(selectedStudent.gradeLevel) },
       { label: "School", value: renderPill(selectedStudent.schoolName) },
       { label: "Campus", value: renderPill(selectedStudent.campusName) },
-      { label: "Homeroom", value: renderPill(selectedStudent.homeroomTeacher) },
+      { label: "Teacher", value: renderPill(selectedStudent.homeroomTeacher, "Not assigned") },
       { label: "Counselor", value: renderPill(selectedStudent.counselorName) },
       { label: "Enrollment Status", value: renderPill(selectedStudent.enrollmentStatus) },
       {
@@ -651,7 +809,7 @@ export default function StudentsPage() {
               <span>{selectedStudent.currentEnrollmentStatus || "Status not set"}</span>
             </div>
             <div style={styles.heroPills}>
-              <span style={styles.heroPill}>{selectedStudent.homeroomTeacher || "No homeroom"}</span>
+              <span style={styles.heroPill}>{selectedStudent.homeroomTeacher || "No teacher selected"}</span>
               <span style={styles.heroPill}>{selectedStudent.primaryLanguage || "Language not set"}</span>
               <span style={styles.heroPill}>
                 {selectedStudent.tuitionPaymentStatus || "Tuition status not set"}
@@ -737,13 +895,23 @@ export default function StudentsPage() {
                 {selectedStudent.guardians.length ? (
                   selectedStudent.guardians.map((guardian, index) => (
                     <div key={`${guardian.name}-${index}`} style={styles.stackCard}>
-                      <div style={styles.stackTitle}>{guardian.name || "Unnamed Guardian"}</div>
+                      <div style={styles.stackCardHeader}>
+                        <div style={styles.stackTitle}>{guardian.name || "Unnamed Guardian"}</div>
+                        <div style={guardian.portalAccess ? styles.portalBadgeActive : styles.portalBadgeMuted}>
+                          {guardian.portalAccess ? "Parent Portal On" : "Parent Portal Off"}
+                        </div>
+                      </div>
                       <div style={styles.stackMeta}>
                         {guardian.relationship || "Relationship not set"}
                       </div>
                       <div style={styles.stackCopy}>
                         {guardian.phone || "No phone"} {guardian.email ? `• ${guardian.email}` : ""}
                       </div>
+                      {guardian.linkedUserId ? (
+                        <div style={styles.stackHint}>Linked account ready for `/parent`.</div>
+                      ) : (
+                        <div style={styles.stackHint}>Invite this guardian to connect their parent account.</div>
+                      )}
                     </div>
                   ))
                 ) : (
@@ -975,7 +1143,13 @@ export default function StudentsPage() {
                 <LabeledInput label="Grade Level" value={editForm.gradeLevel} onChange={(value) => updateForm("gradeLevel", value)} />
                 <LabeledInput label="School Name" value={editForm.schoolName} onChange={(value) => updateForm("schoolName", value)} />
                 <LabeledInput label="Campus Name" value={editForm.campusName} onChange={(value) => updateForm("campusName", value)} />
-                <LabeledInput label="Homeroom Teacher" value={editForm.homeroomTeacher} onChange={(value) => updateForm("homeroomTeacher", value)} />
+                <LabeledSelect
+                  label="Teacher"
+                  value={editForm.homeroomTeacher}
+                  onChange={(value) => updateForm("homeroomTeacher", value)}
+                  options={teacherOptions}
+                  placeholder={teacherOptions.length ? "Select teacher" : "No teachers available"}
+                />
                 <LabeledInput label="Counselor" value={editForm.counselorName} onChange={(value) => updateForm("counselorName", value)} />
                 <LabeledInput label="Enrollment Status" value={editForm.enrollmentStatus} onChange={(value) => updateForm("enrollmentStatus", value)} />
                 <LabeledInput label="Current Enrollment Status" value={editForm.currentEnrollmentStatus} onChange={(value) => updateForm("currentEnrollmentStatus", value)} />
@@ -1029,6 +1203,40 @@ export default function StudentsPage() {
                       <LabeledInput label="Relationship" value={guardian.relationship || ""} onChange={(value) => updateListItem("guardians", index, "relationship", value)} />
                       <LabeledInput label="Phone" value={guardian.phone || ""} onChange={(value) => updateListItem("guardians", index, "phone", value)} />
                       <LabeledInput label="Email" value={guardian.email || ""} onChange={(value) => updateListItem("guardians", index, "email", value)} />
+                    </div>
+                    <div style={styles.guardianAccessRow}>
+                      <div style={styles.guardianAccessMeta}>
+                        <div style={styles.guardianAccessTitle}>Parent Portal Access</div>
+                        <div style={styles.guardianAccessCopy}>
+                          {guardian.linkedUserId
+                            ? guardian.portalAccess
+                              ? "This parent can sign in at /parent."
+                              : "Linked account found. Turn on portal access when you are ready."
+                            : "Send the invite first to create or link the parent account."}
+                        </div>
+                      </div>
+                      <div style={styles.guardianAccessActions}>
+                        <button
+                          type="button"
+                          style={styles.inlineSecondaryButton}
+                          onClick={() => handleGuardianInvite(index)}
+                          disabled={guardianAccessSavingKey === `invite:${index}` || !guardian.email}
+                        >
+                          {guardianAccessSavingKey === `invite:${index}` ? "Sending..." : "Invite Parent"}
+                        </button>
+                        <button
+                          type="button"
+                          style={guardian.portalAccess ? styles.inlineGhostButton : styles.inlinePrimaryButton}
+                          onClick={() => handleGuardianPortalAccess(index, !guardian.portalAccess)}
+                          disabled={guardianAccessSavingKey === `access:${index}` || !guardian.email}
+                        >
+                          {guardianAccessSavingKey === `access:${index}`
+                            ? "Saving..."
+                            : guardian.portalAccess
+                              ? "Remove Access"
+                              : "Enable Access"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1312,7 +1520,7 @@ export default function StudentsPage() {
                       {student.currentEnrollmentStatus || student.enrollmentStatus || "Unknown status"}
                     </div>
                     <div style={styles.rosterChips}>
-                      <span style={styles.cardPill}>{student.homeroomTeacher || "No homeroom"}</span>
+                      <span style={styles.cardPill}>{student.homeroomTeacher || "No teacher selected"}</span>
                       {student.tuitionPaymentStatus ? (
                         <span style={styles.alertPill}>{student.tuitionPaymentStatus}</span>
                       ) : null}
@@ -1359,7 +1567,7 @@ export default function StudentsPage() {
                   </div>
                 </div>
                 <div style={styles.previewStatCard}>
-                  <div style={styles.previewStatLabel}>Homeroom</div>
+                  <div style={styles.previewStatLabel}>Teacher</div>
                   <div style={styles.previewStatValue}>
                     {previewStudent.homeroomTeacher || "Not assigned"}
                   </div>
@@ -1612,6 +1820,103 @@ const styles = {
     color: "#0f172a",
     fontSize: 16,
     fontWeight: 800,
+  },
+  stackCardHeader: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  portalBadgeActive: {
+    background: "#dcfce7",
+    border: "1px solid #86efac",
+    borderRadius: 999,
+    color: "#166534",
+    fontSize: 11,
+    fontWeight: 800,
+    padding: "6px 10px",
+    textTransform: "uppercase",
+  },
+  portalBadgeMuted: {
+    background: "#f8fafc",
+    border: "1px solid #d6e1dd",
+    borderRadius: 999,
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: 800,
+    padding: "6px 10px",
+    textTransform: "uppercase",
+  },
+  stackHint: {
+    color: "#64748b",
+    fontSize: 12,
+    lineHeight: 1.5,
+  },
+  guardianAccessRow: {
+    alignItems: "flex-start",
+    background: "#f8fafc",
+    border: "1px solid #dbe7e3",
+    borderRadius: 14,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between",
+    marginTop: 12,
+    padding: 12,
+  },
+  guardianAccessMeta: {
+    display: "flex",
+    flex: "1 1 220px",
+    flexDirection: "column",
+    gap: 6,
+    minWidth: 0,
+  },
+  guardianAccessTitle: {
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: 800,
+  },
+  guardianAccessCopy: {
+    color: "#64748b",
+    fontSize: 12,
+    lineHeight: 1.6,
+  },
+  guardianAccessActions: {
+    display: "flex",
+    flex: "0 1 auto",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  inlinePrimaryButton: {
+    background: "var(--color-primary)",
+    border: "1px solid var(--color-primary)",
+    borderRadius: 12,
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 800,
+    padding: "10px 12px",
+  },
+  inlineSecondaryButton: {
+    background: "#ffffff",
+    border: "1px solid #cfe0db",
+    borderRadius: 12,
+    color: "#0f172a",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 800,
+    padding: "10px 12px",
+  },
+  inlineGhostButton: {
+    background: "#fff7ed",
+    border: "1px solid #fdba74",
+    borderRadius: 12,
+    color: "#9a3412",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 800,
+    padding: "10px 12px",
   },
   rosterMeta: {
     color: "#64748b",

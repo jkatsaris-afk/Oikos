@@ -8,8 +8,28 @@ import { loadCampusStudents } from "./studentService";
 
 const CAMPUS_STAFF_TABLE = "campus_staff";
 const CAMPUS_STAFF_PHOTO_BUCKET = "campus-staff-photos";
+const CAMPUS_DEFAULT_PLATFORM = "campus";
+const CAMPUS_DEFAULT_MODE = "default";
 const TEACHER_PORTAL_PLATFORM = "campus";
 const TEACHER_PORTAL_MODE = "teacher_portal";
+const CAMPUS_APP_ORIGIN = "https://oikoscampus.app";
+
+function resolveCampusAppOrigin() {
+  if (typeof window === "undefined") {
+    return CAMPUS_APP_ORIGIN;
+  }
+
+  const hostname = String(window.location.hostname || "").toLowerCase();
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.endsWith(".local")
+  ) {
+    return window.location.origin;
+  }
+
+  return CAMPUS_APP_ORIGIN;
+}
 
 function sanitizeFileName(name = "photo") {
   const cleaned = String(name || "photo")
@@ -113,6 +133,14 @@ async function createStaffPhotoSignedUrl(path) {
   }
 
   return data?.signedUrl || "";
+}
+
+function buildTeacherDisplayName(staff = {}) {
+  return (
+    String(staff.displayName || "").trim() ||
+    [staff.firstName, staff.lastName].filter(Boolean).join(" ").trim() ||
+    "Teacher"
+  );
 }
 
 function normalizeStaff(row = {}) {
@@ -224,6 +252,7 @@ function enrichStaffAccounts(staffRows = [], members = []) {
             email: matchedMember.email || staff.email || "",
           }
         : null,
+      campusAccess: false,
       teacherPortalAccess: false,
       photoUrl: staff.photoUrl || createAvatarDataUrl(staff.displayName),
     };
@@ -284,7 +313,7 @@ function getPrimaryGradeOwnership(staff, staffRows = []) {
   });
 }
 
-async function loadTeacherPortalAccessMap(members = []) {
+async function loadCampusAccessMap(members = [], mode = CAMPUS_DEFAULT_MODE) {
   const linkedUserIds = members
     .map((member) => member.userId)
     .filter(Boolean);
@@ -296,13 +325,13 @@ async function loadTeacherPortalAccessMap(members = []) {
   const { data, error } = await supabase
     .from("user_access")
     .select("user_id, has_access")
-    .eq("platform", TEACHER_PORTAL_PLATFORM)
-    .eq("mode", TEACHER_PORTAL_MODE)
+    .eq("platform", CAMPUS_DEFAULT_PLATFORM)
+    .eq("mode", mode)
     .in("user_id", linkedUserIds);
 
   if (error) {
     if (!isMissingRelationError(error)) {
-      console.error("Teacher portal access load error:", error);
+      console.error("Campus access load error:", error);
     }
 
     return new Map();
@@ -344,9 +373,13 @@ export async function loadCampusStaffDashboard(userId) {
   const signedStaff = await signStaffPhotoUrls(
     Array.isArray(data) ? data.map((row) => normalizeStaff(row)) : []
   );
-  const teacherPortalAccessMap = await loadTeacherPortalAccessMap(access.members);
+  const defaultAccessMap = await loadCampusAccessMap(access.members, CAMPUS_DEFAULT_MODE);
+  const teacherPortalAccessMap = await loadCampusAccessMap(access.members, TEACHER_PORTAL_MODE);
   const staff = enrichStaffAccounts(signedStaff, access.members).map((item) => ({
     ...item,
+    campusAccess: item.linkedUserId
+      ? defaultAccessMap.get(item.linkedUserId) === true
+      : false,
     teacherPortalAccess: item.linkedUserId
       ? teacherPortalAccessMap.get(item.linkedUserId) === true
       : false,
@@ -463,6 +496,7 @@ export async function updateCampusStaff(userId, staff = {}) {
   }
 
   const payload = buildStaffPayload(staff);
+  const teacherDisplayName = buildTeacherDisplayName(staff);
 
   const { data, error } = await supabase
     .from(CAMPUS_STAFF_TABLE)
@@ -474,6 +508,22 @@ export async function updateCampusStaff(userId, staff = {}) {
 
   if (error) {
     throw error;
+  }
+
+  const directStudentIds = normalizeArray(staff.studentAssignments).map((value) => String(value));
+
+  if (directStudentIds.length > 0) {
+    const { error: studentSyncError } = await supabase
+      .from("campus_students")
+      .update({
+        homeroom_teacher: teacherDisplayName,
+      })
+      .eq("account_id", access.account.id)
+      .in("id", directStudentIds);
+
+    if (studentSyncError) {
+      throw studentSyncError;
+    }
   }
 
   return normalizeStaff(data);
@@ -528,6 +578,29 @@ export async function setCampusTeacherPortalAccess({
   return data || null;
 }
 
+export async function setCampusDefaultAccess({
+  userId,
+  accountId,
+  targetUserId,
+  enabled,
+}) {
+  if (!userId || !accountId || !targetUserId) {
+    throw new Error("Missing campus owner, organization, or target user.");
+  }
+
+  const { data, error } = await supabase.rpc("campus_set_default_access", {
+    account_uuid: accountId,
+    target_user_id: targetUserId,
+    enabled,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data || null;
+}
+
 export function buildCampusStaffInviteMessage({ schoolName, inviteCode, email }) {
   const lines = [
     `Welcome to ${schoolName || "our campus"}.`,
@@ -564,9 +637,7 @@ export async function sendCampusStaffInviteEmail({
     accountId,
     email,
     recipientName,
-    redirectTo: `${window.location.origin}/join?inviteCode=${encodeURIComponent(
-      inviteCode || ""
-    )}`,
+    redirectTo: `${resolveCampusAppOrigin()}/teacher/login`,
     staffId,
   });
 }

@@ -10,6 +10,8 @@ export function getModeFromPath(pathname = "/", hostname = "") {
   }
 
   if (normalizedHost.includes("oikosdisplay.app")) {
+    if (normalizedPath.startsWith("/teacher")) return "campus";
+    if (normalizedPath.startsWith("/parent")) return "campus";
     if (normalizedPath.startsWith("/church")) return "church";
     if (normalizedPath.startsWith("/admin")) return "admin";
     if (normalizedPath.startsWith("/campus")) return "campus";
@@ -22,6 +24,8 @@ export function getModeFromPath(pathname = "/", hostname = "") {
     if (normalizedPath.startsWith("/home")) return "home";
   }
 
+  if (normalizedPath.startsWith("/teacher")) return "campus";
+  if (normalizedPath.startsWith("/parent")) return "campus";
   if (normalizedPath.startsWith("/church")) return "church";
   if (normalizedPath.startsWith("/admin")) return "admin";
   if (normalizedPath.startsWith("/campus")) return "campus";

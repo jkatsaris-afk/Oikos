@@ -13,6 +13,8 @@ import ThemeProvider from "./core/theme/ThemeProvider";
 import RequireAuth from "./auth/RequireAuth";
 
 import LoginPage from "./core/pages/LoginPage";
+import TeacherLoginPage from "./core/pages/TeacherLoginPage";
+import ParentLoginPage from "./core/pages/ParentLoginPage";
 import PendingApprovalPage from "./core/pages/PendingApprovalPage";
 import NoAccessPage from "./core/pages/NoAccessPage";
 import SignupPage from "./core/pages/SignupPage";
@@ -52,6 +54,8 @@ const DisplayNightstandDashboard = load("./platforms/display/modes/nightstand/pa
 const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
 const AdminDashboard = load("./platforms/admin/pages/AdminDashboardPage");
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
+const TeacherPortalApp = load("./platforms/campus/portals/teacher/TeacherPortalApp");
+const ParentPortalApp = load("./platforms/campus/portals/parent/ParentPortalApp");
 const CampusEnrollmentPublicPage = load("./platforms/campus/pages/CampusEnrollmentPublicPage");
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
 const SportsDashboard = load("./platforms/sports/pages/SportsDashboardPage");
@@ -84,6 +88,8 @@ function AppRoutes() {
 
   const isPublicRoute =
     path === "/login" ||
+    path === "/teacher/login" ||
+    path === "/parent/login" ||
     path === "/signup" ||
     path === "/join" ||
     path.startsWith("/campus/enroll/") ||
@@ -94,10 +100,52 @@ function AppRoutes() {
     path === "/modes" ||
     path.startsWith("/no-access");
 
+  if (path === "/teacher/login") {
+    return (
+      <Routes>
+        <Route path="/teacher/login" element={<TeacherLoginPage />} />
+        <Route path="*" element={<Navigate to="/teacher/login" replace />} />
+      </Routes>
+    );
+  }
+
+  if (path === "/parent/login") {
+    return (
+      <Routes>
+        <Route path="/parent/login" element={<ParentLoginPage />} />
+        <Route path="*" element={<Navigate to="/parent/login" replace />} />
+      </Routes>
+    );
+  }
+
+  if (path.startsWith("/teacher")) {
+    return (
+      <ModeWrapper>
+        <Routes>
+          <Route path="/teacher/*" element={<TeacherPortalApp />} />
+          <Route path="*" element={<Navigate to="/teacher" replace />} />
+        </Routes>
+      </ModeWrapper>
+    );
+  }
+
+  if (path.startsWith("/parent")) {
+    return (
+      <ModeWrapper>
+        <Routes>
+          <Route path="/parent/*" element={<ParentPortalApp />} />
+          <Route path="*" element={<Navigate to="/parent" replace />} />
+        </Routes>
+      </ModeWrapper>
+    );
+  }
+
   if (isPublicRoute) {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/teacher/login" element={<TeacherLoginPage />} />
+        <Route path="/parent/login" element={<ParentLoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/join" element={<JoinPage />} />
         <Route path="/campus/enroll/:publicCode" element={<CampusEnrollmentPublicPage />} />

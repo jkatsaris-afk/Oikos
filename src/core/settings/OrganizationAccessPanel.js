@@ -1,10 +1,11 @@
-import { Camera, Copy, Mail, RefreshCcw, Save, Shield, Trash2, UserPlus, Users } from "lucide-react";
+import { Camera, Check, Copy, Mail, RefreshCcw, Save, Shield, Trash2, UserPlus, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth";
 import { getModeFromPath } from "../utils/getMode";
 import {
+  activateOrganizationMember,
   createOrganizationForCurrentUser,
   fetchOrganizationAccess,
   joinOrganizationForCurrentUser,
@@ -176,7 +177,7 @@ export default function OrganizationAccessPanel() {
 
     setNotice("");
     setError("");
-    setBusyUserId(memberUserId);
+    setBusyUserId(`remove:${memberUserId}`);
 
     try {
       await removeOrganizationMember(state.account.id, memberUserId);
@@ -189,6 +190,33 @@ export default function OrganizationAccessPanel() {
     } catch (removeError) {
       console.error("Member remove error:", removeError);
       setError(removeError?.message || "Could not remove member.");
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
+  async function activateMember(memberUserId) {
+    if (!state.account) return;
+
+    setNotice("");
+    setError("");
+    setBusyUserId(`activate:${memberUserId}`);
+
+    try {
+      await activateOrganizationMember(state.account.id, memberUserId);
+
+      setState((current) => ({
+        ...current,
+        members: current.members.map((member) =>
+          member.userId === memberUserId
+            ? { ...member, status: "active" }
+            : member
+        ),
+      }));
+      setNotice("Member activated.");
+    } catch (activateError) {
+      console.error("Member activate error:", activateError);
+      setError(activateError?.message || "Could not activate member.");
     } finally {
       setBusyUserId("");
     }
@@ -701,6 +729,9 @@ export default function OrganizationAccessPanel() {
           <div style={styles.membersList}>
             {state.members.map((member) => {
               const isOwner = member.role === "owner";
+              const isPending = String(member.status || "").toLowerCase() !== "active";
+              const activateBusyKey = `activate:${member.userId}`;
+              const removeBusyKey = `remove:${member.userId}`;
 
               return (
                 <div key={member.userId} style={styles.memberRow}>
@@ -711,18 +742,36 @@ export default function OrganizationAccessPanel() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    style={{
-                      ...styles.removeButton,
-                      ...(isOwner ? styles.removeButtonDisabled : {}),
-                    }}
-                    disabled={isOwner || busyUserId === member.userId}
-                    onClick={() => removeMember(member.userId)}
-                  >
-                    <Trash2 size={14} />
-                    {busyUserId === member.userId ? "Removing..." : "Remove"}
-                  </button>
+                  <div style={styles.memberActions}>
+                    {!isOwner && isPending ? (
+                      <button
+                        type="button"
+                        style={styles.activateButton}
+                        disabled={busyUserId === activateBusyKey}
+                        onClick={() => activateMember(member.userId)}
+                      >
+                        <Check size={14} />
+                        {busyUserId === activateBusyKey ? "Activating..." : "Activate"}
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      style={{
+                        ...styles.removeButton,
+                        ...(isOwner ? styles.removeButtonDisabled : {}),
+                      }}
+                      disabled={
+                        isOwner ||
+                        busyUserId === removeBusyKey ||
+                        busyUserId === activateBusyKey
+                      }
+                      onClick={() => removeMember(member.userId)}
+                    >
+                      <Trash2 size={14} />
+                      {busyUserId === removeBusyKey ? "Removing..." : "Remove"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -985,6 +1034,10 @@ const styles = {
     justifyContent: "space-between",
     padding: 14,
   },
+  memberActions: {
+    display: "flex",
+    gap: 8,
+  },
   memberName: {
     color: "#0f172a",
     fontSize: 15,
@@ -1002,6 +1055,20 @@ const styles = {
     border: "1px solid #fecdd3",
     borderRadius: 12,
     color: "#be123c",
+    cursor: "pointer",
+    display: "inline-flex",
+    fontSize: 13,
+    fontWeight: 800,
+    gap: 8,
+    padding: "10px 14px",
+    whiteSpace: "nowrap",
+  },
+  activateButton: {
+    alignItems: "center",
+    background: "#ecfdf5",
+    border: "1px solid #a7f3d0",
+    borderRadius: 12,
+    color: "#047857",
     cursor: "pointer",
     display: "inline-flex",
     fontSize: 13,

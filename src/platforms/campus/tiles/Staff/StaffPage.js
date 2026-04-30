@@ -19,6 +19,7 @@ import {
   archiveCampusStaff,
   createCampusStaff,
   loadCampusStaffDashboard,
+  setCampusDefaultAccess,
   sendCampusStaffPasswordReset,
   sendCampusStaffInviteEmail,
   setCampusTeacherPortalAccess,
@@ -117,6 +118,7 @@ export default function StaffPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [saving, setSaving] = useState(false);
+  const [assignmentSavingId, setAssignmentSavingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -291,22 +293,57 @@ export default function StaffPage() {
   const selectedStaffPortalUserId =
     selectedStaff?.linkedUserId || selectedStaff?.linkedAccount?.userId || "";
 
-  function toggleDirectStudentAssignment(studentId) {
-    setEditForm((current) => {
-      if (!current) return current;
+  async function toggleDirectStudentAssignment(studentId) {
+    if (!user?.id || !editForm?.id) return;
 
-      const existing = new Set((current.studentAssignments || []).map((value) => String(value)));
-      if (existing.has(String(studentId))) {
-        existing.delete(String(studentId));
-      } else {
-        existing.add(String(studentId));
-      }
+    const existing = new Set((editForm.studentAssignments || []).map((value) => String(value)));
+    if (existing.has(String(studentId))) {
+      existing.delete(String(studentId));
+    } else {
+      existing.add(String(studentId));
+    }
 
-      return {
-        ...current,
-        studentAssignments: Array.from(existing),
-      };
-    });
+    const nextAssignments = Array.from(existing);
+    const nextForm = {
+      ...editForm,
+      studentAssignments: nextAssignments,
+    };
+
+    setAssignmentSavingId(String(studentId));
+    setError("");
+    setEditForm(nextForm);
+
+    try {
+      const updated = await updateCampusStaff(user.id, nextForm);
+
+      setStaff((current) =>
+        current.map((item) =>
+          item.id === updated.id
+            ? {
+                ...item,
+                ...updated,
+                linkedAccount: item.linkedAccount || null,
+                teacherPortalAccess: item.teacherPortalAccess || false,
+                assignedStudents: item.assignedStudents || [],
+                primaryOwnedGrades: item.primaryOwnedGrades || [],
+              }
+            : item
+        )
+      );
+      await refreshDashboard(selectedStaffId || updated.id);
+      setNotice(
+        nextAssignments.includes(String(studentId))
+          ? "Student assigned."
+          : "Student removed from direct assignments."
+      );
+      setSaveFeedback("saved");
+    } catch (saveError) {
+      console.error("Campus direct student assignment save error:", saveError);
+      setError(saveError.message || "Could not update direct student assignments.");
+      setEditForm(editForm);
+    } finally {
+      setAssignmentSavingId("");
+    }
   }
 
   async function refreshDashboard(preferredStaffId = selectedStaffId) {
@@ -427,6 +464,31 @@ export default function StaffPage() {
     } catch (accessError) {
       console.error("Campus teacher portal access error:", accessError);
       setError(accessError.message || "Could not update teacher portal access.");
+    } finally {
+      setAccessSaving(false);
+    }
+  }
+
+  async function handleCampusAccess(enabled) {
+    if (!user?.id || !account?.id || !selectedStaffPortalUserId) {
+      setError("This staff member needs a linked account before you can control campus access.");
+      return;
+    }
+
+    try {
+      setAccessSaving(true);
+      setError("");
+      await setCampusDefaultAccess({
+        userId: user.id,
+        accountId: account.id,
+        targetUserId: selectedStaffPortalUserId,
+        enabled,
+      });
+      await refreshDashboard(selectedStaff.id);
+      setNotice(enabled ? "Campus access enabled." : "Campus access removed.");
+    } catch (accessError) {
+      console.error("Campus default access error:", accessError);
+      setError(accessError.message || "Could not update campus access.");
     } finally {
       setAccessSaving(false);
     }
@@ -688,9 +750,14 @@ export default function StaffPage() {
                             <button
                               type="button"
                               style={isAssigned ? styles.secondaryButton : styles.primaryButton}
+                              disabled={assignmentSavingId === student.id}
                               onClick={() => toggleDirectStudentAssignment(student.id)}
                             >
-                              {isAssigned ? "Remove" : "Assign"}
+                              {assignmentSavingId === student.id
+                                ? "Saving..."
+                                : isAssigned
+                                  ? "Remove"
+                                  : "Assign"}
                             </button>
                           </div>
                         );
@@ -732,6 +799,16 @@ export default function StaffPage() {
                       </div>
                     </div>
                     <div style={styles.accountStat}>
+                      <div style={styles.accountStatLabel}>Regular Campus Access</div>
+                      <div style={styles.accountStatValue}>
+                        {selectedStaffPortalUserId
+                          ? selectedStaff.campusAccess
+                            ? "Enabled"
+                            : "Disabled"
+                          : "Needs linked account"}
+                      </div>
+                    </div>
+                    <div style={styles.accountStat}>
                       <div style={styles.accountStatLabel}>Teacher Portal Access</div>
                       <div style={styles.accountStatValue}>
                         {selectedStaffPortalUserId
@@ -741,6 +818,30 @@ export default function StaffPage() {
                           : "Needs linked account"}
                       </div>
                     </div>
+                  </div>
+                  <div style={styles.portalAccessCard}>
+                    <div>
+                      <div style={styles.portalAccessTitle}>Regular Campus Access</div>
+                      <div style={styles.portalAccessText}>
+                        Use this for staff who should enter the main Campus experience and standard staff workflows, even if they are not teachers.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      style={
+                        selectedStaff.campusAccess
+                          ? styles.portalAccessDisableButton
+                          : styles.portalAccessEnableButton
+                      }
+                      onClick={() => handleCampusAccess(!selectedStaff.campusAccess)}
+                      disabled={accessSaving || !selectedStaffPortalUserId}
+                    >
+                      {accessSaving
+                        ? "Saving Access..."
+                        : selectedStaff.campusAccess
+                          ? "Remove Campus Access"
+                          : "Give Campus Access"}
+                    </button>
                   </div>
                   <div style={styles.portalAccessCard}>
                     <div>
@@ -770,7 +871,7 @@ export default function StaffPage() {
                   </div>
                   {!selectedStaffPortalUserId ? (
                     <div style={styles.accountHint}>
-                      This turns on after the staff member has a linked campus account. Invite them first, then their account can be granted teacher portal access here.
+                      This turns on after the staff member has a linked campus account. Invite them first, then choose whether they should get regular Campus access, teacher portal access, or both.
                     </div>
                   ) : null}
                   <div style={styles.accountActions}>

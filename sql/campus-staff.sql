@@ -164,6 +164,81 @@ $$;
 
 grant execute on function public.campus_set_teacher_portal_access(uuid, uuid, boolean) to authenticated;
 
+create or replace function public.campus_set_default_access(
+  account_uuid uuid,
+  target_user_id uuid,
+  enabled boolean
+)
+returns public.user_access
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result_row public.user_access;
+begin
+  if not exists (
+    select 1
+    from public.accounts a
+    left join public.account_members am
+      on am.account_id = a.id
+      and am.user_id = auth.uid()
+    where a.id = account_uuid
+      and (
+        a.owner_user_id = auth.uid()
+        or (am.role = 'owner' and coalesce(am.status, 'pending') = 'active')
+      )
+  ) then
+    raise exception 'Only campus organization owners can manage campus access.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.account_members am_target
+    where am_target.account_id = account_uuid
+      and am_target.user_id = target_user_id
+  ) then
+    raise exception 'The selected user is not a member of this campus organization.';
+  end if;
+
+  update public.user_access
+  set has_access = enabled
+  where
+    user_id = target_user_id
+    and platform = 'campus'
+    and mode = 'default';
+
+  if not found then
+    insert into public.user_access (
+      user_id,
+      platform,
+      mode,
+      has_access
+    )
+    values (
+      target_user_id,
+      'campus',
+      'default',
+      enabled
+    );
+  end if;
+
+  select *
+  into result_row
+  from public.user_access
+  where
+    user_id = target_user_id
+    and platform = 'campus'
+    and mode = 'default'
+  order by has_access desc
+  limit 1;
+
+  return result_row;
+end;
+$$;
+
+grant execute on function public.campus_set_default_access(uuid, uuid, boolean) to authenticated;
+
 create or replace function public.can_manage_campus_staff_photo(object_name text)
 returns boolean
 language sql

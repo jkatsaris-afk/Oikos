@@ -1,13 +1,35 @@
 import { supabase } from "../../../auth/supabaseClient";
-import { fetchOrganizationAccess } from "../../../core/settings/organizationAccessService";
+import {
+  fetchOrganizationAccess,
+  sendOrganizationInviteEmail,
+} from "../../../core/settings/organizationAccessService";
 import { getTileSettings, saveTileSetting } from "../../../core/settings/localSettingsService";
 
 const CAMPUS_STUDENTS_TABLE = "campus_students";
 const CAMPUS_STUDENT_PHOTO_BUCKET = "campus-student-photos";
 const STUDENTS_TILE_ID = "students";
+const PARENT_PORTAL_MODE = "parent_portal";
+const CAMPUS_APP_ORIGIN = "https://oikoscampus.app";
 const DEFAULT_STUDENT_ID_PREFIX = "STU-";
 const DEFAULT_STUDENT_ID_NEXT_NUMBER = 1000;
 const DEFAULT_STUDENT_ID_PAD_LENGTH = 4;
+
+function resolveCampusAppOrigin() {
+  if (typeof window === "undefined") {
+    return CAMPUS_APP_ORIGIN;
+  }
+
+  const hostname = String(window.location.hostname || "").toLowerCase();
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.endsWith(".local")
+  ) {
+    return window.location.origin;
+  }
+
+  return CAMPUS_APP_ORIGIN;
+}
 
 function sanitizeFileName(name = "photo") {
   const cleaned = String(name || "photo")
@@ -527,6 +549,88 @@ export async function updateCampusStudent(userId, student = {}) {
     console.error("Campus student update error:", error);
     throw error;
   }
+}
+
+export async function inviteCampusParentPortal({
+  userId,
+  student,
+  guardianIndex,
+}) {
+  if (!userId) {
+    throw new Error("Missing campus user.");
+  }
+
+  if (!student?.id) {
+    throw new Error("Missing student record.");
+  }
+
+  const guardians = Array.isArray(student.guardians) ? [...student.guardians] : [];
+  const guardian = guardians[guardianIndex] || null;
+
+  if (!guardian) {
+    throw new Error("The selected guardian could not be found.");
+  }
+
+  if (!String(guardian.email || "").trim()) {
+    throw new Error("Add the guardian email before sending parent portal access.");
+  }
+
+  const accountId = await getCampusAccountId(userId);
+
+  if (!accountId) {
+    throw new Error("Missing campus organization.");
+  }
+
+  const result = await sendOrganizationInviteEmail({
+    accountId,
+    email: String(guardian.email || "").trim(),
+    recipientName: String(guardian.name || "").trim(),
+    redirectTo: `${resolveCampusAppOrigin()}/parent/login`,
+  });
+
+  if (result?.invitedUserId) {
+    guardians[guardianIndex] = {
+      ...guardian,
+      linkedUserId: result.invitedUserId,
+    };
+  }
+
+  const nextStudent =
+    guardians[guardianIndex]?.linkedUserId && guardians[guardianIndex]?.linkedUserId !== guardian.linkedUserId
+      ? await updateCampusStudent(userId, {
+          ...student,
+          guardians,
+        })
+      : student;
+
+  return {
+    result,
+    student: nextStudent,
+    guardian: guardians[guardianIndex],
+  };
+}
+
+export async function setCampusParentPortalAccess({
+  userId,
+  accountId,
+  targetUserId,
+  enabled,
+}) {
+  if (!userId || !accountId || !targetUserId) {
+    throw new Error("Missing campus owner, organization, or parent account.");
+  }
+
+  const { data, error } = await supabase.rpc("campus_set_parent_portal_access", {
+    account_uuid: accountId,
+    target_user_id: targetUserId,
+    enabled,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data || null;
 }
 
 export async function uploadCampusStudentPhoto(userId, studentId, file) {

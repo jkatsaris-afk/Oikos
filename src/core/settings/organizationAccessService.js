@@ -266,11 +266,12 @@ export async function fetchOrganizationAccess(userId, mode) {
   const membership = (memberships || []).find(
     (item) => item.account_id === account?.id
   ) || null;
+  const members = account?.id ? await fetchMembers(account.id) : [];
 
   return {
     accountType,
     account,
-    members: [],
+    members,
     isOwner: false,
     membership,
   };
@@ -302,6 +303,17 @@ export async function removeOrganizationMember(accountId, memberUserId) {
     .delete()
     .eq("account_id", accountId)
     .eq("user_id", memberUserId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function activateOrganizationMember(accountId, memberUserId) {
+  const { error } = await supabase.rpc("organization_activate_member", {
+    account_uuid: accountId,
+    target_user_id: memberUserId,
+  });
 
   if (error) {
     throw error;

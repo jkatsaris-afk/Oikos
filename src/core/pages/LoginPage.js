@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { login } from "../../auth/authService";
+import { supabase } from "../../auth/supabaseClient";
 import { modeTheme } from "../../core/theme/modeTheme";
 import { getModeFromPath } from "../../core/utils/getMode";
 import {
   getDefaultPathForHostname,
   getForcedModeForHostname,
+  resolveOriginalPath,
 } from "../../core/utils/modeRouting";
 import EmailNotConfirmedModal from "../components/EmailNotConfirmedModal";
 
@@ -19,7 +21,7 @@ import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import PagesLogo from "../../assets/logos/Pages-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
 
-export default function LoginPage() {
+export default function LoginPage({ forcedOriginalPath = "", forcedMode = "" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -28,10 +30,20 @@ export default function LoginPage() {
   const location = useLocation();
 
   const hostname = window.location.hostname;
-  const originalPath =
-    location.state?.from || getDefaultPathForHostname(hostname);
+  const isTeacherMode = forcedMode === "teacher";
+  const isParentMode = forcedMode === "parent";
+  const teacherLoginRoute =
+    isTeacherMode || forcedOriginalPath.startsWith("/teacher") || location.pathname.startsWith("/teacher");
+  const parentLoginRoute =
+    isParentMode || forcedOriginalPath.startsWith("/parent") || location.pathname.startsWith("/parent");
+  const portalFallbackPath = teacherLoginRoute ? "/teacher" : parentLoginRoute ? "/parent" : "";
+  const fallbackPath = forcedOriginalPath || portalFallbackPath || getDefaultPathForHostname(hostname);
+  const resolvedOriginalPath = resolveOriginalPath(location.state?.from, hostname, fallbackPath);
+  const originalPath = forcedOriginalPath || resolvedOriginalPath;
 
-  const mode = getModeFromPath(originalPath, hostname);
+  const mode = isTeacherMode || isParentMode ? "campus" : getModeFromPath(originalPath, hostname);
+  const isTeacherLogin = isTeacherMode || originalPath.startsWith("/teacher");
+  const isParentLogin = isParentMode || originalPath.startsWith("/parent");
 
   const logoMap = {
     home: DisplayHomeLogo,
@@ -51,12 +63,69 @@ export default function LoginPage() {
     e.preventDefault();
 
     try {
-      await login(email, password);
+      const signedInUser = await login(email, password);
+
+      let teacherPortalAccess = false;
+      let parentPortalAccess = false;
+      let campusDefaultAccess = false;
+
+      if (signedInUser?.id) {
+        const { data: campusAccessRows, error: campusAccessError } = await supabase
+          .from("user_access")
+          .select("mode, has_access")
+          .eq("user_id", signedInUser.id)
+          .eq("platform", "campus")
+          .in("mode", ["default", "teacher_portal", "parent_portal"]);
+
+        if (campusAccessError) {
+          throw campusAccessError;
+        }
+
+        teacherPortalAccess = (campusAccessRows || []).some(
+          (row) => row.mode === "teacher_portal" && row.has_access === true
+        );
+        parentPortalAccess = (campusAccessRows || []).some(
+          (row) => row.mode === "parent_portal" && row.has_access === true
+        );
+        campusDefaultAccess = (campusAccessRows || []).some(
+          (row) => row.mode === "default" && row.has_access === true
+        );
+      }
 
       const forcedMode = getForcedModeForHostname(hostname);
+      const forcedDefaultPath = getDefaultPathForHostname(hostname);
+
+      if (isTeacherLogin || originalPath.startsWith("/teacher")) {
+        navigate("/teacher", { replace: true });
+        return;
+      }
+
+      if (isParentLogin || originalPath.startsWith("/parent")) {
+        navigate("/parent", { replace: true });
+        return;
+      }
+
+      if (
+        forcedDefaultPath === "/campus" &&
+        teacherPortalAccess &&
+        !campusDefaultAccess
+      ) {
+        navigate("/teacher", { replace: true });
+        return;
+      }
+
+      if (
+        forcedDefaultPath === "/campus" &&
+        parentPortalAccess &&
+        !teacherPortalAccess &&
+        !campusDefaultAccess
+      ) {
+        navigate("/parent", { replace: true });
+        return;
+      }
 
       if (forcedMode) {
-        navigate(getDefaultPathForHostname(hostname), { replace: true });
+        navigate(forcedDefaultPath, { replace: true });
         return;
       }
 
@@ -78,6 +147,26 @@ export default function LoginPage() {
 
         <div style={logoWrapper}>
           <img src={logo} alt="logo" style={logoStyle} />
+        </div>
+
+        <div style={headingBlockStyle}>
+          <div style={eyebrowStyle}>
+            {isTeacherLogin ? "Teacher Portal" : isParentLogin ? "Parent Portal" : "Oikos Sign In"}
+          </div>
+          <div style={headingStyle}>
+            {isTeacherLogin
+              ? "Sign in to your campus classroom"
+              : isParentLogin
+                ? "Sign in to your family portal"
+                : "Sign in to Oikos"}
+          </div>
+          <div style={subheadingStyle}>
+            {isTeacherLogin
+              ? "Use your school-linked Oikos account to enter the teacher portal."
+              : isParentLogin
+                ? "Use your family-linked Oikos account to see grades, assignments, and report cards."
+              : "Use your Oikos account to continue."}
+          </div>
         </div>
 
         <form style={formStyle} onSubmit={handleLogin}>
@@ -152,6 +241,34 @@ const logoWrapper = {
   display: "flex",
   justifyContent: "center",
   marginBottom: "10px",
+};
+
+const headingBlockStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+  marginBottom: "18px",
+  textAlign: "center",
+};
+
+const eyebrowStyle = {
+  color: "#0f766e",
+  fontSize: "12px",
+  fontWeight: 800,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+};
+
+const headingStyle = {
+  color: "#0f172a",
+  fontSize: "24px",
+  fontWeight: 900,
+};
+
+const subheadingStyle = {
+  color: "#64748b",
+  fontSize: "14px",
+  lineHeight: 1.6,
 };
 
 const logoStyle = {
