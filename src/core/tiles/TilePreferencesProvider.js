@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth";
 import { getModeFromPath } from "../utils/getMode";
+import { getTileCatalogForMode } from "./tileCatalog";
 import {
   fetchModeTileCatalog,
   fetchUserModeTiles,
@@ -69,18 +70,19 @@ function moveWidgetsOutOfDateSlots(tiles) {
 function normalizeTiles(tileCatalog, storedTiles, storedWidgets = []) {
   const storedMap = new Map(storedTiles.map((tile) => [tile.tile_id, tile]));
   const widgetMap = new Map(storedWidgets.map((widget) => [widget.tile_id, widget]));
+  const hasStoredTiles = storedTiles.length > 0;
   let nextOrder = 1;
 
   const appTiles = tileCatalog.map((tile) => {
     const stored = storedMap.get(tile.id);
     const storedWidget = widgetMap.get(tile.id);
     const hasWidget = Boolean(tileRegistry[tile.id]?.widget);
-    const installed = stored?.is_installed ?? false;
-    const visible = installed ? (stored?.is_visible ?? true) : false;
+    const installed = stored?.is_installed ?? !hasStoredTiles;
+    const visible = installed ? (stored?.is_visible ?? !hasStoredTiles) : false;
     const sortOrder = stored?.sort_order ?? nextOrder;
     const placement =
       stored?.placement ||
-      "overflow";
+      (nextOrder <= 3 ? "dock" : "overflow");
 
     nextOrder += 1;
 
@@ -182,11 +184,16 @@ export function TilePreferencesProvider({ children }) {
       setError("");
 
       try {
-        const [tileCatalog, storedTiles, storedWidgets] = await Promise.all([
+        const [fetchedTileCatalog, storedTiles, storedWidgets] = await Promise.all([
           fetchModeTileCatalog(mode, user.id),
           fetchUserModeTiles(user.id, mode),
           fetchUserModeWidgets(user.id, mode),
         ]);
+        const fallbackTileCatalog = getTileCatalogForMode(mode);
+        const tileCatalog =
+          Array.isArray(fetchedTileCatalog) && fetchedTileCatalog.length > 0
+            ? fetchedTileCatalog
+            : fallbackTileCatalog;
 
         if (!mounted) return;
 

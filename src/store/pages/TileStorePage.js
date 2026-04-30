@@ -188,7 +188,7 @@ function getStoreInfo(tile) {
 }
 
 export default function TileStorePage() {
-  const { availableTiles, installTile, loading, error } = useUserTiles();
+  const { availableTiles, installTile, loading, error, mode } = useUserTiles();
   const { openTile } = useDockNavigation();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -315,7 +315,9 @@ export default function TileStorePage() {
 
           {!loading && filteredTiles.length === 0 ? (
             <div style={styles.message}>
-              No tile apps match that search in this mode.
+              {mode === "home"
+                ? "No tile apps are available in Home mode right now. Open Campus mode at /campus to see the campus tile apps."
+                : `No tile apps match that search in ${String(mode || "this").toUpperCase()} mode.`}
             </div>
           ) : null}
         </div>

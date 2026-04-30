@@ -1,6 +1,7 @@
 node_modules/
 build/
 Songs/
+sql/
 .env
 .env.local
 .env.development
