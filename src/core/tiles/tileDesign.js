@@ -7,6 +7,7 @@ import LiveDisplayTileDesign from "../../platforms/church/tiles/LiveDisplay/Tile
 import RemoteTileDesign from "../../platforms/church/tiles/Remote/TileDesign";
 import SermonTileDesign from "../../platforms/church/tiles/Sermon/TileDesign";
 import ServiceTileDesign from "../../platforms/church/tiles/Service/TileDesign";
+import AttendanceTileDesign from "../../platforms/campus/tiles/Attendance/TileDesign";
 import CommunicationTileDesign from "../../platforms/campus/tiles/Communication/TileDesign";
 import EnrollmentTileDesign from "../../platforms/campus/tiles/Enrollment/TileDesign";
 import StaffTileDesign from "../../platforms/campus/tiles/Staff/TileDesign";
@@ -54,6 +55,7 @@ export const tileDesign = {
   [ServiceTileDesign.id]: ServiceTileDesign,
   [LiveDisplayTileDesign.id]: LiveDisplayTileDesign,
   [RemoteTileDesign.id]: RemoteTileDesign,
+  [AttendanceTileDesign.id]: AttendanceTileDesign,
   [CommunicationTileDesign.id]: CommunicationTileDesign,
   [EnrollmentTileDesign.id]: EnrollmentTileDesign,
   [StaffTileDesign.id]: StaffTileDesign,

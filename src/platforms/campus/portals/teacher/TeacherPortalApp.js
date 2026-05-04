@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import {
   BookOpen,
+  CalendarDays,
   ClipboardList,
   FileText,
   GraduationCap,
@@ -29,11 +30,13 @@ import TeacherPortalClassroomPage from "./TeacherPortalClassroomPage";
 import TeacherPortalGradebookPage from "./TeacherPortalGradebookPage";
 import TeacherPortalSubjectsPage from "./TeacherPortalSubjectsPage";
 import TeacherPortalAssignmentsPage from "./TeacherPortalAssignmentsPage";
+import TeacherPortalAttendancePage from "./TeacherPortalAttendancePage";
 import TeacherPortalReportsPage from "./TeacherPortalReportsPage";
 import TeacherPortalCommunicationPage from "./TeacherPortalCommunicationPage";
 
 const NAV_ITEMS = [
   { to: "/teacher", label: "Overview", icon: LayoutDashboard, match: (path) => path === "/teacher" || path === "/teacher/" },
+  { to: "/teacher/attendance", label: "Attendance", icon: CalendarDays, match: (path) => path.startsWith("/teacher/attendance") },
   { to: "/teacher/students", label: "Students", icon: Users, match: (path) => path.startsWith("/teacher/students") },
   { to: "/teacher/subjects", label: "Subjects", icon: BookOpen, match: (path) => path.startsWith("/teacher/subjects") },
   { to: "/teacher/assignments", label: "Assignments", icon: ClipboardList, match: (path) => path.startsWith("/teacher/assignments") },
@@ -75,6 +78,7 @@ export default function TeacherPortalApp() {
   const { user, profile, profileReady, loading } = useAuth();
   const [workspace, setWorkspace] = useState(null);
   const [loadingWorkspace, setLoadingWorkspace] = useState(true);
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [savingKey, setSavingKey] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -106,6 +110,7 @@ export default function TeacherPortalApp() {
         }
 
         setWorkspace(nextWorkspace);
+        setBootstrapped(true);
       } catch (loadError) {
         console.error("Teacher portal workspace load error:", loadError);
         if (!mounted) {
@@ -113,6 +118,7 @@ export default function TeacherPortalApp() {
         }
         setWorkspace(null);
         setError(loadError?.message || "Could not load the teacher portal.");
+        setBootstrapped(true);
       } finally {
         if (mounted) {
           setLoadingWorkspace(false);
@@ -128,11 +134,11 @@ export default function TeacherPortalApp() {
   }, [loading, profileReady, user]);
 
   const subjectNameMap = useMemo(
-    () => getSubjectNameMap(workspace?.subjects || []),
-    [workspace?.subjects]
+    () => getSubjectNameMap(workspace?.allSubjects || workspace?.subjects || []),
+    [workspace?.allSubjects, workspace?.subjects]
   );
 
-  if (loading || !profileReady || loadingWorkspace) {
+  if ((loading || !profileReady || loadingWorkspace) && !bootstrapped) {
     return (
       <GlobalLoadingPage
         title="Loading Teacher Portal"
@@ -502,6 +508,17 @@ export default function TeacherPortalApp() {
             }
           />
           <Route
+            path="attendance"
+            element={
+              <TeacherPortalAttendancePage
+                user={user}
+                account={workspace.account}
+                teacher={workspace.teacher}
+                students={workspace.students}
+              />
+            }
+          />
+          <Route
             path="gradebook"
             element={
               <TeacherPortalGradebookPage
@@ -519,9 +536,11 @@ export default function TeacherPortalApp() {
             element={
               <TeacherPortalReportsPage
                 students={workspace.students}
-                assignments={workspace.assignments}
-                grades={workspace.grades}
-                reports={workspace.reports || []}
+                assignments={workspace.allAssignments || workspace.assignments}
+                grades={workspace.allGrades || workspace.grades}
+                reports={workspace.allReports || workspace.reports || []}
+                subjects={workspace.allSubjects || workspace.subjects || []}
+                teacherUserId={user.id}
                 subjectNameMap={subjectNameMap}
                 saving={savingKey.startsWith("report:")}
                 onSaveReport={handleSaveReport}

@@ -37,6 +37,7 @@ export default function DockLayout({ children }) {
 
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
+  const [openedTileIds, setOpenedTileIds] = useState([]);
 
   const { visibleTiles: userVisibleTiles = [], uninstallTile } = useUserTiles();
 
@@ -70,6 +71,12 @@ export default function DockLayout({ children }) {
     }
   }, [activeTile, installedTiles]);
 
+  useEffect(() => {
+    setOpenedTileIds((current) =>
+      current.filter((tileId) => tileId === "store" || installedTiles.some((tile) => tile.id === tileId))
+    );
+  }, [installedTiles]);
+
   // =========================
   // 🔥 DOCK (MAX 3 USER TILES)
   // =========================
@@ -93,20 +100,24 @@ export default function DockLayout({ children }) {
 
   const showMore = overflowTiles.length > 0;
 
-  // =========================
-  // 🔥 ACTIVE TILE
-  // =========================
-  const ActiveComponent =
-    tileRegistry[activeTile] &&
-    tileRegistry[activeTile].page
-      ? tileRegistry[activeTile].page
-      : null;
-
   const openTile = (tileId) => {
-    if (tileId === "home" || tileId === "store" || tileRegistry[tileId]?.page) {
-      setShowOverflow(false);
-      setActiveTile(tileId);
+    if (!(tileId === "home" || tileId === "store" || tileRegistry[tileId]?.page)) {
+      return;
     }
+
+    setShowOverflow(false);
+
+    if (tileId === activeTile) {
+      return;
+    }
+
+    if (tileId !== "home") {
+      setOpenedTileIds((current) =>
+        current.includes(tileId) ? current : [...current, tileId]
+      );
+    }
+
+    setActiveTile(tileId);
   };
 
   return (
@@ -118,26 +129,41 @@ export default function DockLayout({ children }) {
       ========================= */}
       <div className="content-area">
 
-        {activeTile === "home" && children}
+        <div style={{ display: activeTile === "home" ? "block" : "none", height: "100%" }}>
+          {children}
+        </div>
 
-        {activeTile === "store" && <TileStorePage />}
+        {openedTileIds.includes("store") || activeTile === "store" ? (
+          <div style={{ display: activeTile === "store" ? "block" : "none", height: "100%" }}>
+            <TileStorePage />
+          </div>
+        ) : null}
 
-        {activeTile !== "home" && activeTile !== "store" && (
-          <>
-            {ActiveComponent ? (
-              React.createElement(ActiveComponent, {
-                onUninstall: () => uninstallTile(activeTile),
-                showUninstall:
-                  !tileRegistry[activeTile]?.system &&
-                  !tileRegistry[activeTile]?.noUninstall,
-              })
-            ) : (
-              <div style={{ padding: 20 }}>
-                ⚠️ Tile not available
+        {openedTileIds
+          .filter((tileId) => tileId !== "store")
+          .map((tileId) => {
+            const TileComponent = tileRegistry[tileId]?.page || null;
+
+            return (
+              <div
+                key={tileId}
+                style={{ display: activeTile === tileId ? "block" : "none", height: "100%" }}
+              >
+                {TileComponent ? (
+                  React.createElement(TileComponent, {
+                    onUninstall: () => uninstallTile(tileId),
+                    showUninstall:
+                      !tileRegistry[tileId]?.system &&
+                      !tileRegistry[tileId]?.noUninstall,
+                  })
+                ) : (
+                  <div style={{ padding: 20 }}>
+                    ⚠️ Tile not available
+                  </div>
+                )}
               </div>
-            )}
-          </>
-        )}
+            );
+          })}
 
       </div>
 

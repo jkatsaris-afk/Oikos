@@ -1,6 +1,7 @@
 import { supabase } from "../../../auth/supabaseClient";
 import { fetchOrganizationAccess } from "../../../core/settings/organizationAccessService";
-import { loadCampusStudents } from "./studentService";
+import { loadParentAttendanceRecords } from "./attendanceService";
+import { loadCampusStudents, updateCampusStudent } from "./studentService";
 
 const CAMPUS_SUBJECTS_TABLE = "campus_subjects";
 const CAMPUS_ASSIGNMENTS_TABLE = "campus_assignments";
@@ -177,6 +178,7 @@ export async function loadParentPortalWorkspace(user) {
 
   const studentIds = children.map((student) => String(student.id || "")).filter(Boolean);
   const tableState = await loadParentTables(account.id, studentIds);
+  const attendanceState = await loadParentAttendanceRecords(user, studentIds);
 
   const gradesByAssignmentStudent = new Map();
   (tableState.grades || []).forEach((grade) => {
@@ -219,7 +221,31 @@ export async function loadParentPortalWorkspace(user) {
     children,
     assignments: visibleAssignments,
     reports: tableState.reports || [],
+    attendanceRecords: attendanceState.records || [],
     subjects: tableState.subjects || [],
     grades: tableState.grades || [],
+    attendanceSchemaReady: attendanceState.schemaReady !== false,
   };
+}
+
+export async function updateParentPortalStudentInfo(userId, student = {}) {
+  if (!userId) {
+    throw new Error("Missing parent account.");
+  }
+
+  if (!student?.id) {
+    throw new Error("Missing student record.");
+  }
+
+  const nextStudent = {
+    ...student,
+    guardians: Array.isArray(student.guardians)
+      ? student.guardians.map((guardian) => ({
+          ...guardian,
+          linkedUserId: guardian?.linkedUserId || "",
+        }))
+      : [],
+  };
+
+  return updateCampusStudent(userId, nextStudent);
 }

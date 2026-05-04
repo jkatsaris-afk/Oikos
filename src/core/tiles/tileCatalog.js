@@ -8,7 +8,7 @@ export const defaultModeTileAvailability = {
   nightstand: [],
   admin: ["global-users", "tile-store-manager"],
   church: ["announcements", "events", "hymns", "sermon", "service", "live-display", "remote"],
-  campus: ["students", "enrollment", "staff", "communication"],
+  campus: ["students", "attendance", "enrollment", "staff", "communication"],
   pages: [],
   sports: [],
   farm: [],

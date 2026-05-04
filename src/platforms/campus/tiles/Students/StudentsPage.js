@@ -85,6 +85,46 @@ function cloneValue(value, fallback) {
   }
 }
 
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function normalizeLowerText(value) {
+  return normalizeText(value).toLowerCase();
+}
+
+function getGuardianIdentityKey(guardian = {}, fallback = "") {
+  const linkedUserId = normalizeLowerText(guardian.linkedUserId);
+  const email = normalizeLowerText(guardian.email);
+  const phone = normalizeText(guardian.phone).replace(/\D+/g, "");
+  const name = normalizeLowerText(guardian.name);
+
+  if (linkedUserId) return `user:${linkedUserId}`;
+  if (email) return `email:${email}`;
+  if (phone && name) return `phone-name:${phone}:${name}`;
+  if (phone) return `phone:${phone}`;
+  if (name) return `name:${name}`;
+  return fallback;
+}
+
+function getSubjectTeacherAssignments(value = {}) {
+  return Array.isArray(value?.customFields?.subjectTeachers)
+    ? value.customFields.subjectTeachers
+    : [];
+}
+
+function getEmergencyContactIdentityKey(contact = {}, fallback = "") {
+  const phone = normalizeText(contact.phone).replace(/\D+/g, "");
+  const name = normalizeLowerText(contact.name);
+  const relationship = normalizeLowerText(contact.relationship);
+
+  if (phone && name) return `phone-name:${phone}:${name}`;
+  if (phone) return `phone:${phone}`;
+  if (name && relationship) return `name-relationship:${name}:${relationship}`;
+  if (name) return `name:${name}`;
+  return fallback;
+}
+
 function createGuardian() {
   return {
     name: "",
@@ -103,6 +143,15 @@ function createEmergencyContact() {
     relationship: "",
     phone: "",
     priority: "",
+  };
+}
+
+function createSubjectTeacherAssignment() {
+  return {
+    subjectName: "",
+    teacherStaffId: "",
+    teacherUserId: "",
+    teacherDisplayName: "",
   };
 }
 
@@ -205,6 +254,7 @@ function LabeledTextarea({ label, value, onChange, placeholder = "", rows = 5 })
 export default function StudentsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -219,6 +269,9 @@ export default function StudentsPage() {
   const [notice, setNotice] = useState("");
   const [editForm, setEditForm] = useState(null);
   const [teacherOptions, setTeacherOptions] = useState([]);
+  const [teacherStaffOptions, setTeacherStaffOptions] = useState([]);
+  const [guardianLinkSelection, setGuardianLinkSelection] = useState("");
+  const [emergencyContactLinkSelection, setEmergencyContactLinkSelection] = useState("");
   const [photoUploading, setPhotoUploading] = useState(false);
   const [guardianAccessSavingKey, setGuardianAccessSavingKey] = useState("");
   const studentPhotoInputRef = useRef(null);
@@ -247,9 +300,17 @@ export default function StudentsPage() {
       try {
         const nextStudents = await loadCampusStudents(user?.id);
         let nextTeacherOptions = [];
+        let nextTeacherStaffOptions = [];
 
         try {
           const staffDashboard = await loadCampusStaffDashboard(user?.id);
+          const activeTeachers = (staffDashboard.staff || []).filter(
+            (staff) =>
+              staff.isActive &&
+              String(staff.staffType || "").toLowerCase() === "teacher" &&
+              String(staff.displayName || "").trim()
+          );
+
           nextTeacherOptions = (staffDashboard.staff || [])
             .filter(
               (staff) =>
@@ -261,6 +322,15 @@ export default function StudentsPage() {
             .filter((name, index, list) => list.indexOf(name) === index)
             .sort((a, b) => a.localeCompare(b))
             .map((name) => ({ label: name, value: name }));
+          nextTeacherStaffOptions = activeTeachers
+            .sort((a, b) =>
+              String(a.displayName || "").localeCompare(String(b.displayName || ""))
+            )
+            .map((staff) => ({
+              label: String(staff.displayName || "").trim(),
+              value: String(staff.id || ""),
+              teacherUserId: String(staff.linkedUserId || ""),
+            }));
         } catch (staffError) {
           console.error("Campus students teacher list load error:", staffError);
         }
@@ -268,6 +338,7 @@ export default function StudentsPage() {
         if (!mounted) return;
         setStudents(nextStudents);
         setTeacherOptions(nextTeacherOptions);
+        setTeacherStaffOptions(nextTeacherStaffOptions);
         setSelectedStudentId("");
         setPreviewStudentId(nextStudents[0]?.id || "");
       } catch (loadError) {
@@ -275,9 +346,11 @@ export default function StudentsPage() {
         if (!mounted) return;
         setStudents([]);
         setTeacherOptions([]);
+        setTeacherStaffOptions([]);
       } finally {
         if (mounted) {
           setLoading(false);
+          setBootstrapped(true);
         }
       }
     }
@@ -323,6 +396,107 @@ export default function StudentsPage() {
       students.find((student) => student.id === previewStudentId) ||
       null
     : filteredStudents[0] || students[0] || null;
+
+  const reusableGuardianOptions = useMemo(() => {
+    const currentStudentId = editForm?.id || selectedStudent?.id || "";
+    const guardianMap = new Map();
+
+    students.forEach((student) => {
+      if (!student?.id || student.id === currentStudentId) {
+        return;
+      }
+
+      (student.guardians || []).forEach((guardian, index) => {
+        if (
+          !normalizeText(guardian?.name) &&
+          !normalizeText(guardian?.email) &&
+          !normalizeText(guardian?.phone)
+        ) {
+          return;
+        }
+
+        const key = getGuardianIdentityKey(guardian, `student:${student.id}:guardian:${index}`);
+        const sourceStudentName = normalizeText(student.displayName) || "Student";
+        const existing = guardianMap.get(key);
+
+        if (existing) {
+          if (!existing.sourceStudentNames.includes(sourceStudentName)) {
+            existing.sourceStudentNames.push(sourceStudentName);
+          }
+          return;
+        }
+
+        guardianMap.set(key, {
+          key,
+          label: normalizeText(guardian.name) || normalizeText(guardian.email) || "Guardian",
+          sourceStudentNames: [sourceStudentName],
+          guardian: {
+            name: normalizeText(guardian.name),
+            relationship: normalizeText(guardian.relationship),
+            phone: normalizeText(guardian.phone),
+            email: normalizeText(guardian.email),
+            linkedUserId: normalizeText(guardian.linkedUserId),
+            portalAccess: Boolean(guardian.portalAccess),
+            pickupApproved: Boolean(guardian.pickupApproved),
+          },
+        });
+      });
+    });
+
+    return Array.from(guardianMap.values())
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map((option) => ({
+        ...option,
+        description: option.sourceStudentNames.join(", "),
+      }));
+  }, [editForm?.id, selectedStudent?.id, students]);
+
+  const reusableEmergencyContactOptions = useMemo(() => {
+    const currentStudentId = editForm?.id || selectedStudent?.id || "";
+    const contactMap = new Map();
+
+    students.forEach((student) => {
+      if (!student?.id || student.id === currentStudentId) {
+        return;
+      }
+
+      (student.emergencyContacts || []).forEach((contact, index) => {
+        if (!normalizeText(contact?.name) && !normalizeText(contact?.phone)) {
+          return;
+        }
+
+        const key = getEmergencyContactIdentityKey(contact, `student:${student.id}:contact:${index}`);
+        const sourceStudentName = normalizeText(student.displayName) || "Student";
+        const existing = contactMap.get(key);
+
+        if (existing) {
+          if (!existing.sourceStudentNames.includes(sourceStudentName)) {
+            existing.sourceStudentNames.push(sourceStudentName);
+          }
+          return;
+        }
+
+        contactMap.set(key, {
+          key,
+          label: normalizeText(contact.name) || normalizeText(contact.phone) || "Emergency Contact",
+          sourceStudentNames: [sourceStudentName],
+          contact: {
+            name: normalizeText(contact.name),
+            relationship: normalizeText(contact.relationship),
+            phone: normalizeText(contact.phone),
+            priority: normalizeText(contact.priority),
+          },
+        });
+      });
+    });
+
+    return Array.from(contactMap.values())
+      .sort((a, b) => a.label.localeCompare(b.label))
+      .map((option) => ({
+        ...option,
+        description: option.sourceStudentNames.join(", "),
+      }));
+  }, [editForm?.id, selectedStudent?.id, students]);
 
   useEffect(() => {
     if (!selectedStudent || editMode) {
@@ -372,6 +546,8 @@ export default function StudentsPage() {
     setError("");
     setNotice("");
     setActiveEditSection(sectionKey);
+    setGuardianLinkSelection("");
+    setEmergencyContactLinkSelection("");
     setEditMode(true);
     setEditForm({
       ...selectedStudent,
@@ -436,12 +612,174 @@ export default function StudentsPage() {
     }));
   }
 
+  function handleLinkExistingGuardian() {
+    if (!guardianLinkSelection) {
+      return;
+    }
+
+    const selectedGuardian = reusableGuardianOptions.find(
+      (option) => option.key === guardianLinkSelection
+    );
+
+    if (!selectedGuardian) {
+      return;
+    }
+
+    const nextGuardian = cloneValue(selectedGuardian.guardian, createGuardian());
+    const identityKey = getGuardianIdentityKey(nextGuardian);
+    let wasDuplicate = false;
+
+    setEditForm((current) => {
+      const currentGuardians = Array.isArray(current?.guardians) ? [...current.guardians] : [];
+      const hasMatch = currentGuardians.some(
+        (guardian) => getGuardianIdentityKey(guardian) === identityKey
+      );
+
+      if (hasMatch) {
+        wasDuplicate = true;
+        return current;
+      }
+
+      const blankIndex = currentGuardians.findIndex(
+        (guardian) =>
+          !normalizeText(guardian?.name) &&
+          !normalizeText(guardian?.email) &&
+          !normalizeText(guardian?.phone) &&
+          !normalizeText(guardian?.linkedUserId)
+      );
+
+      if (blankIndex >= 0) {
+        currentGuardians[blankIndex] = nextGuardian;
+      } else {
+        currentGuardians.push(nextGuardian);
+      }
+
+      return {
+        ...current,
+        guardians: currentGuardians,
+      };
+    });
+
+    setGuardianLinkSelection("");
+    setNotice(
+      wasDuplicate
+        ? "That guardian is already connected to this student."
+        : `Guardian linked from ${selectedGuardian.description}. Save the student record to keep the connection.`
+    );
+  }
+
+  function handleLinkExistingEmergencyContact() {
+    if (!emergencyContactLinkSelection) {
+      return;
+    }
+
+    const selectedContact = reusableEmergencyContactOptions.find(
+      (option) => option.key === emergencyContactLinkSelection
+    );
+
+    if (!selectedContact) {
+      return;
+    }
+
+    const nextContact = cloneValue(selectedContact.contact, createEmergencyContact());
+    const identityKey = getEmergencyContactIdentityKey(nextContact);
+    let wasDuplicate = false;
+
+    setEditForm((current) => {
+      const currentContacts = Array.isArray(current?.emergencyContacts)
+        ? [...current.emergencyContacts]
+        : [];
+      const hasMatch = currentContacts.some(
+        (contact) => getEmergencyContactIdentityKey(contact) === identityKey
+      );
+
+      if (hasMatch) {
+        wasDuplicate = true;
+        return current;
+      }
+
+      const blankIndex = currentContacts.findIndex(
+        (contact) =>
+          !normalizeText(contact?.name) &&
+          !normalizeText(contact?.phone) &&
+          !normalizeText(contact?.relationship)
+      );
+
+      if (blankIndex >= 0) {
+        currentContacts[blankIndex] = nextContact;
+      } else {
+        currentContacts.push(nextContact);
+      }
+
+      return {
+        ...current,
+        emergencyContacts: currentContacts,
+      };
+    });
+
+    setEmergencyContactLinkSelection("");
+    setNotice(
+      wasDuplicate
+        ? "That emergency contact is already connected to this student."
+        : `Emergency contact linked from ${selectedContact.description}. Save the student record to keep the connection.`
+    );
+  }
+
   function updateNestedSection(section, field, value) {
     setEditForm((current) => ({
       ...current,
       [section]: {
         ...(current?.[section] || {}),
         [field]: value,
+      },
+    }));
+  }
+
+  function updateSubjectTeacherAssignment(index, field, value) {
+    setEditForm((current) => {
+      const currentAssignments = getSubjectTeacherAssignments(current);
+      const nextAssignments = [...currentAssignments];
+      const nextItem = {
+        ...(nextAssignments[index] || createSubjectTeacherAssignment()),
+        [field]: value,
+      };
+
+      if (field === "teacherStaffId") {
+        const matchedTeacher = teacherStaffOptions.find((option) => option.value === value);
+        nextItem.teacherDisplayName = matchedTeacher?.label || "";
+        nextItem.teacherUserId = matchedTeacher?.teacherUserId || "";
+      }
+
+      nextAssignments[index] = nextItem;
+
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          subjectTeachers: nextAssignments,
+        },
+      };
+    });
+  }
+
+  function addSubjectTeacherAssignment() {
+    setEditForm((current) => ({
+      ...current,
+      customFields: {
+        ...(current?.customFields || {}),
+        subjectTeachers: [...getSubjectTeacherAssignments(current), createSubjectTeacherAssignment()],
+      },
+    }));
+  }
+
+  function removeSubjectTeacherAssignment(index) {
+    setEditForm((current) => ({
+      ...current,
+      customFields: {
+        ...(current?.customFields || {}),
+        subjectTeachers: getSubjectTeacherAssignments(current).filter(
+          (_item, itemIndex) => itemIndex !== index
+        ),
       },
     }));
   }
@@ -658,7 +996,7 @@ export default function StudentsPage() {
     }
   }
 
-  if (loading) {
+  if (loading && !bootstrapped) {
     return (
       <GlobalLoadingPage
         modeOverride="campus"
@@ -884,6 +1222,27 @@ export default function StudentsPage() {
                   },
                 ]}
               />
+            </SectionCard>
+
+            <SectionCard
+              icon={GraduationCap}
+              title="Subject Teachers"
+              action={renderSectionEditAction("enrollment")}
+            >
+              <div style={styles.stackList}>
+                {getSubjectTeacherAssignments(selectedStudent).length ? (
+                  getSubjectTeacherAssignments(selectedStudent).map((assignment, index) => (
+                    <div key={`${assignment.subjectName || "subject"}-${index}`} style={styles.stackCard}>
+                      <div style={styles.stackTitle}>{assignment.subjectName || "Subject"}</div>
+                      <div style={styles.stackMeta}>
+                        {assignment.teacherDisplayName || "Teacher not assigned"}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={styles.emptyInline}>No additional subject teachers assigned.</div>
+                )}
+              </div>
             </SectionCard>
 
             <SectionCard
@@ -1159,6 +1518,43 @@ export default function StudentsPage() {
                 <LabeledInput label="Tuition Payment Status" value={editForm.tuitionPaymentStatus} onChange={(value) => updateForm("tuitionPaymentStatus", value)} />
                 <LabeledInput label="Tuition Balance Cents" type="number" value={editForm.tuitionBalanceCents || 0} onChange={(value) => updateForm("tuitionBalanceCents", value)} />
               </div>
+              <div style={styles.stackEditList}>
+                <div style={styles.fieldHint}>
+                  Add additional teachers by subject so they can manage their own grades and report notes for this student.
+                </div>
+                {getSubjectTeacherAssignments(editForm).map((assignment, index) => (
+                  <div key={`subject-teacher-${index}`} style={styles.stackEditCard}>
+                    <div style={styles.stackEditHeader}>
+                      <div style={styles.stackEditTitle}>Subject Teacher {index + 1}</div>
+                      <button
+                        type="button"
+                        style={styles.removeMiniButton}
+                        onClick={() => removeSubjectTeacherAssignment(index)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div style={styles.formGrid}>
+                      <LabeledInput
+                        label="Subject"
+                        value={assignment.subjectName || ""}
+                        onChange={(value) => updateSubjectTeacherAssignment(index, "subjectName", value)}
+                        placeholder="Music, Art, Bible"
+                      />
+                      <LabeledSelect
+                        label="Teacher"
+                        value={assignment.teacherStaffId || ""}
+                        onChange={(value) => updateSubjectTeacherAssignment(index, "teacherStaffId", value)}
+                        options={teacherStaffOptions}
+                        placeholder={teacherStaffOptions.length ? "Select teacher" : "No teachers available"}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <button type="button" style={styles.addMiniButton} onClick={addSubjectTeacherAssignment}>
+                  Add Subject Teacher
+                </button>
+              </div>
             </SectionCard>
 
             <div ref={editSectionRefs.tuition} />
@@ -1186,6 +1582,42 @@ export default function StudentsPage() {
               sectionRef={editSectionRefs.guardians}
             >
               <div style={styles.stackEditList}>
+                {reusableGuardianOptions.length ? (
+                  <div style={styles.guardianLinkPanel}>
+                    <div style={styles.guardianLinkMeta}>
+                      <div style={styles.guardianAccessTitle}>Link Existing Guardian</div>
+                      <div style={styles.guardianAccessCopy}>
+                        Reuse a guardian already attached to a sibling or another student in your school.
+                      </div>
+                    </div>
+                    <div style={styles.guardianLinkControls}>
+                      <select
+                        value={guardianLinkSelection}
+                        onChange={(event) => setGuardianLinkSelection(event.target.value)}
+                        style={styles.input}
+                      >
+                        <option value="">Select a guardian from another student</option>
+                        {reusableGuardianOptions.map((option) => (
+                          <option key={option.key} value={option.key}>
+                            {option.label} - {option.description}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        style={styles.inlineSecondaryButton}
+                        onClick={handleLinkExistingGuardian}
+                        disabled={!guardianLinkSelection}
+                      >
+                        Add Linked Guardian
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={styles.fieldHint}>
+                    Once another sibling or student has a guardian on file, you can link that guardian here.
+                  </div>
+                )}
                 {(editForm.guardians || []).map((guardian, index) => (
                   <div key={`guardian-${index}`} style={styles.stackEditCard}>
                     <div style={styles.stackEditHeader}>
@@ -1252,6 +1684,42 @@ export default function StudentsPage() {
               sectionRef={editSectionRefs.emergency}
             >
               <div style={styles.stackEditList}>
+                {reusableEmergencyContactOptions.length ? (
+                  <div style={styles.guardianLinkPanel}>
+                    <div style={styles.guardianLinkMeta}>
+                      <div style={styles.guardianAccessTitle}>Link Existing Emergency Contact</div>
+                      <div style={styles.guardianAccessCopy}>
+                        Reuse an emergency contact already attached to a sibling or another student in your school.
+                      </div>
+                    </div>
+                    <div style={styles.guardianLinkControls}>
+                      <select
+                        value={emergencyContactLinkSelection}
+                        onChange={(event) => setEmergencyContactLinkSelection(event.target.value)}
+                        style={styles.input}
+                      >
+                        <option value="">Select an emergency contact from another student</option>
+                        {reusableEmergencyContactOptions.map((option) => (
+                          <option key={option.key} value={option.key}>
+                            {option.label} - {option.description}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        style={styles.inlineSecondaryButton}
+                        onClick={handleLinkExistingEmergencyContact}
+                        disabled={!emergencyContactLinkSelection}
+                      >
+                        Add Linked Contact
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={styles.fieldHint}>
+                    Once another sibling or student has an emergency contact on file, you can link that contact here.
+                  </div>
+                )}
                 {(editForm.emergencyContacts || []).map((contact, index) => (
                   <div key={`emergency-${index}`} style={styles.stackEditCard}>
                     <div style={styles.stackEditHeader}>
@@ -1864,6 +2332,24 @@ const styles = {
     justifyContent: "space-between",
     marginTop: 12,
     padding: 12,
+  },
+  guardianLinkPanel: {
+    background: "#f8fafc",
+    border: "1px solid #dbe7e3",
+    borderRadius: 16,
+    display: "grid",
+    gap: 12,
+    padding: 14,
+  },
+  guardianLinkMeta: {
+    display: "grid",
+    gap: 6,
+  },
+  guardianLinkControls: {
+    alignItems: "end",
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "minmax(0, 1fr) auto",
   },
   guardianAccessMeta: {
     display: "flex",

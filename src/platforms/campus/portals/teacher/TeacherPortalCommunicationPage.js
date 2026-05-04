@@ -22,6 +22,7 @@ function formatDateTime(value) {
 export default function TeacherPortalCommunicationPage({ students = [] }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [sending, setSending] = useState(false);
   const [dashboard, setDashboard] = useState({ account: null, communications: [], contacts: [] });
   const [selectedStudentId, setSelectedStudentId] = useState("");
@@ -48,7 +49,10 @@ export default function TeacherPortalCommunicationPage({ students = [] }) {
         if (!mounted) return;
         setError(loadError?.message || "Could not load teacher communication tools.");
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setBootstrapped(true);
+        }
       }
     }
 
@@ -232,7 +236,7 @@ export default function TeacherPortalCommunicationPage({ students = [] }) {
     }
   }
 
-  if (loading) {
+  if (loading && !bootstrapped) {
     return <div style={styles.empty}>Loading communication tools...</div>;
   }
 

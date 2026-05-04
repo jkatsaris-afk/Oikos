@@ -5,11 +5,11 @@ create table if not exists public.campus_staff (
   account_id uuid not null references public.accounts (id) on delete cascade,
   created_by uuid references auth.users (id) on delete set null,
   linked_user_id uuid references auth.users (id) on delete set null,
-  staff_number text not null default '',
+  staff_number text,
   first_name text not null default '',
   last_name text not null default '',
   display_name text not null default '',
-  email text not null default '',
+  email text,
   phone text not null default '',
   alternate_phone text not null default '',
   staff_type text not null default 'Teacher',
@@ -33,9 +33,35 @@ create table if not exists public.campus_staff (
   is_active boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
-  unique nulls not distinct (account_id, email),
-  unique nulls not distinct (account_id, staff_number)
+  unique nulls distinct (account_id, email),
+  unique nulls distinct (account_id, staff_number)
 );
+
+alter table public.campus_staff
+  alter column staff_number drop not null,
+  alter column staff_number drop default,
+  alter column email drop not null,
+  alter column email drop default;
+
+update public.campus_staff
+set
+  staff_number = nullif(btrim(staff_number), ''),
+  email = nullif(lower(btrim(email)), '')
+where
+  coalesce(staff_number, '') = ''
+  or coalesce(email, '') = '';
+
+alter table public.campus_staff
+  drop constraint if exists campus_staff_account_id_email_key,
+  drop constraint if exists campus_staff_account_id_staff_number_key;
+
+create unique index if not exists campus_staff_account_email_unique_idx
+on public.campus_staff (account_id, lower(email))
+where nullif(btrim(email), '') is not null;
+
+create unique index if not exists campus_staff_account_staff_number_unique_idx
+on public.campus_staff (account_id, staff_number)
+where nullif(btrim(staff_number), '') is not null;
 
 create index if not exists campus_staff_account_name_idx
 on public.campus_staff (account_id, last_name, first_name, is_active);

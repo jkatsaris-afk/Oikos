@@ -18,6 +18,7 @@ import { useAuth } from "../../../../auth/useAuth";
 import {
   archiveCampusStaff,
   createCampusStaff,
+  deleteCampusStaff,
   loadCampusStaffDashboard,
   setCampusDefaultAccess,
   sendCampusStaffPasswordReset,
@@ -26,6 +27,7 @@ import {
   uploadCampusStaffPhoto,
   updateCampusStaff,
 } from "../../services/staffService";
+import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
 
 function SectionCard({ icon: Icon, title, children, action = null }) {
   return (
@@ -108,6 +110,34 @@ function assignmentSourceLabel(source) {
   return "Grade";
 }
 
+function isBlankStaffDraft(staff) {
+  if (!staff) return false;
+
+  const hasAssignments =
+    (staff.gradeAssignments || []).length > 0 ||
+    (staff.studentAssignments || []).length > 0 ||
+    (staff.classroomAssignments || []).length > 0 ||
+    (staff.subjectAssignments || []).length > 0 ||
+    (staff.programAssignments || []).length > 0 ||
+    (staff.tags || []).length > 0;
+
+  return (
+    !staff.linkedUserId &&
+    !staff.linkedAccount &&
+    !String(staff.firstName || "").trim() &&
+    !String(staff.lastName || "").trim() &&
+    !String(staff.email || "").trim() &&
+    !String(staff.phone || "").trim() &&
+    !String(staff.jobTitle || "").trim() &&
+    !String(staff.biography || "").trim() &&
+    !String(staff.notes || "").trim() &&
+    !String(staff.accountNotes || "").trim() &&
+    !hasAssignments &&
+    (!String(staff.displayName || "").trim() ||
+      String(staff.displayName || "").trim() === "New Staff Member")
+  );
+}
+
 export default function StaffPage() {
   const { user } = useAuth();
   const [staff, setStaff] = useState([]);
@@ -120,6 +150,7 @@ export default function StaffPage() {
   const [saving, setSaving] = useState(false);
   const [assignmentSavingId, setAssignmentSavingId] = useState("");
   const [loading, setLoading] = useState(true);
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [editForm, setEditForm] = useState(null);
@@ -151,6 +182,7 @@ export default function StaffPage() {
       } finally {
         if (mounted) {
           setLoading(false);
+          setBootstrapped(true);
         }
       }
     }
@@ -292,6 +324,7 @@ export default function StaffPage() {
 
   const selectedStaffPortalUserId =
     selectedStaff?.linkedUserId || selectedStaff?.linkedAccount?.userId || "";
+  const canDeleteSelectedDraft = isBlankStaffDraft(selectedStaff);
 
   async function toggleDirectStudentAssignment(studentId) {
     if (!user?.id || !editForm?.id) return;
@@ -404,6 +437,23 @@ export default function StaffPage() {
     } catch (archiveError) {
       console.error("Campus staff archive error:", archiveError);
       setError(archiveError.message || "Could not archive staff record.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteDraft() {
+    if (!user?.id || !selectedStaff?.id || !canDeleteSelectedDraft) return;
+
+    try {
+      setSaving(true);
+      setError("");
+      await deleteCampusStaff(user.id, selectedStaff.id);
+      await refreshDashboard("");
+      setNotice("Blank staff draft deleted.");
+    } catch (deleteError) {
+      console.error("Campus staff delete draft error:", deleteError);
+      setError(deleteError.message || "Could not delete the blank staff draft.");
     } finally {
       setSaving(false);
     }
@@ -529,8 +579,14 @@ export default function StaffPage() {
       item.isActive && String(item.staffType || "").toLowerCase() === "teacher"
   ).length;
 
-  if (loading) {
-    return <div style={styles.loading}>Loading staff...</div>;
+  if (loading && !bootstrapped) {
+    return (
+      <GlobalLoadingPage
+        modeOverride="campus"
+        title="Loading Staff"
+        detail="Preparing staff records, teaching assignments, and access settings..."
+      />
+    );
   }
 
   if (!account) {
@@ -659,6 +715,12 @@ export default function StaffPage() {
                   </div>
                 </div>
                 <div style={styles.profileActions}>
+                  {canDeleteSelectedDraft ? (
+                    <button type="button" style={styles.dangerButton} onClick={handleDeleteDraft} disabled={saving}>
+                      <Trash2 size={15} />
+                      Delete Draft
+                    </button>
+                  ) : null}
                   <button type="button" style={styles.secondaryButton} onClick={handlePasswordReset}>
                     <KeyRound size={15} />
                     Reset Password
@@ -874,6 +936,11 @@ export default function StaffPage() {
                       This turns on after the staff member has a linked campus account. Invite them first, then choose whether they should get regular Campus access, teacher portal access, or both.
                     </div>
                   ) : null}
+                  {canDeleteSelectedDraft ? (
+                    <div style={styles.accountHint}>
+                      This is still just a blank staff draft, so you can delete it completely if it was created by mistake.
+                    </div>
+                  ) : null}
                   <div style={styles.accountActions}>
                     <button type="button" style={styles.secondaryButton} onClick={handleInviteEmail}>
                       <Mail size={15} />
@@ -883,6 +950,12 @@ export default function StaffPage() {
                       <KeyRound size={15} />
                       Send Reset Email
                     </button>
+                    {canDeleteSelectedDraft ? (
+                      <button type="button" style={styles.dangerButton} onClick={handleDeleteDraft} disabled={saving}>
+                        <Trash2 size={15} />
+                        Delete Blank Draft
+                      </button>
+                    ) : null}
                     <button type="button" style={styles.dangerButton} onClick={handleArchive}>
                       <Trash2 size={15} />
                       Archive Staff

@@ -184,13 +184,16 @@ function normalizeStaff(row = {}) {
 }
 
 function buildStaffPayload(staff = {}) {
+  const normalizedStaffNumber = String(staff.staffNumber || "").trim();
+  const normalizedEmail = String(staff.email || "").trim().toLowerCase();
+
   return {
     linked_user_id: staff.linkedUserId || null,
-    staff_number: staff.staffNumber || "",
+    staff_number: normalizedStaffNumber || null,
     first_name: staff.firstName || "",
     last_name: staff.lastName || "",
     display_name: staff.displayName || "",
-    email: staff.email || "",
+    email: normalizedEmail || null,
     phone: staff.phone || "",
     alternate_phone: staff.alternatePhone || "",
     staff_type: staff.staffType || "Teacher",
@@ -406,6 +409,8 @@ export async function createCampusStaff(userId) {
   const payload = {
     account_id: access.account.id,
     created_by: userId,
+    staff_number: null,
+    email: null,
     first_name: "",
     last_name: "",
     display_name: "New Staff Member",
@@ -539,6 +544,24 @@ export async function archiveCampusStaff(userId, staffId) {
   const { error } = await supabase
     .from(CAMPUS_STAFF_TABLE)
     .update({ is_active: false })
+    .eq("id", staffId)
+    .eq("account_id", access.account.id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteCampusStaff(userId, staffId) {
+  const access = await getCampusAccess(userId);
+
+  if (!access.account?.id || !staffId) {
+    throw new Error("Missing campus organization or staff record.");
+  }
+
+  const { error } = await supabase
+    .from(CAMPUS_STAFF_TABLE)
+    .delete()
     .eq("id", staffId)
     .eq("account_id", access.account.id);
 

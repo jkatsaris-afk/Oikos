@@ -21,6 +21,19 @@ import CampusLogo from "../../assets/logos/Campus-Logo.png";
 import PagesLogo from "../../assets/logos/Pages-Logo.png";
 import SportsLogo from "../../assets/logos/Sports-Logo.png";
 
+function getCachedOrganizationAccount(type = "") {
+  if (typeof window === "undefined" || !type) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(`oikos.organization.${type}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
 export default function LoginPage({ forcedOriginalPath = "", forcedMode = "" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,7 +70,20 @@ export default function LoginPage({ forcedOriginalPath = "", forcedMode = "" }) 
   };
 
   const logo = logoMap[mode] || DisplayHomeLogo;
-  const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
+  const cachedCampusAccount =
+    mode === "campus" ? getCachedOrganizationAccount("campus") : null;
+  const orgLogo = String(cachedCampusAccount?.logo_url || "").trim();
+  const orgBrandColor = String(cachedCampusAccount?.brand_color || "").trim();
+  const normalizedOrgColor = orgBrandColor
+    ? orgBrandColor.startsWith("#")
+      ? orgBrandColor
+      : `#${orgBrandColor}`
+    : "";
+  const resolvedLogo = mode === "campus" && orgLogo ? orgLogo : logo;
+  const primaryColor =
+    mode === "campus" && normalizedOrgColor
+      ? normalizedOrgColor
+      : modeTheme[mode]?.primary || "#2f6ea3";
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -146,7 +172,7 @@ export default function LoginPage({ forcedOriginalPath = "", forcedMode = "" }) 
       <div style={cardStyle}>
 
         <div style={logoWrapper}>
-          <img src={logo} alt="logo" style={logoStyle} />
+          <img src={resolvedLogo} alt="logo" style={logoStyle} />
         </div>
 
         <div style={headingBlockStyle}>

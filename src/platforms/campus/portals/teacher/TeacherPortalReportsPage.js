@@ -9,7 +9,7 @@ function buildGradeMap(grades = []) {
   return map;
 }
 
-function buildSnapshot(student, quarter, assignments, grades, subjectNameMap) {
+function buildSnapshot(student, quarter, assignments, grades, subjectNameMap, subjectCommentsBySubjectId = {}) {
   const gradeMap = buildGradeMap(grades);
   const quarterAssignments = assignments.filter(
     (assignment) =>
@@ -65,6 +65,7 @@ function buildSnapshot(student, quarter, assignments, grades, subjectNameMap) {
         item.pointsPossible > 0
           ? `${((item.earnedPoints / item.pointsPossible) * 100).toFixed(1)}%`
           : "0%",
+      subjectComment: String(subjectCommentsBySubjectId[item.subjectId] || "").trim(),
     }))
     .sort((left, right) => left.subjectName.localeCompare(right.subjectName));
 }
@@ -74,6 +75,8 @@ export default function TeacherPortalReportsPage({
   assignments = [],
   grades = [],
   reports = [],
+  subjects = [],
+  teacherUserId = "",
   subjectNameMap,
   saving = false,
   onSaveReport,
@@ -91,6 +94,7 @@ export default function TeacherPortalReportsPage({
     attendance: "",
     status: "draft",
   });
+  const [subjectComments, setSubjectComments] = useState({});
 
   const orderedStudents = useMemo(
     () =>
@@ -114,9 +118,45 @@ export default function TeacherPortalReportsPage({
       reports.find(
         (report) =>
           report.studentId === selectedStudentId &&
-          report.academicQuarter === selectedQuarter
+          report.academicQuarter === selectedQuarter &&
+          report.teacherUserId === teacherUserId
       ) || null,
-    [reports, selectedQuarter, selectedStudentId]
+    [reports, selectedQuarter, selectedStudentId, teacherUserId]
+  );
+
+  const mergedSubjectComments = useMemo(() => {
+    const merged = {};
+
+    reports
+      .filter(
+        (report) =>
+          report.studentId === selectedStudentId && report.academicQuarter === selectedQuarter
+      )
+      .forEach((report) => {
+        const nextComments = report?.metadata?.subjectCommentsBySubjectId;
+        if (!nextComments || typeof nextComments !== "object") {
+          return;
+        }
+
+        Object.entries(nextComments).forEach(([subjectId, comment]) => {
+          if (String(comment || "").trim()) {
+            merged[subjectId] = String(comment || "").trim();
+          }
+        });
+      });
+
+    return merged;
+  }, [reports, selectedQuarter, selectedStudentId]);
+
+  const editableSubjectIds = useMemo(
+    () =>
+      new Set(
+        subjects
+          .filter((subject) => subject.teacherUserId === teacherUserId)
+          .map((subject) => String(subject.id || ""))
+          .filter(Boolean)
+      ),
+    [subjects, teacherUserId]
   );
 
   const snapshot = useMemo(() => {
@@ -124,8 +164,18 @@ export default function TeacherPortalReportsPage({
       return [];
     }
 
-    return buildSnapshot(selectedStudent, selectedQuarter, assignments, grades, subjectNameMap);
-  }, [assignments, grades, selectedQuarter, selectedStudent, subjectNameMap]);
+    return buildSnapshot(
+      selectedStudent,
+      selectedQuarter,
+      assignments,
+      grades,
+      subjectNameMap,
+      {
+        ...mergedSubjectComments,
+        ...subjectComments,
+      }
+    );
+  }, [assignments, grades, mergedSubjectComments, selectedQuarter, selectedStudent, subjectComments, subjectNameMap]);
 
   useEffect(() => {
     setForm({
@@ -139,6 +189,7 @@ export default function TeacherPortalReportsPage({
       attendance: existingReport?.attendance || "",
       status: existingReport?.status || "draft",
     });
+    setSubjectComments(existingReport?.metadata?.subjectCommentsBySubjectId || {});
   }, [existingReport, selectedQuarter, selectedStudentId]);
 
   async function persistReport(status) {
@@ -152,6 +203,10 @@ export default function TeacherPortalReportsPage({
       ...form,
       status,
       gradeSnapshot: snapshot,
+      metadata: {
+        ...(existingReport?.metadata || {}),
+        subjectCommentsBySubjectId: subjectComments,
+      },
     });
   }
 
@@ -166,17 +221,45 @@ export default function TeacherPortalReportsPage({
 
   function buildPrintableReports() {
     return orderedStudents.map((student) => {
+      const mergedComments = {};
+      reports
+        .filter(
+          (report) =>
+            report.studentId === student.id && report.academicQuarter === selectedQuarter
+        )
+        .forEach((report) => {
+          const nextComments = report?.metadata?.subjectCommentsBySubjectId;
+          if (!nextComments || typeof nextComments !== "object") {
+            return;
+          }
+
+          Object.entries(nextComments).forEach(([subjectId, comment]) => {
+            if (String(comment || "").trim()) {
+              mergedComments[subjectId] = String(comment || "").trim();
+            }
+          });
+        });
+
       const studentReport =
         reports.find(
           (report) =>
             report.studentId === student.id &&
-            report.academicQuarter === selectedQuarter
+            report.academicQuarter === selectedQuarter &&
+            report.teacherUserId === teacherUserId
         ) || null;
 
       const reportSnapshot =
         studentReport?.gradeSnapshot?.length
           ? studentReport.gradeSnapshot
-          : buildSnapshot(student, selectedQuarter, assignments, grades, subjectNameMap);
+          : buildSnapshot(student, selectedQuarter, assignments, grades, subjectNameMap, mergedComments);
+      const mergedSnapshot = reportSnapshot.map((item) => ({
+        ...item,
+        subjectComment: String(
+          mergedComments[item.subjectId] ||
+          item.subjectComment ||
+          ""
+        ).trim(),
+      }));
 
       return {
         student,
@@ -191,7 +274,7 @@ export default function TeacherPortalReportsPage({
           attendance: "",
           status: "draft",
         },
-        snapshot: reportSnapshot,
+        snapshot: mergedSnapshot,
       };
     });
   }
@@ -224,13 +307,14 @@ export default function TeacherPortalReportsPage({
                     <td>${escapeHtml(item.earnedPoints)}/${escapeHtml(item.pointsPossible)}</td>
                     <td>${escapeHtml(item.assignmentCount)}</td>
                     <td>${escapeHtml(item.missingCount)}</td>
+                    <td>${escapeHtml(item.subjectComment || "")}</td>
                   </tr>
                 `
               )
               .join("")
           : `
             <tr>
-              <td colspan="5">No subject grades recorded for this quarter yet.</td>
+              <td colspan="6">No subject grades recorded for this quarter yet.</td>
             </tr>
           `;
 
@@ -252,6 +336,7 @@ export default function TeacherPortalReportsPage({
                   <th>Points</th>
                   <th>Assignments</th>
                   <th>Missing</th>
+                  <th>Teacher Notes</th>
                 </tr>
               </thead>
               <tbody>${snapshotMarkup}</tbody>
@@ -370,7 +455,8 @@ export default function TeacherPortalReportsPage({
               const studentReport = reports.find(
                 (report) =>
                   report.studentId === student.id &&
-                  report.academicQuarter === selectedQuarter
+                  report.academicQuarter === selectedQuarter &&
+                  report.teacherUserId === teacherUserId
               );
 
               return (
@@ -434,6 +520,27 @@ export default function TeacherPortalReportsPage({
                         <div style={styles.snapshotMeta}>
                           {item.assignmentCount} assignment{item.assignmentCount === 1 ? "" : "s"} • {item.missingCount} missing
                         </div>
+                        {editableSubjectIds.has(String(item.subjectId || "")) ? (
+                          <label style={styles.subjectCommentField}>
+                            <span style={styles.label}>Subject Teacher Notes</span>
+                            <textarea
+                              value={subjectComments[item.subjectId] || ""}
+                              onChange={(event) =>
+                                setSubjectComments((current) => ({
+                                  ...current,
+                                  [item.subjectId]: event.target.value,
+                                }))
+                              }
+                              style={styles.subjectCommentInput}
+                              rows={3}
+                            />
+                          </label>
+                        ) : item.subjectComment ? (
+                          <div style={styles.subjectCommentReadOnly}>
+                            <div style={styles.subjectCommentLabel}>Subject Teacher Notes</div>
+                            <div style={styles.subjectCommentText}>{item.subjectComment}</div>
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -628,6 +735,11 @@ const styles = {
   snapshotCard: { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 18, padding: 14 },
   snapshotTitle: { color: "#0f172a", fontSize: 14, fontWeight: 800 },
   snapshotMeta: { color: "#64748b", fontSize: 12, marginTop: 6 },
+  subjectCommentField: { display: "flex", flexDirection: "column", gap: 8, marginTop: 12 },
+  subjectCommentInput: { background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: 12, fontSize: 13, lineHeight: 1.6, outline: "none", padding: "10px 12px", resize: "vertical" },
+  subjectCommentReadOnly: { background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, marginTop: 12, padding: 12 },
+  subjectCommentLabel: { color: "#475569", fontSize: 11, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase" },
+  subjectCommentText: { color: "#334155", fontSize: 13, lineHeight: 1.6, marginTop: 8, whiteSpace: "pre-wrap" },
   form: { display: "flex", flexDirection: "column", gap: 14 },
   formGrid: { display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" },
   field: { display: "flex", flexDirection: "column", gap: 8 },

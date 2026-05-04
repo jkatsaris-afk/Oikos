@@ -1,3 +1,5 @@
+import AttendanceApp from "./Attendance/AttendanceApp";
+import AttendanceWidget from "./Attendance/AttendanceWidget";
 import CommunicationApp from "./Communication/CommunicationApp";
 import CommunicationWidget from "./Communication/CommunicationWidget";
 import EnrollmentApp from "./Enrollment/EnrollmentApp";
@@ -8,6 +10,13 @@ import StudentsApp from "./Students/StudentsApp";
 import StudentsWidget from "./Students/StudentsWidget";
 
 export const campusTileRegistry = {
+  attendance: {
+    id: "attendance",
+    page: AttendanceApp,
+    widget: AttendanceWidget,
+    system: false,
+    noUninstall: false,
+  },
   communication: {
     id: "communication",
     page: CommunicationApp,

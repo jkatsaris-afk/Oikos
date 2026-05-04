@@ -213,6 +213,19 @@ export default function ProfileSettingsPanel() {
           <label style={styles.field}>
             <span style={styles.label}>
               <User size={14} />
+              User ID
+            </span>
+            <input
+              type="text"
+              value={user?.id || ""}
+              style={styles.inputReadOnly}
+              readOnly
+            />
+          </label>
+
+          <label style={styles.field}>
+            <span style={styles.label}>
+              <User size={14} />
               Full Name
             </span>
             <input
@@ -441,6 +454,15 @@ const styles = {
     borderRadius: 12,
     color: "#0f172a",
     fontSize: 14,
+    padding: "12px 14px",
+  },
+  inputReadOnly: {
+    background: "#f1f5f9",
+    border: "1px solid #cbd5e1",
+    borderRadius: 12,
+    color: "#334155",
+    fontFamily: "monospace",
+    fontSize: 13,
     padding: "12px 14px",
   },
   textarea: {

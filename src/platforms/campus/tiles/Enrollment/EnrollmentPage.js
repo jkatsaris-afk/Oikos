@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../../../auth/useAuth";
+import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
 import {
   isEnrollmentCurrentlyOpen,
   loadCampusEnrollmentDashboard,
@@ -121,6 +122,7 @@ export default function EnrollmentPage() {
   const [account, setAccount] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [status, setStatus] = useState("loading");
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -133,10 +135,12 @@ export default function EnrollmentPage() {
       setSettings(dashboard.settings);
       setSubmissions(dashboard.submissions);
       setStatus("ready");
+      setBootstrapped(true);
     } catch (loadError) {
       console.error("Campus enrollment load error:", loadError);
       setError(loadError.message || "Could not load enrollment.");
       setStatus("error");
+      setBootstrapped(true);
     }
   }
 
@@ -153,11 +157,13 @@ export default function EnrollmentPage() {
         setSettings(dashboard.settings);
         setSubmissions(dashboard.submissions);
         setStatus("ready");
+        setBootstrapped(true);
       } catch (loadError) {
         console.error("Campus enrollment load error:", loadError);
         if (!mounted) return;
         setError(loadError.message || "Could not load enrollment.");
         setStatus("error");
+        setBootstrapped(true);
       }
     }
 
@@ -286,8 +292,14 @@ export default function EnrollmentPage() {
     }
   }
 
-  if (status === "loading") {
-    return <div style={styles.loading}>Loading enrollment...</div>;
+  if (status === "loading" && !bootstrapped) {
+    return (
+      <GlobalLoadingPage
+        modeOverride="campus"
+        title="Loading Enrollment"
+        detail="Preparing submissions, forms, and enrollment settings..."
+      />
+    );
   }
 
   if (!account || !settings) {

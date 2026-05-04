@@ -2,6 +2,7 @@ import { Mail, MessagesSquare, Phone, Save, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../../../auth/useAuth";
+import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
 import {
   createCampusCommunication,
   loadCampusCommunicationsDashboard,
@@ -23,6 +24,7 @@ function formatDateTime(value) {
 export default function CommunicationPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [bootstrapped, setBootstrapped] = useState(false);
   const [sending, setSending] = useState(false);
   const [dashboard, setDashboard] = useState({
     account: null,
@@ -57,6 +59,7 @@ export default function CommunicationPage() {
       } finally {
         if (mounted) {
           setLoading(false);
+          setBootstrapped(true);
         }
       }
     }
@@ -244,8 +247,14 @@ export default function CommunicationPage() {
     }
   }
 
-  if (loading) {
-    return <div style={styles.loading}>Loading communication center...</div>;
+  if (loading && !bootstrapped) {
+    return (
+      <GlobalLoadingPage
+        modeOverride="campus"
+        title="Loading Communication"
+        detail="Preparing message history, recipients, and delivery tools..."
+      />
+    );
   }
 
   if (!dashboard.account) {

@@ -17,6 +17,10 @@ function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeDisplayText(value) {
+  return String(value || "").trim();
+}
+
 function isMissingRelationError(error) {
   return (
     error?.code === "42P01" ||
@@ -117,6 +121,12 @@ function normalizeReport(row = {}) {
   };
 }
 
+function getStudentSubjectTeacherAssignments(student = {}) {
+  return Array.isArray(student?.customFields?.subjectTeachers)
+    ? student.customFields.subjectTeachers
+    : [];
+}
+
 function matchTeacherStaff(staffRows = [], user) {
   const userId = String(user?.id || "");
   const userEmail = normalizeText(user?.email);
@@ -164,8 +174,19 @@ function deriveTeacherStudents(teacher, allStudents = []) {
       teacherName && normalizeText(student.homeroomTeacher) === teacherName;
     const matchesGrade =
       gradeAssignments.size > 0 && gradeAssignments.has(normalizeText(student.gradeLevel));
+    const matchesSubjectTeacher = getStudentSubjectTeacherAssignments(student).some((assignment) => {
+      const assignmentTeacherStaffId = String(assignment?.teacherStaffId || "");
+      const assignmentTeacherUserId = String(assignment?.teacherUserId || "");
+      const assignmentTeacherName = normalizeText(assignment?.teacherDisplayName);
 
-    if (!matchesDirect && !matchesTeacherName && !matchesGrade) {
+      return (
+        (teacher?.id && assignmentTeacherStaffId === String(teacher.id)) ||
+        (teacher?.linkedUserId && assignmentTeacherUserId === String(teacher.linkedUserId)) ||
+        (teacherName && assignmentTeacherName === teacherName)
+      );
+    });
+
+    if (!matchesDirect && !matchesTeacherName && !matchesGrade && !matchesSubjectTeacher) {
       return;
     }
 
@@ -195,26 +216,22 @@ async function loadTeacherPortalTables(accountId, userId) {
           .from(CAMPUS_SUBJECTS_TABLE)
           .select("*")
           .eq("account_id", accountId)
-          .eq("teacher_user_id", userId)
           .eq("is_active", true)
           .order("name", { ascending: true }),
         supabase
           .from(CAMPUS_ASSIGNMENTS_TABLE)
           .select("*")
           .eq("account_id", accountId)
-          .eq("teacher_user_id", userId)
           .order("due_date", { ascending: true, nullsFirst: false })
           .order("created_at", { ascending: false }),
         supabase
           .from(CAMPUS_ASSIGNMENT_GRADES_TABLE)
           .select("*")
-          .eq("account_id", accountId)
-          .eq("teacher_user_id", userId),
+          .eq("account_id", accountId),
         supabase
           .from(CAMPUS_STUDENT_REPORTS_TABLE)
           .select("*")
           .eq("account_id", accountId)
-          .eq("teacher_user_id", userId)
           .order("academic_quarter", { ascending: true })
           .order("updated_at", { ascending: false }),
       ]);
@@ -224,17 +241,30 @@ async function loadTeacherPortalTables(accountId, userId) {
     if (gradeError) throw gradeError;
     if (reportError) throw reportError;
 
+    const allSubjects = Array.isArray(subjectRows) ? subjectRows.map((row) => normalizeSubject(row)) : [];
+    const allAssignments = Array.isArray(assignmentRows) ? assignmentRows.map((row) => normalizeAssignment(row)) : [];
+    const allGrades = Array.isArray(gradeRows) ? gradeRows.map((row) => normalizeGrade(row)) : [];
+    const allReports = Array.isArray(reportRows) ? reportRows.map((row) => normalizeReport(row)) : [];
+
     return {
       schemaReady: true,
-      subjects: Array.isArray(subjectRows) ? subjectRows.map((row) => normalizeSubject(row)) : [],
-      assignments: Array.isArray(assignmentRows) ? assignmentRows.map((row) => normalizeAssignment(row)) : [],
-      grades: Array.isArray(gradeRows) ? gradeRows.map((row) => normalizeGrade(row)) : [],
-      reports: Array.isArray(reportRows) ? reportRows.map((row) => normalizeReport(row)) : [],
+      allSubjects,
+      allAssignments,
+      allGrades,
+      allReports,
+      subjects: allSubjects.filter((row) => row.teacherUserId === userId),
+      assignments: allAssignments.filter((row) => row.teacherUserId === userId),
+      grades: allGrades.filter((row) => row.teacherUserId === userId),
+      reports: allReports.filter((row) => row.teacherUserId === userId),
     };
   } catch (error) {
     if (isMissingRelationError(error)) {
       return {
         schemaReady: false,
+        allSubjects: [],
+        allAssignments: [],
+        allGrades: [],
+        allReports: [],
         subjects: [],
         assignments: [],
         grades: [],
@@ -259,6 +289,10 @@ export async function loadTeacherPortalWorkspace(user) {
       assignments: [],
       grades: [],
       reports: [],
+      allSubjects: [],
+      allAssignments: [],
+      allGrades: [],
+      allReports: [],
       schemaReady: true,
     };
   }
@@ -278,6 +312,10 @@ export async function loadTeacherPortalWorkspace(user) {
       assignments: [],
       grades: [],
       reports: [],
+      allSubjects: [],
+      allAssignments: [],
+      allGrades: [],
+      allReports: [],
       schemaReady: true,
     };
   }
@@ -300,6 +338,10 @@ export async function loadTeacherPortalWorkspace(user) {
     assignments: tableState.assignments,
     grades: tableState.grades,
     reports: tableState.reports,
+    allSubjects: tableState.allSubjects,
+    allAssignments: tableState.allAssignments,
+    allGrades: tableState.allGrades,
+    allReports: tableState.allReports,
     schemaReady: tableState.schemaReady,
   };
 }
@@ -546,6 +588,7 @@ export async function saveTeacherPortalReport({
   conduct = "",
   attendance = "",
   gradeSnapshot = [],
+  metadata = {},
   status = "draft",
 }) {
   if (!accountId || !studentId || !teacherUserId) {
@@ -571,6 +614,7 @@ export async function saveTeacherPortalReport({
     conduct: String(conduct || "").trim(),
     attendance: String(attendance || "").trim(),
     grade_snapshot: Array.isArray(gradeSnapshot) ? gradeSnapshot : [],
+    metadata: metadata && typeof metadata === "object" ? metadata : {},
     status: String(status || "draft").trim() || "draft",
     generated_at: new Date().toISOString(),
   };

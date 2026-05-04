@@ -403,7 +403,7 @@ export default function TeacherPortalGradebookPage({
                             value={draft.feedback}
                             onChange={(event) => updateDraft(student.id, "feedback", event.target.value)}
                             style={styles.textarea}
-                            rows={4}
+                            rows={2}
                             placeholder="Add quick feedback, rubric notes, or next steps"
                           />
                         </label>
@@ -741,13 +741,15 @@ const styles = {
     alignItems: "start",
     display: "grid",
     gap: 14,
-    gridTemplateColumns: "minmax(160px, 220px) minmax(0, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   },
   field: {
+    boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
     gap: 8,
     minWidth: 0,
+    width: "100%",
   },
   fieldLabel: {
     color: "#334155",
@@ -758,8 +760,10 @@ const styles = {
   },
   input: {
     background: "#f8fafc",
+    boxSizing: "border-box",
     border: "1px solid #cbd5e1",
     borderRadius: 14,
+    display: "block",
     fontSize: 14,
     outline: "none",
     padding: "12px 14px",
@@ -772,11 +776,11 @@ const styles = {
     borderRadius: 14,
     display: "block",
     fontSize: 14,
-    lineHeight: 1.6,
-    minHeight: 104,
+    lineHeight: 1.45,
+    minHeight: 64,
     maxWidth: "100%",
     outline: "none",
-    padding: "12px 14px",
+    padding: "10px 12px",
     resize: "vertical",
     width: "100%",
   },

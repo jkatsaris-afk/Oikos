@@ -1,14 +1,15 @@
 import { CheckCircle2, Clock3, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { useAuth } from "../../../../auth/useAuth";
+import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
 import {
   ATTENDANCE_UNMARKED_STATUS,
   deleteCampusAttendanceRecord,
   getAttendanceCodeByValue,
   getCampusAttendanceCodes,
   getCampusAttendanceCodeLabels,
-  getCampusAttendanceSettings,
-  loadTeacherAttendanceWorkspace,
+  loadCampusAttendanceDashboard,
   saveCampusAttendanceRecord,
 } from "../../services/attendanceService";
 
@@ -22,37 +23,31 @@ function createEmptyForm(students = []) {
   }, {});
 }
 
-export default function TeacherPortalAttendancePage({
-  user,
-  account,
-  teacher,
-  students = [],
-}) {
+export default function AttendancePage() {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [bootstrapped, setBootstrapped] = useState(false);
-  const [schemaReady, setSchemaReady] = useState(true);
-  const [records, setRecords] = useState([]);
-  const [assignedStudents, setAssignedStudents] = useState(() => students);
-  const [form, setForm] = useState(() => createEmptyForm(students));
+  const [dashboard, setDashboard] = useState({
+    account: null,
+    students: [],
+    staff: [],
+    records: [],
+    counts: {},
+    schemaReady: true,
+  });
+  const [form, setForm] = useState({});
   const [query, setQuery] = useState("");
   const [attendanceCodes, setAttendanceCodes] = useState(() => getCampusAttendanceCodes());
-  const [settings, setSettings] = useState(() => getCampusAttendanceSettings());
   const [statusLabels, setStatusLabels] = useState(() => getCampusAttendanceCodeLabels());
   const [savingStudentId, setSavingStudentId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    setAssignedStudents(students);
-    setForm(createEmptyForm(students));
-  }, [students]);
-
-  useEffect(() => {
     function syncAttendanceLabels() {
       setAttendanceCodes(getCampusAttendanceCodes());
       setStatusLabels(getCampusAttendanceCodeLabels());
-      setSettings(getCampusAttendanceSettings());
     }
 
     window.addEventListener("storage", syncAttendanceLabels);
@@ -67,42 +62,26 @@ export default function TeacherPortalAttendancePage({
   useEffect(() => {
     let mounted = true;
 
-    async function loadAttendance() {
-      if (!user?.id || !account?.id) {
-        return;
-      }
-
+    async function loadDashboard() {
       try {
         setLoading(true);
         setError("");
         setNotice("");
-        const workspace = await loadTeacherAttendanceWorkspace(user);
+        const nextDashboard = await loadCampusAttendanceDashboard(user?.id, selectedDate);
+        if (!mounted) return;
+        setDashboard(nextDashboard);
 
-        if (!mounted) {
-          return;
-        }
-
-        setSchemaReady(workspace.schemaReady !== false);
-        const nextStudents = Array.isArray(workspace.students) ? workspace.students : [];
-        setAssignedStudents(nextStudents);
-        const nextRecords = (workspace.records || []).filter(
-          (record) => record.attendanceDate === selectedDate
-        );
-        setRecords(nextRecords);
-
-        const nextForm = createEmptyForm(nextStudents);
-        nextRecords.forEach((record) => {
-          nextForm[record.studentId] = {
+        const nextForm = createEmptyForm(nextDashboard.students || []);
+        (nextDashboard.records || []).forEach((record) => {
+          nextForm[String(record.studentId || "")] = {
             status: record.status || ATTENDANCE_UNMARKED_STATUS,
             notes: record.notes || "",
           };
         });
         setForm(nextForm);
       } catch (loadError) {
-        console.error("Teacher attendance load error:", loadError);
-        if (!mounted) {
-          return;
-        }
+        console.error("Campus attendance load error:", loadError);
+        if (!mounted) return;
         setError(loadError?.message || "Could not load attendance.");
       } finally {
         if (mounted) {
@@ -112,31 +91,33 @@ export default function TeacherPortalAttendancePage({
       }
     }
 
-    loadAttendance();
+    loadDashboard();
     return () => {
       mounted = false;
     };
-  }, [account?.id, selectedDate, user]);
+  }, [selectedDate, user?.id]);
 
-  const statusCounts = useMemo(() => {
-    const counts = attendanceCodes.reduce((accumulator, code) => {
+  const counts = useMemo(() => {
+    const statusCounts = attendanceCodes.reduce((accumulator, code) => {
       accumulator[code.value] = Object.values(form).filter((entry) => entry?.status === code.value).length;
       return accumulator;
     }, {});
-    counts[ATTENDANCE_UNMARKED_STATUS] = Object.values(form).filter(
+
+    statusCounts[ATTENDANCE_UNMARKED_STATUS] = Object.values(form).filter(
       (entry) => !entry?.status || entry.status === ATTENDANCE_UNMARKED_STATUS
     ).length;
-    return counts;
+
+    return statusCounts;
   }, [attendanceCodes, form]);
 
   const filteredStudents = useMemo(() => {
     const normalizedQuery = String(query || "").trim().toLowerCase();
 
     if (!normalizedQuery) {
-      return assignedStudents;
+      return dashboard.students || [];
     }
 
-    return assignedStudents.filter((student) =>
+    return (dashboard.students || []).filter((student) =>
       [
         student.displayName,
         student.studentNumber,
@@ -146,7 +127,7 @@ export default function TeacherPortalAttendancePage({
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalizedQuery))
     );
-  }, [assignedStudents, query]);
+  }, [dashboard.students, query]);
 
   function updateForm(studentId, field, value) {
     setForm((current) => ({
@@ -159,7 +140,7 @@ export default function TeacherPortalAttendancePage({
   }
 
   async function persistRow(studentId, nextEntry) {
-    if (!account?.id || !user?.id) {
+    if (!dashboard.account?.id || !user?.id) {
       return;
     }
 
@@ -168,15 +149,15 @@ export default function TeacherPortalAttendancePage({
       setError("");
       setNotice("");
 
-      if (!nextEntry?.status || nextEntry.status === ATTENDANCE_UNMARKED_STATUS) {
+      if (
+        !nextEntry?.status ||
+        nextEntry.status === ATTENDANCE_UNMARKED_STATUS
+      ) {
         await deleteCampusAttendanceRecord({
-          accountId: account.id,
+          accountId: dashboard.account.id,
           studentId,
           attendanceDate: selectedDate,
         });
-        setRecords((current) =>
-          current.filter((record) => String(record.studentId) !== String(studentId))
-        );
         return;
       }
 
@@ -185,22 +166,16 @@ export default function TeacherPortalAttendancePage({
         throw new Error(`${selectedCode.label} attendance needs a note.`);
       }
 
-      const savedRecord = await saveCampusAttendanceRecord({
-        accountId: account.id,
+      await saveCampusAttendanceRecord({
+        accountId: dashboard.account.id,
         studentId,
         teacherUserId: user.id,
-        teacherStaffId: teacher?.id || "",
         attendanceDate: selectedDate,
         status: nextEntry.status,
         notes: nextEntry.notes || "",
       });
-
-      setRecords((current) => {
-        const remaining = current.filter((record) => String(record.studentId) !== String(studentId));
-        return [savedRecord, ...remaining];
-      });
     } catch (saveError) {
-      console.error("Teacher attendance save error:", saveError);
+      console.error("Campus attendance save error:", saveError);
       setError(saveError?.message || "Could not save attendance.");
     } finally {
       setSavingStudentId("");
@@ -224,22 +199,24 @@ export default function TeacherPortalAttendancePage({
     await persistRow(studentId, nextEntry);
   }
 
-  if (!schemaReady) {
+  if (loading && !bootstrapped) {
     return (
-      <div style={styles.emptyState}>
-        Run [sql/campus-attendance.sql](/Users/jessekatsaris/Documents/GitHub/Oikos/sql/campus-attendance.sql:1) in Supabase to start taking attendance.
-      </div>
+      <GlobalLoadingPage
+        modeOverride="campus"
+        title="Loading Attendance"
+        detail="Preparing today's roster, attendance records, and reporting tools..."
+      />
     );
   }
 
-  if (loading && !bootstrapped) {
-    return <div style={styles.loading}>Loading attendance roster...</div>;
+  if (!dashboard.account) {
+    return <div style={styles.emptyState}>Create or join a campus organization first.</div>;
   }
 
-  if (!assignedStudents.length) {
+  if (dashboard.schemaReady === false) {
     return (
       <div style={styles.emptyState}>
-        No students are assigned to this teacher yet, so there is no attendance roster to fill out.
+        Run [sql/campus-attendance.sql](/Users/jessekatsaris/Documents/GitHub/Oikos/sql/campus-attendance.sql:1) in Supabase to enable attendance.
       </div>
     );
   }
@@ -248,13 +225,13 @@ export default function TeacherPortalAttendancePage({
     <div style={styles.page}>
       <div style={styles.topbar}>
         <div>
-          <div style={styles.title}>Attendance</div>
+          <div style={styles.title}>Daily Attendance</div>
           <div style={styles.subtitle}>
-            Track daily attendance for your assigned students and keep families updated. Changes save live.
+            Review the school day at a glance and update attendance records from Campus. Changes save live.
           </div>
         </div>
 
-        <div style={styles.topbarActions}>
+        <div style={styles.actions}>
           <input
             type="date"
             value={selectedDate}
@@ -270,12 +247,12 @@ export default function TeacherPortalAttendancePage({
       <div style={styles.summaryGrid}>
         <div style={styles.summaryCard}>
           <div style={styles.summaryLabel}>Unmarked</div>
-          <div style={styles.summaryValue}>{statusCounts[ATTENDANCE_UNMARKED_STATUS] || 0}</div>
+          <div style={styles.summaryValue}>{counts[ATTENDANCE_UNMARKED_STATUS] || 0}</div>
         </div>
         {attendanceCodes.map((code) => (
           <div key={code.value} style={styles.summaryCard}>
             <div style={styles.summaryLabel}>{statusLabels[code.value]}</div>
-            <div style={{ ...styles.summaryValue, color: code.color }}>{statusCounts[code.value] || 0}</div>
+            <div style={{ ...styles.summaryValue, color: code.color }}>{counts[code.value] || 0}</div>
           </div>
         ))}
       </div>
@@ -290,20 +267,20 @@ export default function TeacherPortalAttendancePage({
         />
       </div>
 
-      <div style={styles.list}>
+      <div style={styles.tableWrap}>
         {filteredStudents.map((student) => {
           const studentId = String(student.id || "");
           const entry = form[studentId] || { status: ATTENDANCE_UNMARKED_STATUS, notes: "" };
+          const isSaving = savingStudentId === studentId;
           const activeCode =
             entry.status === ATTENDANCE_UNMARKED_STATUS
               ? null
               : getAttendanceCodeByValue(entry.status);
-          const isSaving = savingStudentId === studentId;
 
           return (
-            <div key={studentId} style={styles.studentCard}>
+            <div key={studentId} style={styles.row}>
               <div style={styles.studentHeader}>
-                <div style={styles.studentIdentity}>
+                <div style={styles.studentBlock}>
                   <img src={student.photoUrl} alt={student.displayName} style={styles.avatar} />
                   <div>
                     <div style={styles.studentName}>{student.displayName}</div>
@@ -317,12 +294,15 @@ export default function TeacherPortalAttendancePage({
                   style={{
                     ...styles.badge,
                     ...(activeCode
-                      ? { background: `${activeCode.color}14`, color: activeCode.color }
+                      ? {
+                          background: `${activeCode.color}14`,
+                          color: activeCode.color,
+                        }
                       : styles.badgeUnmarked),
                   }}
                 >
                   <CheckCircle2 size={14} />
-                  {entry.status === ATTENDANCE_UNMARKED_STATUS ? "Unmarked" : activeCode?.label || "Present"}
+                  {activeCode?.label || "Unmarked"}
                 </div>
               </div>
 
@@ -331,7 +311,7 @@ export default function TeacherPortalAttendancePage({
                   type="button"
                   style={{
                     ...styles.statusButton,
-                    ...(entry.status === ATTENDANCE_UNMARKED_STATUS ? styles.statusButtonActive : {}),
+                    ...(entry.status === ATTENDANCE_UNMARKED_STATUS ? styles.statusButtonUnmarked : {}),
                   }}
                   onClick={() => handleStatusChange(studentId, ATTENDANCE_UNMARKED_STATUS)}
                   disabled={isSaving}
@@ -369,10 +349,10 @@ export default function TeacherPortalAttendancePage({
                   value={entry.notes}
                   onChange={(event) => updateForm(studentId, "notes", event.target.value)}
                   onBlur={() => handleNotesBlur(studentId)}
+                  placeholder="Optional note for staff or families."
                   style={styles.notesInput}
                   rows={2}
-                  placeholder="Optional note for attendance office or family."
-                  disabled={isSaving || !settings.allowTeacherNoteEditing}
+                  disabled={isSaving}
                 />
               </div>
 
@@ -392,10 +372,7 @@ export default function TeacherPortalAttendancePage({
 }
 
 const styles = {
-  page: {
-    display: "grid",
-    gap: 18,
-  },
+  page: { display: "grid", gap: 18 },
   topbar: {
     alignItems: "center",
     display: "flex",
@@ -403,23 +380,11 @@ const styles = {
     gap: 16,
     justifyContent: "space-between",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 900,
-  },
-  subtitle: {
-    color: "#475569",
-    fontSize: 14,
-    marginTop: 4,
-  },
-  topbarActions: {
-    alignItems: "center",
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 10,
-  },
+  title: { fontSize: 30, fontWeight: 900 },
+  subtitle: { color: "#475569", fontSize: 14, marginTop: 4 },
+  actions: { alignItems: "center", display: "flex", flexWrap: "wrap", gap: 10 },
   dateInput: {
-    border: "1px solid #cbd5e1",
+    border: "1px solid var(--color-primary-light, #cbd5e1)",
     borderRadius: 12,
     font: "inherit",
     minHeight: 42,
@@ -444,9 +409,14 @@ const styles = {
     textTransform: "uppercase",
   },
   summaryValue: {
+    color: "var(--color-primary)",
     fontSize: 28,
     fontWeight: 900,
     marginTop: 8,
+  },
+  tableWrap: {
+    display: "grid",
+    gap: 12,
   },
   searchWrap: {
     alignItems: "center",
@@ -469,11 +439,7 @@ const styles = {
     outline: "none",
     width: "100%",
   },
-  list: {
-    display: "grid",
-    gap: 14,
-  },
-  studentCard: {
+  row: {
     background: "#ffffff",
     border: "1px solid #dbe4ee",
     borderRadius: 22,
@@ -488,32 +454,13 @@ const styles = {
     gap: 12,
     justifyContent: "space-between",
   },
-  studentIdentity: {
-    alignItems: "center",
-    display: "flex",
-    gap: 12,
-    minWidth: 0,
-  },
-  avatar: {
-    borderRadius: 16,
-    height: 56,
-    objectFit: "cover",
-    width: 56,
-  },
-  studentName: {
-    fontSize: 18,
-    fontWeight: 900,
-  },
-  studentMeta: {
-    color: "#64748b",
-    fontSize: 13,
-    marginTop: 3,
-  },
+  studentBlock: { alignItems: "center", display: "flex", gap: 12, minWidth: 0 },
+  avatar: { borderRadius: 16, height: 52, objectFit: "cover", width: 52 },
+  studentName: { fontSize: 16, fontWeight: 900 },
+  studentMeta: { color: "#64748b", fontSize: 13, marginTop: 2 },
   badge: {
     alignItems: "center",
-    background: "#ecfeff",
     borderRadius: 999,
-    color: "#0f766e",
     display: "inline-flex",
     fontSize: 12,
     fontWeight: 900,
@@ -538,7 +485,7 @@ const styles = {
     fontWeight: 700,
     padding: "9px 12px",
   },
-  statusButtonActive: {
+  statusButtonUnmarked: {
     background: "#0f172a",
     borderColor: "#0f172a",
     color: "#ffffff",
@@ -556,23 +503,23 @@ const styles = {
     gap: 6,
   },
   notesInput: {
+    background: "#ffffff",
+    boxSizing: "border-box",
     border: "1px solid #dbe4ee",
     borderRadius: 14,
     font: "inherit",
+    lineHeight: 1.45,
     minHeight: 72,
     padding: 12,
     resize: "vertical",
+    width: "100%",
   },
   rowHint: {
     color: "#64748b",
     fontSize: 12,
     lineHeight: 1.5,
   },
-  loading: {
-    color: "#475569",
-    fontSize: 15,
-    padding: 24,
-  },
+  loading: { color: "#475569", fontSize: 15, padding: 24 },
   emptyState: {
     background: "#ffffff",
     border: "1px solid #dbe4ee",
