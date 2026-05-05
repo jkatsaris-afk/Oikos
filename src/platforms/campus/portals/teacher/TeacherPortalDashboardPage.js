@@ -14,6 +14,7 @@ export default function TeacherPortalDashboardPage({
   students = [],
   subjects = [],
   assignments = [],
+  grades = [],
   subjectNameMap,
 }) {
   const activeAssignments = assignments.filter((item) => item.status !== "archived");
@@ -23,6 +24,49 @@ export default function TeacherPortalDashboardPage({
   const recentAssignments = [...activeAssignments]
     .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
     .slice(0, 4);
+  const gradeMap = useMemo(() => {
+    const map = new Map();
+    grades.forEach((grade) => {
+      map.set(`${grade.assignmentId}:${grade.studentId}`, grade);
+    });
+    return map;
+  }, [grades]);
+  const missingAssignmentSnapshot = useMemo(() => {
+    const items = [];
+
+    activeAssignments.forEach((assignment) => {
+      (assignment.assignedStudentIds || []).forEach((studentId) => {
+        const student = students.find((item) => item.id === studentId);
+        if (!student) {
+          return;
+        }
+
+        const savedGrade = gradeMap.get(`${assignment.id}:${studentId}`);
+        const isMissing =
+          !savedGrade ||
+          savedGrade.status === "missing" ||
+          savedGrade.score === "" ||
+          savedGrade.score === null ||
+          savedGrade.score === undefined;
+
+        if (!isMissing) {
+          return;
+        }
+
+        items.push({
+          key: `${assignment.id}:${studentId}`,
+          studentName: student.displayName || "Student",
+          assignmentTitle: assignment.title || "Assignment",
+          subjectName: subjectNameMap?.get(assignment.subjectId) || "Subject",
+          dueDate: assignment.dueDate || "",
+        });
+      });
+    });
+
+    return items
+      .sort((left, right) => String(right.dueDate || "").localeCompare(String(left.dueDate || "")))
+      .slice(0, 6);
+  }, [activeAssignments, gradeMap, students, subjectNameMap]);
 
   return (
     <div style={styles.stack}>
@@ -114,6 +158,27 @@ export default function TeacherPortalDashboardPage({
                   </div>
                   <div style={styles.assignmentMeta}>
                     {assignment.assignedStudentIds.length} students • {assignment.pointsPossible || 0} pts
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.panelTitle}>Missing Assignment Snapshot</div>
+          {missingAssignmentSnapshot.length === 0 ? (
+            <div style={styles.empty}>No missing assignments on your current roster.</div>
+          ) : (
+            <div style={styles.assignmentList}>
+              {missingAssignmentSnapshot.map((item) => (
+                <div key={item.key} style={styles.assignmentCard}>
+                  <div style={styles.assignmentTitle}>{item.studentName}</div>
+                  <div style={styles.assignmentMeta}>
+                    {item.assignmentTitle} • {item.subjectName}
+                  </div>
+                  <div style={styles.assignmentMeta}>
+                    {item.dueDate ? `Due ${formatDate(item.dueDate)}` : "No due date"}
                   </div>
                 </div>
               ))}

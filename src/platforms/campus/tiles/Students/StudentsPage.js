@@ -175,6 +175,123 @@ function createParentContactEntry() {
   };
 }
 
+function getTuitionProfile(student = {}) {
+  const tuition = student?.customFields?.tuition || {};
+  return {
+    familyBillingGroupId: normalizeText(tuition.familyBillingGroupId),
+    familyBillingName: normalizeText(tuition.familyBillingName),
+    payerName: normalizeText(tuition.payerName),
+    payerEmail: normalizeText(tuition.payerEmail),
+    payerPhone: normalizeText(tuition.payerPhone),
+    fees: Array.isArray(tuition.fees) ? tuition.fees : [],
+    payments: Array.isArray(tuition.payments) ? tuition.payments : [],
+    generatedBills: Array.isArray(tuition.generatedBills) ? tuition.generatedBills : [],
+    stripeInvoiceSync: tuition.stripeInvoiceSync || {},
+    billingStarted: tuition.billingStarted === true,
+    planId: normalizeText(tuition.planId),
+    planLabel: normalizeText(tuition.planLabel),
+    notes: normalizeText(tuition.notes),
+  };
+}
+
+function createTuitionFee() {
+  return {
+    id: `fee-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    date: new Date().toISOString().slice(0, 10),
+    label: "",
+    amountCents: 0,
+    status: "open",
+    notes: "",
+  };
+}
+
+function createTuitionPayment() {
+  return {
+    id: `payment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    date: new Date().toISOString().slice(0, 10),
+    method: "",
+    amountCents: 0,
+    reference: "",
+    notes: "",
+  };
+}
+
+function centsFromDollars(value) {
+  const normalized = Number.parseFloat(String(value || "0").replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(normalized) ? Math.max(0, Math.round(normalized * 100)) : 0;
+}
+
+function dollarsFromCents(value) {
+  return ((Number(value || 0) || 0) / 100).toFixed(2);
+}
+
+function getFamilyBillingStudents(students = [], selectedStudent = {}) {
+  const profile = getTuitionProfile(selectedStudent);
+  const groupId = normalizeLowerText(profile.familyBillingGroupId);
+  const householdName = normalizeLowerText(selectedStudent.householdName);
+  const primaryEmail = normalizeLowerText(selectedStudent.primaryEmail);
+
+  return students.filter((student) => {
+    if (!student?.id || student.id === selectedStudent.id) {
+      return false;
+    }
+
+    const studentProfile = getTuitionProfile(student);
+    return (
+      (groupId && normalizeLowerText(studentProfile.familyBillingGroupId) === groupId) ||
+      (!groupId && householdName && normalizeLowerText(student.householdName) === householdName) ||
+      (!groupId && primaryEmail && normalizeLowerText(student.primaryEmail) === primaryEmail)
+    );
+  });
+}
+
+function getPrimaryGuardian(student = {}) {
+  const guardians = Array.isArray(student.guardians) ? student.guardians : [];
+  return (
+    guardians.find((guardian) => normalizeText(guardian.email)) ||
+    guardians.find((guardian) => normalizeText(guardian.phone)) ||
+    guardians[0] ||
+    {}
+  );
+}
+
+function calculateTuitionBalance(student = {}) {
+  const profile = getTuitionProfile(student);
+  const generatedBillBalance = profile.generatedBills.reduce((sum, bill) => {
+    if (normalizeLowerText(bill.status) === "paid") {
+      return sum;
+    }
+
+    const remaining =
+      bill.remainingAmountCents !== undefined
+        ? Number(bill.remainingAmountCents || 0)
+        : Number(bill.amountCents || 0) - Number(bill.paidAmountCents || 0);
+    return sum + Math.max(0, remaining || 0);
+  }, 0);
+  const openFees = profile.fees.reduce((sum, fee) => {
+    if (["paid", "waived", "void"].includes(normalizeLowerText(fee.status))) {
+      return sum;
+    }
+
+    return sum + (Number(fee.amountCents || 0) || 0);
+  }, 0);
+  const payments = profile.payments.reduce(
+    (sum, payment) =>
+      payment.billId ? sum : sum + (Number(payment.amountCents || 0) || 0),
+    0
+  );
+  const startingBalance = profile.generatedBills.length
+    ? generatedBillBalance
+    : Number(student.tuitionBalanceCents || 0) || 0;
+
+  return Math.max(0, startingBalance + openFees - payments);
+}
+
+function deriveTuitionStatus(student = {}) {
+  const profile = getTuitionProfile(student);
+  return profile.planLabel || profile.planId || student.tuitionPaymentStatus || "";
+}
+
 function SectionCard({ icon: Icon, title, action = null, sectionRef = null, children }) {
   return (
     <section ref={sectionRef} style={styles.sectionCard}>
@@ -246,6 +363,32 @@ function LabeledTextarea({ label, value, onChange, placeholder = "", rows = 5 })
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         style={styles.textarea}
+      />
+    </label>
+  );
+}
+
+function MoneyInput({ label, valueCents, onChangeCents }) {
+  const [text, setText] = useState(dollarsFromCents(valueCents));
+
+  useEffect(() => {
+    setText(dollarsFromCents(valueCents));
+  }, [valueCents]);
+
+  return (
+    <label style={styles.field}>
+      <span style={styles.fieldLabel}>{label}</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={text}
+        onChange={(event) => {
+          setText(event.target.value);
+          onChangeCents(centsFromDollars(event.target.value));
+        }}
+        onBlur={() => setText(dollarsFromCents(centsFromDollars(text)))}
+        placeholder="0.00"
+        style={styles.input}
       />
     </label>
   );
@@ -397,6 +540,11 @@ export default function StudentsPage() {
       null
     : filteredStudents[0] || students[0] || null;
 
+  const selectedTuitionProfile = selectedStudent ? getTuitionProfile(selectedStudent) : getTuitionProfile();
+  const selectedFamilyBillingStudents = selectedStudent
+    ? getFamilyBillingStudents(students, selectedStudent)
+    : [];
+
   const reusableGuardianOptions = useMemo(() => {
     const currentStudentId = editForm?.id || selectedStudent?.id || "";
     const guardianMap = new Map();
@@ -430,6 +578,16 @@ export default function StudentsPage() {
           key,
           label: normalizeText(guardian.name) || normalizeText(guardian.email) || "Guardian",
           sourceStudentNames: [sourceStudentName],
+          sourceStudent: {
+            householdName: normalizeText(student.householdName),
+            primaryPhone: normalizeText(student.primaryPhone),
+            primaryEmail: normalizeText(student.primaryEmail),
+            streetAddress1: normalizeText(student.streetAddress1),
+            streetAddress2: normalizeText(student.streetAddress2),
+            city: normalizeText(student.city),
+            state: normalizeText(student.state),
+            postalCode: normalizeText(student.postalCode),
+          },
           guardian: {
             name: normalizeText(guardian.name),
             relationship: normalizeText(guardian.relationship),
@@ -581,6 +739,202 @@ export default function StudentsPage() {
     }));
   }
 
+  function updateTuitionProfileField(field, value) {
+    setEditForm((current) => ({
+      ...current,
+      customFields: {
+        ...(current?.customFields || {}),
+        tuition: {
+          ...(current?.customFields?.tuition || {}),
+          [field]: value,
+        },
+      },
+    }));
+  }
+
+  function addTuitionFee() {
+    setEditForm((current) => {
+      const profile = getTuitionProfile(current);
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            fees: [...profile.fees, createTuitionFee()],
+          },
+        },
+      };
+    });
+  }
+
+  function updateTuitionFee(index, updates) {
+    setEditForm((current) => {
+      const profile = getTuitionProfile(current);
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            fees: profile.fees.map((fee, feeIndex) =>
+              feeIndex === index ? { ...fee, ...updates } : fee
+            ),
+          },
+        },
+      };
+    });
+  }
+
+  function removeTuitionFee(index) {
+    setEditForm((current) => {
+      const profile = getTuitionProfile(current);
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            fees: profile.fees.filter((_fee, feeIndex) => feeIndex !== index),
+          },
+        },
+      };
+    });
+  }
+
+  function addTuitionPayment() {
+    setEditForm((current) => {
+      const profile = getTuitionProfile(current);
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            payments: [...profile.payments, createTuitionPayment()],
+          },
+        },
+      };
+    });
+  }
+
+  function updateTuitionPayment(index, updates) {
+    setEditForm((current) => {
+      const profile = getTuitionProfile(current);
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            payments: profile.payments.map((payment, paymentIndex) =>
+              paymentIndex === index ? { ...payment, ...updates } : payment
+            ),
+          },
+        },
+      };
+    });
+  }
+
+  function removeTuitionPayment(index) {
+    setEditForm((current) => {
+      const profile = getTuitionProfile(current);
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            payments: profile.payments.filter((_payment, paymentIndex) => paymentIndex !== index),
+          },
+        },
+      };
+    });
+  }
+
+  function updateTuitionBill(index, updates) {
+    setEditForm((current) => {
+      const profile = getTuitionProfile(current);
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            generatedBills: profile.generatedBills.map((bill, billIndex) =>
+              billIndex === index ? { ...bill, ...updates } : bill
+            ),
+          },
+        },
+      };
+    });
+  }
+
+  function markTuitionBillPaid(index, method) {
+    setEditForm((current) => {
+      const profile = getTuitionProfile(current);
+      const bill = profile.generatedBills[index] || {};
+      const amountCents = Number(bill.remainingAmountCents ?? bill.amountCents ?? 0) || 0;
+      const payment = {
+        ...createTuitionPayment(),
+        method,
+        amountCents,
+        billId: bill.id || "",
+        reference: bill.label || "",
+        notes: `Marked ${bill.label || "invoice"} paid by ${method}.`,
+      };
+
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            generatedBills: profile.generatedBills.map((nextBill, billIndex) =>
+              billIndex === index
+                ? {
+                    ...nextBill,
+                    status: "paid",
+                    paidAmountCents: Number(nextBill.amountCents || 0) || amountCents,
+                    remainingAmountCents: 0,
+                    paidDate: payment.date,
+                    paymentMethod: method,
+                  }
+                : nextBill
+            ),
+            payments: [...profile.payments, payment],
+            billingStarted: true,
+          },
+        },
+      };
+    });
+  }
+
+  function useHouseholdForTuitionBilling() {
+    setEditForm((current) => {
+      const guardian = getPrimaryGuardian(current);
+      const householdName = normalizeText(current?.householdName);
+      const primaryEmail = normalizeText(current?.primaryEmail);
+      const groupSeed = householdName || primaryEmail || normalizeText(current?.displayName);
+      const groupId = normalizeLowerText(groupSeed).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+      return {
+        ...current,
+        customFields: {
+          ...(current?.customFields || {}),
+          tuition: {
+            ...(current?.customFields?.tuition || {}),
+            familyBillingGroupId: groupId,
+            familyBillingName: householdName || `${current?.displayName || "Student"} Family`,
+            payerName: normalizeText(guardian.name) || normalizeText(current?.displayName),
+            payerEmail: normalizeText(guardian.email) || primaryEmail,
+            payerPhone: normalizeText(guardian.phone) || normalizeText(current?.primaryPhone),
+          },
+        },
+      };
+    });
+  }
+
   function updateListItem(key, index, field, value) {
     setEditForm((current) => {
       const nextItems = Array.isArray(current?.[key]) ? [...current[key]] : [];
@@ -656,6 +1010,14 @@ export default function StudentsPage() {
 
       return {
         ...current,
+        householdName: normalizeText(current?.householdName) || selectedGuardian.sourceStudent?.householdName || "",
+        primaryPhone: normalizeText(current?.primaryPhone) || selectedGuardian.sourceStudent?.primaryPhone || "",
+        primaryEmail: normalizeText(current?.primaryEmail) || selectedGuardian.sourceStudent?.primaryEmail || "",
+        streetAddress1: normalizeText(current?.streetAddress1) || selectedGuardian.sourceStudent?.streetAddress1 || "",
+        streetAddress2: normalizeText(current?.streetAddress2) || selectedGuardian.sourceStudent?.streetAddress2 || "",
+        city: normalizeText(current?.city) || selectedGuardian.sourceStudent?.city || "",
+        state: normalizeText(current?.state) || selectedGuardian.sourceStudent?.state || "",
+        postalCode: normalizeText(current?.postalCode) || selectedGuardian.sourceStudent?.postalCode || "",
         guardians: currentGuardians,
       };
     });
@@ -822,6 +1184,11 @@ export default function StudentsPage() {
     setNotice("");
 
     try {
+      const tuitionBalanceCents = calculateTuitionBalance(editForm);
+      const tuitionPaymentStatus = deriveTuitionStatus({
+        ...editForm,
+        tuitionBalanceCents,
+      });
       const nextStudent = await updateCampusStudent(user?.id, {
         ...editForm,
         raceEthnicity: editForm.raceEthnicityText
@@ -840,6 +1207,8 @@ export default function StudentsPage() {
         demographics: editForm.demographics || {},
         enrollment: editForm.enrollment || {},
         programParticipation: editForm.programParticipation || {},
+        tuitionBalanceCents,
+        tuitionPaymentStatus,
         customFields: editForm.customFields || {},
       });
 
@@ -1054,6 +1423,7 @@ export default function StudentsPage() {
         ),
       },
     ];
+    const selectedPrimaryGuardian = getPrimaryGuardian(selectedStudent);
 
     return (
       <div style={styles.detailPage}>
@@ -1194,8 +1564,101 @@ export default function StudentsPage() {
                     label: "Balance",
                     value: formatCurrencyFromCents(selectedStudent.tuitionBalanceCents),
                   },
+                  {
+                    label: "Billing Group",
+                    value:
+                      selectedTuitionProfile.familyBillingName ||
+                      selectedTuitionProfile.familyBillingGroupId ||
+                      selectedStudent.householdName ||
+                      "Individual student",
+                  },
+                  {
+                    label: "Payer",
+                    value:
+                      selectedTuitionProfile.payerName ||
+                      selectedTuitionProfile.payerEmail ||
+                      selectedPrimaryGuardian.name ||
+                      selectedPrimaryGuardian.email ||
+                      selectedStudent.primaryEmail ||
+                      "Not set",
+                  },
+                  {
+                    label: "Billing Started",
+                    value: selectedTuitionProfile.billingStarted ? "Yes" : "Not yet",
+                  },
+                  {
+                    label: "Stripe Sync",
+                    value: selectedTuitionProfile.stripeInvoiceSync?.status || "Not sent",
+                  },
                 ]}
               />
+              <div style={styles.tuitionSubgrid}>
+                <div style={styles.tuitionPanel}>
+                  <div style={styles.stackTitle}>Family Billing</div>
+                  {selectedFamilyBillingStudents.length ? (
+                    <div style={styles.stackList}>
+                      {selectedFamilyBillingStudents.map((student) => (
+                        <div key={student.id} style={styles.miniRow}>
+                          <span>{student.displayName}</span>
+                          <strong>{formatCurrencyFromCents(student.tuitionBalanceCents)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={styles.emptyInline}>No linked siblings or family group members.</div>
+                  )}
+                </div>
+
+                <div style={styles.tuitionPanel}>
+                  <div style={styles.stackTitle}>Added Fees</div>
+                  {selectedTuitionProfile.fees.length ? (
+                    <div style={styles.stackList}>
+                      {selectedTuitionProfile.fees.map((fee) => (
+                        <div key={fee.id || `${fee.label}-${fee.date}`} style={styles.miniRow}>
+                          <span>{fee.label || "Fee"} {fee.date ? `• ${formatDate(fee.date)}` : ""}</span>
+                          <strong>{formatCurrencyFromCents(fee.amountCents)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={styles.emptyInline}>No extra student fees added.</div>
+                  )}
+                </div>
+
+                <div style={styles.tuitionPanel}>
+                  <div style={styles.stackTitle}>Payments Made</div>
+                  {selectedTuitionProfile.payments.length ? (
+                    <div style={styles.stackList}>
+                      {selectedTuitionProfile.payments.map((payment) => (
+                        <div key={payment.id || `${payment.method}-${payment.date}`} style={styles.miniRow}>
+                          <span>
+                            {payment.method || "Payment"} {payment.date ? `• ${formatDate(payment.date)}` : ""}
+                          </span>
+                          <strong>{formatCurrencyFromCents(payment.amountCents)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={styles.emptyInline}>No payments recorded yet.</div>
+                  )}
+                </div>
+
+                <div style={styles.tuitionPanel}>
+                  <div style={styles.stackTitle}>Generated Bills</div>
+                  {selectedTuitionProfile.generatedBills.length ? (
+                    <div style={styles.stackList}>
+                      {selectedTuitionProfile.generatedBills.slice(0, 6).map((bill) => (
+                        <div key={bill.id || `${bill.label}-${bill.dueDate}`} style={styles.miniRow}>
+                          <span>{bill.label || "Bill"} {bill.dueDate ? `• ${formatDate(bill.dueDate)}` : ""}</span>
+                          <strong>{formatCurrencyFromCents(bill.amountCents)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={styles.emptyInline}>No generated billing schedule yet.</div>
+                  )}
+                </div>
+              </div>
             </SectionCard>
 
             <SectionCard
@@ -1515,8 +1978,6 @@ export default function StudentsPage() {
                 <LabeledInput label="Enrollment Start Date" type="date" value={editForm.enrollmentStartDate || ""} onChange={(value) => updateForm("enrollmentStartDate", value)} />
                 <LabeledInput label="Enrollment End Date" type="date" value={editForm.enrollmentEndDate || ""} onChange={(value) => updateForm("enrollmentEndDate", value)} />
                 <LabeledInput label="Graduation Year" type="number" value={editForm.graduationYear || ""} onChange={(value) => updateForm("graduationYear", value)} />
-                <LabeledInput label="Tuition Payment Status" value={editForm.tuitionPaymentStatus} onChange={(value) => updateForm("tuitionPaymentStatus", value)} />
-                <LabeledInput label="Tuition Balance Cents" type="number" value={editForm.tuitionBalanceCents || 0} onChange={(value) => updateForm("tuitionBalanceCents", value)} />
               </div>
               <div style={styles.stackEditList}>
                 <div style={styles.fieldHint}>
@@ -1557,7 +2018,155 @@ export default function StudentsPage() {
               </div>
             </SectionCard>
 
-            <div ref={editSectionRefs.tuition} />
+            <SectionCard
+              icon={BadgeDollarSign}
+              title="Tuition Billing"
+              sectionRef={editSectionRefs.tuition}
+            >
+              <div style={styles.formGrid}>
+                <LabeledInput label="Tuition Payment Status" value={editForm.tuitionPaymentStatus} onChange={(value) => updateForm("tuitionPaymentStatus", value)} />
+                <MoneyInput label="Tuition Balance" valueCents={editForm.tuitionBalanceCents || 0} onChangeCents={(amountCents) => updateForm("tuitionBalanceCents", amountCents)} />
+                <LabeledInput
+                  label="Family Billing Group ID"
+                  value={getTuitionProfile(editForm).familyBillingGroupId}
+                  onChange={(value) => updateTuitionProfileField("familyBillingGroupId", value)}
+                  placeholder="Example: smith-family"
+                />
+                <LabeledInput
+                  label="Family Billing Name"
+                  value={getTuitionProfile(editForm).familyBillingName}
+                  onChange={(value) => updateTuitionProfileField("familyBillingName", value)}
+                  placeholder="Smith Family"
+                />
+                <LabeledInput
+                  label="Payer Name"
+                  value={getTuitionProfile(editForm).payerName}
+                  onChange={(value) => updateTuitionProfileField("payerName", value)}
+                />
+                <LabeledInput
+                  label="Payer Email"
+                  type="email"
+                  value={getTuitionProfile(editForm).payerEmail}
+                  onChange={(value) => updateTuitionProfileField("payerEmail", value)}
+                />
+                <LabeledInput
+                  label="Payer Phone"
+                  value={getTuitionProfile(editForm).payerPhone}
+                  onChange={(value) => updateTuitionProfileField("payerPhone", value)}
+                />
+                <LabeledTextarea
+                  label="Tuition Notes"
+                  value={getTuitionProfile(editForm).notes}
+                  onChange={(value) => updateTuitionProfileField("notes", value)}
+                  rows={3}
+                />
+              </div>
+              <button type="button" style={styles.addMiniButton} onClick={useHouseholdForTuitionBilling}>
+                Use Household And Primary Guardian For Billing
+              </button>
+
+              <div style={styles.stackEditList}>
+                <div style={styles.stackEditHeader}>
+                  <div>
+                    <div style={styles.stackEditTitle}>Student Fees</div>
+                    <div style={styles.fieldHint}>Add student-specific charges that should be visible from this record.</div>
+                  </div>
+                  <button type="button" style={styles.addMiniButton} onClick={addTuitionFee}>
+                    Add Fee
+                  </button>
+                </div>
+                {getTuitionProfile(editForm).fees.map((fee, index) => (
+                  <div key={fee.id || `fee-${index}`} style={styles.stackEditCard}>
+                    <div style={styles.stackEditHeader}>
+                      <div style={styles.stackEditTitle}>Fee {index + 1}</div>
+                      <button type="button" style={styles.removeMiniButton} onClick={() => removeTuitionFee(index)}>
+                        Remove
+                      </button>
+                    </div>
+                    <div style={styles.formGrid}>
+                      <LabeledInput label="Date" type="date" value={fee.date || ""} onChange={(value) => updateTuitionFee(index, { date: value })} />
+                      <LabeledInput label="Label" value={fee.label || ""} onChange={(value) => updateTuitionFee(index, { label: value })} />
+                      <MoneyInput label="Amount" valueCents={fee.amountCents} onChangeCents={(amountCents) => updateTuitionFee(index, { amountCents })} />
+                      <LabeledInput label="Status" value={fee.status || "open"} onChange={(value) => updateTuitionFee(index, { status: value })} />
+                      <LabeledTextarea label="Notes" rows={2} value={fee.notes || ""} onChange={(value) => updateTuitionFee(index, { notes: value })} />
+                    </div>
+                  </div>
+                ))}
+                {!getTuitionProfile(editForm).fees.length ? (
+                  <div style={styles.emptyInline}>No student-specific fees yet.</div>
+                ) : null}
+              </div>
+
+              <div style={styles.stackEditList}>
+                <div style={styles.stackEditHeader}>
+                  <div>
+                    <div style={styles.stackEditTitle}>Payments Made</div>
+                    <div style={styles.fieldHint}>Record cash, check, Stripe, scholarship, or adjustment payments.</div>
+                  </div>
+                  <button type="button" style={styles.addMiniButton} onClick={addTuitionPayment}>
+                    Add Payment
+                  </button>
+                </div>
+                {getTuitionProfile(editForm).payments.map((payment, index) => (
+                  <div key={payment.id || `payment-${index}`} style={styles.stackEditCard}>
+                    <div style={styles.stackEditHeader}>
+                      <div style={styles.stackEditTitle}>Payment {index + 1}</div>
+                      <button type="button" style={styles.removeMiniButton} onClick={() => removeTuitionPayment(index)}>
+                        Remove
+                      </button>
+                    </div>
+                    <div style={styles.formGrid}>
+                      <LabeledInput label="Date" type="date" value={payment.date || ""} onChange={(value) => updateTuitionPayment(index, { date: value })} />
+                      <LabeledInput label="Method" value={payment.method || ""} onChange={(value) => updateTuitionPayment(index, { method: value })} placeholder="Stripe, check, cash" />
+                      <MoneyInput label="Amount" valueCents={payment.amountCents} onChangeCents={(amountCents) => updateTuitionPayment(index, { amountCents })} />
+                      <LabeledInput label="Reference" value={payment.reference || ""} onChange={(value) => updateTuitionPayment(index, { reference: value })} />
+                      <LabeledTextarea label="Notes" rows={2} value={payment.notes || ""} onChange={(value) => updateTuitionPayment(index, { notes: value })} />
+                    </div>
+                  </div>
+                ))}
+                {!getTuitionProfile(editForm).payments.length ? (
+                  <div style={styles.emptyInline}>No payments recorded yet.</div>
+                ) : null}
+              </div>
+
+              <div style={styles.stackEditList}>
+                <div style={styles.stackEditHeader}>
+                  <div>
+                    <div style={styles.stackEditTitle}>Invoices And Bills</div>
+                    <div style={styles.fieldHint}>Mark invoices paid here when a family pays by cash or check.</div>
+                  </div>
+                </div>
+                {getTuitionProfile(editForm).generatedBills.map((bill, index) => (
+                  <div key={bill.id || `bill-${index}`} style={styles.stackEditCard}>
+                    <div style={styles.stackEditHeader}>
+                      <div>
+                        <div style={styles.stackEditTitle}>{bill.label || `Bill ${index + 1}`}</div>
+                        <div style={styles.fieldHint}>
+                          Due {bill.dueDate ? formatDate(bill.dueDate) : "not set"} • {formatCurrencyFromCents(bill.amountCents)}
+                        </div>
+                      </div>
+                      <div style={styles.inlineButtonRow}>
+                        <button type="button" style={styles.addMiniButton} onClick={() => markTuitionBillPaid(index, "Cash")}>
+                          Paid Cash
+                        </button>
+                        <button type="button" style={styles.addMiniButton} onClick={() => markTuitionBillPaid(index, "Check")}>
+                          Paid Check
+                        </button>
+                      </div>
+                    </div>
+                    <div style={styles.formGrid}>
+                      <LabeledInput label="Status" value={bill.status || "open"} onChange={(value) => updateTuitionBill(index, { status: value })} />
+                      <MoneyInput label="Paid Amount" valueCents={bill.paidAmountCents || 0} onChangeCents={(amountCents) => updateTuitionBill(index, { paidAmountCents: amountCents, remainingAmountCents: Math.max(0, Number(bill.amountCents || 0) - amountCents) })} />
+                      <LabeledInput label="Payment Method" value={bill.paymentMethod || ""} onChange={(value) => updateTuitionBill(index, { paymentMethod: value })} />
+                      <LabeledInput label="Paid Date" type="date" value={bill.paidDate || ""} onChange={(value) => updateTuitionBill(index, { paidDate: value })} />
+                    </div>
+                  </div>
+                ))}
+                {!getTuitionProfile(editForm).generatedBills.length ? (
+                  <div style={styles.emptyInline}>No generated invoices or bills yet.</div>
+                ) : null}
+              </div>
+            </SectionCard>
 
             <SectionCard
               icon={Home}
@@ -2893,6 +3502,31 @@ const styles = {
     display: "grid",
     gap: 12,
   },
+  tuitionSubgrid: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    marginTop: 4,
+  },
+  tuitionPanel: {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 16,
+    display: "grid",
+    gap: 10,
+    padding: 14,
+  },
+  miniRow: {
+    alignItems: "center",
+    borderTop: "1px solid #e2e8f0",
+    color: "#334155",
+    display: "flex",
+    fontSize: 13,
+    gap: 10,
+    justifyContent: "space-between",
+    lineHeight: 1.4,
+    paddingTop: 8,
+  },
   stackEditList: {
     display: "grid",
     gap: 14,
@@ -2916,6 +3550,12 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     gap: 12,
+  },
+  inlineButtonRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "flex-end",
   },
   stackEditTitle: {
     color: "#0f172a",

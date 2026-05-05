@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { BookOpen, CalendarDays, FileText, GraduationCap, LogOut, PencilLine, Save, User, X } from "lucide-react";
+import {
+  BadgeDollarSign,
+  BookOpen,
+  CalendarDays,
+  CreditCard,
+  FileText,
+  GraduationCap,
+  LogOut,
+  PencilLine,
+  Save,
+  User,
+  X,
+} from "lucide-react";
 
 import { supabase } from "../../../../auth/supabaseClient";
 import { useAuth } from "../../../../auth/useAuth";
@@ -38,6 +50,14 @@ function formatPercent(value) {
   }
 
   return `${Math.round(Number(value))}%`;
+}
+
+function formatCurrencyFromCents(value) {
+  const amount = Number(value || 0) / 100;
+  return amount.toLocaleString(undefined, {
+    currency: "USD",
+    style: "currency",
+  });
 }
 
 function sortByMostRecentDate(items = [], getValue) {
@@ -89,6 +109,50 @@ function getInitials(value = "") {
     .join("");
 }
 
+function getTuitionProfile(student = {}) {
+  const tuition = student?.customFields?.tuition || {};
+  return {
+    planLabel: tuition.planLabel || tuition.planId || student.tuitionPaymentStatus || "",
+    familyBillingGroupId: tuition.familyBillingGroupId || "",
+    familyBillingName: tuition.familyBillingName || student.householdName || "",
+    payerName: tuition.payerName || "",
+    payerEmail: tuition.payerEmail || student.primaryEmail || "",
+    payerPhone: tuition.payerPhone || student.primaryPhone || "",
+    fees: Array.isArray(tuition.fees) ? tuition.fees : [],
+    payments: Array.isArray(tuition.payments) ? tuition.payments : [],
+    generatedBills: Array.isArray(tuition.generatedBills) ? tuition.generatedBills : [],
+    stripeInvoiceSync: tuition.stripeInvoiceSync || {},
+    parentPaymentInfo: tuition.parentPaymentInfo || {},
+  };
+}
+
+function createTuitionForm(student = {}, user = {}) {
+  const profile = getTuitionProfile(student);
+  const parentPaymentInfo = profile.parentPaymentInfo || {};
+
+  return {
+    payerName: profile.payerName || student.matchedGuardian?.name || "",
+    payerEmail: profile.payerEmail || user?.email || "",
+    payerPhone: profile.payerPhone || student.matchedGuardian?.phone || "",
+    preferredMethod: parentPaymentInfo.preferredMethod || "stripe_invoice",
+    paymentMethodNickname: parentPaymentInfo.paymentMethodNickname || "",
+    billingNotes: parentPaymentInfo.billingNotes || "",
+    autopayRequested: parentPaymentInfo.autopayRequested === true,
+    applyToHousehold: false,
+  };
+}
+
+function getPaymentLink(account = {}) {
+  const integrations = account?.integrations || {};
+  return (
+    integrations?.tuition?.parentPaymentLink ||
+    integrations?.tuition?.paymentLinkUrl ||
+    integrations?.payments?.paymentLinkUrl ||
+    integrations?.payments?.stripePaymentLink ||
+    ""
+  );
+}
+
 export default function ParentPortalApp() {
   const location = useLocation();
   const { user, profile, profileReady, loading } = useAuth();
@@ -98,7 +162,9 @@ export default function ParentPortalApp() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [editingStudentId, setEditingStudentId] = useState("");
+  const [editingTuitionStudentId, setEditingTuitionStudentId] = useState("");
   const [savingStudentId, setSavingStudentId] = useState("");
+  const [savingTuitionStudentId, setSavingTuitionStudentId] = useState("");
   const [showAllAssignments, setShowAllAssignments] = useState(false);
   const [showAllAttendance, setShowAllAttendance] = useState(false);
   const [selectedAssignmentSubject, setSelectedAssignmentSubject] = useState("all");
@@ -114,6 +180,7 @@ export default function ParentPortalApp() {
     postalCode: "",
     guardians: [],
   });
+  const [tuitionForm, setTuitionForm] = useState(() => createTuitionForm());
 
   useEffect(() => {
     let mounted = true;
@@ -168,6 +235,36 @@ export default function ParentPortalApp() {
     (workspace?.children || []).find((student) => student.id === selectedStudentId) ||
     workspace?.children?.[0] ||
     null;
+  const selectedTuitionProfile = useMemo(
+    () => getTuitionProfile(selectedStudent || {}),
+    [selectedStudent]
+  );
+  const paymentLink = useMemo(
+    () => getPaymentLink(workspace?.account || {}),
+    [workspace?.account]
+  );
+  const familyTuitionStudents = useMemo(() => {
+    if (!selectedStudent) {
+      return [];
+    }
+
+    const selectedProfile = getTuitionProfile(selectedStudent);
+    const selectedGroup =
+      selectedProfile.familyBillingGroupId ||
+      selectedStudent.householdName ||
+      selectedStudent.primaryEmail ||
+      selectedStudent.id;
+
+    return (workspace?.children || []).filter((student) => {
+      const profile = getTuitionProfile(student);
+      const group =
+        profile.familyBillingGroupId ||
+        student.householdName ||
+        student.primaryEmail ||
+        student.id;
+      return String(group || "") === String(selectedGroup || "");
+    });
+  }, [selectedStudent, workspace?.children]);
 
   useEffect(() => {
     if (!selectedStudent || editingStudentId === selectedStudent.id) {
@@ -195,6 +292,14 @@ export default function ParentPortalApp() {
         : [],
     });
   }, [editingStudentId, selectedStudent]);
+
+  useEffect(() => {
+    if (!selectedStudent || editingTuitionStudentId === selectedStudent.id) {
+      return;
+    }
+
+    setTuitionForm(createTuitionForm(selectedStudent, user));
+  }, [editingTuitionStudentId, selectedStudent, user]);
 
   const studentAssignments = useMemo(
     () =>
@@ -352,6 +457,8 @@ export default function ParentPortalApp() {
   const schoolLogo = String(workspace?.account?.logo_url || "").trim();
   const orgInitials = getInitials(workspace?.account?.name || "Organization");
   const isEditingSelectedStudent = editingStudentId && editingStudentId === selectedStudent?.id;
+  const isEditingSelectedTuition =
+    editingTuitionStudentId && editingTuitionStudentId === selectedStudent?.id;
   const pageStyles = useMemo(
     () => ({
       ...styles,
@@ -556,6 +663,105 @@ export default function ParentPortalApp() {
       setError(saveError?.message || "Could not save student information.");
     } finally {
       setSavingStudentId("");
+    }
+  }
+
+  function beginEditTuition() {
+    if (!selectedStudent) {
+      return;
+    }
+
+    setError("");
+    setNotice("");
+    setEditingTuitionStudentId(selectedStudent.id);
+    setTuitionForm(createTuitionForm(selectedStudent, user));
+  }
+
+  function cancelEditTuition() {
+    setEditingTuitionStudentId("");
+    setError("");
+    setTuitionForm(createTuitionForm(selectedStudent || {}, user));
+  }
+
+  function updateTuitionField(field, value) {
+    setTuitionForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function buildParentTuitionStudent(student) {
+    const existingTuition = student?.customFields?.tuition || {};
+    const now = new Date().toISOString();
+
+    return {
+      ...student,
+      customFields: {
+        ...(student.customFields || {}),
+        tuition: {
+          ...existingTuition,
+          payerName: tuitionForm.payerName,
+          payerEmail: tuitionForm.payerEmail,
+          payerPhone: tuitionForm.payerPhone,
+          parentPaymentInfo: {
+            ...(existingTuition.parentPaymentInfo || {}),
+            preferredMethod: tuitionForm.preferredMethod,
+            paymentMethodNickname: tuitionForm.paymentMethodNickname,
+            billingNotes: tuitionForm.billingNotes,
+            autopayRequested: tuitionForm.autopayRequested === true,
+            updatedAt: now,
+            updatedByParentUserId: user?.id || "",
+          },
+        },
+      },
+    };
+  }
+
+  async function handleSaveTuitionInfo() {
+    if (!selectedStudent || !user?.id) {
+      return;
+    }
+
+    setSavingTuitionStudentId(selectedStudent.id);
+    setError("");
+    setNotice("");
+
+    try {
+      const studentsToUpdate =
+        tuitionForm.applyToHousehold && familyTuitionStudents.length > 1
+          ? familyTuitionStudents
+          : [selectedStudent];
+      const updatedStudents = await Promise.all(
+        studentsToUpdate.map((student) =>
+          updateParentPortalStudentInfo(user.id, buildParentTuitionStudent(student))
+        )
+      );
+
+      const updatedById = new Map(updatedStudents.map((student) => [student.id, student]));
+      setWorkspace((current) => ({
+        ...current,
+        children: (current?.children || []).map((student) => {
+          const updatedStudent = updatedById.get(student.id);
+          return updatedStudent
+            ? {
+                ...student,
+                ...updatedStudent,
+                matchedGuardian: student.matchedGuardian,
+              }
+            : student;
+        }),
+      }));
+      setEditingTuitionStudentId("");
+      setNotice(
+        updatedStudents.length > 1
+          ? "Billing preferences updated for this household."
+          : "Billing preferences updated."
+      );
+    } catch (saveError) {
+      console.error("Parent tuition update error:", saveError);
+      setError(saveError?.message || "Could not save billing preferences.");
+    } finally {
+      setSavingTuitionStudentId("");
     }
   }
 
@@ -942,6 +1148,216 @@ export default function ParentPortalApp() {
                       <div style={pageStyles.snapshotLabel}>Current Status</div>
                       <div style={pageStyles.snapshotValue}>{selectedStudent.currentEnrollmentStatus || "Not set"}</div>
                     </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section style={pageStyles.sectionCard}>
+              <div style={pageStyles.sectionHeader}>
+                <div style={pageStyles.sectionTitleWrap}>
+                  <BadgeDollarSign size={18} />
+                  <span>Tuition & Payments</span>
+                </div>
+                {!isEditingSelectedTuition ? (
+                  <button type="button" style={styles.actionButtonSecondary} onClick={beginEditTuition}>
+                    <CreditCard size={16} />
+                    Payment Info
+                  </button>
+                ) : (
+                  <div style={styles.actionRow}>
+                    <button
+                      type="button"
+                      style={pageStyles.actionButtonPrimary}
+                      onClick={handleSaveTuitionInfo}
+                      disabled={savingTuitionStudentId === selectedStudent.id}
+                    >
+                      <Save size={16} />
+                      {savingTuitionStudentId === selectedStudent.id ? "Saving..." : "Save"}
+                    </button>
+                    <button type="button" style={styles.actionButtonSecondary} onClick={cancelEditTuition}>
+                      <X size={16} />
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div style={pageStyles.sectionBody}>
+                <div style={pageStyles.snapshotGrid}>
+                  <div style={pageStyles.snapshotCard}>
+                    <div style={pageStyles.snapshotLabel}>Package</div>
+                    <div style={pageStyles.snapshotValue}>
+                      {selectedTuitionProfile.planLabel || "Not selected"}
+                    </div>
+                  </div>
+                  <div style={pageStyles.snapshotCard}>
+                    <div style={pageStyles.snapshotLabel}>Balance</div>
+                    <div style={pageStyles.snapshotValue}>
+                      {formatCurrencyFromCents(selectedStudent.tuitionBalanceCents)}
+                    </div>
+                  </div>
+                  <div style={pageStyles.snapshotCard}>
+                    <div style={pageStyles.snapshotLabel}>Billing Group</div>
+                    <div style={pageStyles.snapshotValue}>
+                      {selectedTuitionProfile.familyBillingName || selectedStudent.householdName || "Individual"}
+                    </div>
+                  </div>
+                  <div style={pageStyles.snapshotCard}>
+                    <div style={pageStyles.snapshotLabel}>Payer</div>
+                    <div style={pageStyles.snapshotValue}>
+                      {selectedTuitionProfile.payerName || selectedStudent.matchedGuardian?.name || "Not set"}
+                    </div>
+                  </div>
+                </div>
+
+                {paymentLink ? (
+                  <a
+                    href={paymentLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={pageStyles.paymentLink}
+                  >
+                    <CreditCard size={16} />
+                    Open Payment Portal
+                  </a>
+                ) : null}
+
+                {isEditingSelectedTuition ? (
+                  <div style={styles.editGrid}>
+                    <div style={styles.guardianGrid}>
+                      <div style={styles.fieldGroup}>
+                        <label style={pageStyles.fieldLabel}>Billing Name</label>
+                        <input
+                          style={pageStyles.input}
+                          value={tuitionForm.payerName}
+                          onChange={(event) => updateTuitionField("payerName", event.target.value)}
+                        />
+                      </div>
+                      <div style={styles.fieldGroup}>
+                        <label style={pageStyles.fieldLabel}>Billing Email</label>
+                        <input
+                          style={pageStyles.input}
+                          type="email"
+                          value={tuitionForm.payerEmail}
+                          onChange={(event) => updateTuitionField("payerEmail", event.target.value)}
+                        />
+                      </div>
+                      <div style={styles.fieldGroup}>
+                        <label style={pageStyles.fieldLabel}>Billing Phone</label>
+                        <input
+                          style={pageStyles.input}
+                          value={tuitionForm.payerPhone}
+                          onChange={(event) => updateTuitionField("payerPhone", event.target.value)}
+                        />
+                      </div>
+                      <div style={styles.fieldGroup}>
+                        <label style={pageStyles.fieldLabel}>Preferred Method</label>
+                        <select
+                          style={pageStyles.input}
+                          value={tuitionForm.preferredMethod}
+                          onChange={(event) => updateTuitionField("preferredMethod", event.target.value)}
+                        >
+                          <option value="stripe_invoice">Stripe invoice</option>
+                          <option value="card_on_file">Card on file</option>
+                          <option value="bank_transfer">Bank transfer</option>
+                          <option value="check">Check</option>
+                          <option value="cash">Cash</option>
+                        </select>
+                      </div>
+                      <div style={styles.fieldGroup}>
+                        <label style={pageStyles.fieldLabel}>Payment Method Label</label>
+                        <input
+                          style={pageStyles.input}
+                          placeholder="Visa ending 4242, ACH, check, etc."
+                          value={tuitionForm.paymentMethodNickname}
+                          onChange={(event) =>
+                            updateTuitionField("paymentMethodNickname", event.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
+                    <label style={styles.checkRow}>
+                      <input
+                        type="checkbox"
+                        checked={tuitionForm.autopayRequested}
+                        onChange={(event) =>
+                          updateTuitionField("autopayRequested", event.target.checked)
+                        }
+                      />
+                      Request automatic payments when available
+                    </label>
+                    {familyTuitionStudents.length > 1 ? (
+                      <label style={styles.checkRow}>
+                        <input
+                          type="checkbox"
+                          checked={tuitionForm.applyToHousehold}
+                          onChange={(event) =>
+                            updateTuitionField("applyToHousehold", event.target.checked)
+                          }
+                        />
+                        Use these billing preferences for all children in this household
+                      </label>
+                    ) : null}
+                    <div style={styles.fieldGroup}>
+                      <label style={pageStyles.fieldLabel}>Billing Notes</label>
+                      <textarea
+                        style={{ ...pageStyles.input, minHeight: 92, resize: "vertical" }}
+                        value={tuitionForm.billingNotes}
+                        onChange={(event) => updateTuitionField("billingNotes", event.target.value)}
+                      />
+                    </div>
+                    <div style={pageStyles.emptyInline}>
+                      Card numbers and bank details are handled through the payment provider, not stored here.
+                    </div>
+                  </div>
+                ) : (
+                  <div style={pageStyles.cardList}>
+                    <div style={pageStyles.infoCard}>
+                      <div style={pageStyles.infoTitle}>Billing Preferences</div>
+                      <div style={pageStyles.infoMeta}>
+                        {selectedTuitionProfile.parentPaymentInfo?.preferredMethod
+                          ? selectedTuitionProfile.parentPaymentInfo.preferredMethod.replace(/_/g, " ")
+                          : "No preferred method set"}
+                      </div>
+                      {selectedTuitionProfile.parentPaymentInfo?.paymentMethodNickname ? (
+                        <div style={pageStyles.infoCopy}>
+                          {selectedTuitionProfile.parentPaymentInfo.paymentMethodNickname}
+                        </div>
+                      ) : null}
+                      {selectedTuitionProfile.parentPaymentInfo?.autopayRequested ? (
+                        <div style={pageStyles.infoValue}>Autopay requested</div>
+                      ) : null}
+                    </div>
+
+                    {selectedTuitionProfile.generatedBills.length ? (
+                      selectedTuitionProfile.generatedBills.slice(0, 4).map((bill, index) => (
+                        <div key={bill.id || `${bill.label}-${index}`} style={pageStyles.infoCard}>
+                          <div style={pageStyles.infoTitle}>{bill.label || `Invoice ${index + 1}`}</div>
+                          <div style={pageStyles.infoMeta}>
+                            Due {formatDate(bill.dueDate)} • {bill.status || "open"}
+                          </div>
+                          <div style={pageStyles.infoValue}>
+                            {formatCurrencyFromCents(bill.amountCents)}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={pageStyles.emptyInline}>No tuition invoices have been posted yet.</div>
+                    )}
+
+                    {selectedTuitionProfile.payments.length ? (
+                      <div style={pageStyles.infoCard}>
+                        <div style={pageStyles.infoTitle}>Payments Received</div>
+                        <div style={pageStyles.gradeList}>
+                          {selectedTuitionProfile.payments.slice(0, 4).map((payment, index) => (
+                            <div key={payment.id || `${payment.date}-${index}`} style={pageStyles.gradeRow}>
+                              <span>{formatDate(payment.date)} • {payment.method || "Payment"}</span>
+                              <strong>{formatCurrencyFromCents(payment.amountCents)}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -1372,9 +1788,30 @@ const styles = {
     gap: 8,
     padding: "10px 14px",
   },
+  paymentLink: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    background: "#0f172a",
+    borderRadius: 12,
+    color: "#ffffff",
+    display: "inline-flex",
+    fontWeight: 800,
+    gap: 8,
+    padding: "10px 14px",
+    textDecoration: "none",
+  },
   editGrid: {
     display: "grid",
     gap: 14,
+  },
+  checkRow: {
+    alignItems: "center",
+    color: "#334155",
+    display: "flex",
+    fontSize: 14,
+    fontWeight: 700,
+    gap: 10,
+    lineHeight: 1.5,
   },
   guardianEditor: {
     background: "#f8fbfd",

@@ -184,6 +184,12 @@ function getStoreInfo(tile) {
       "Works with your personal tile preferences",
     ],
     screenshots: metadata.screenshots || ["Tile app overview"],
+    requiredTiles:
+      Array.isArray(metadata.requiredTiles) && metadata.requiredTiles.length
+        ? metadata.requiredTiles
+        : Array.isArray(tile.requiredTiles)
+          ? tile.requiredTiles
+          : [],
   };
 }
 
@@ -194,14 +200,25 @@ export default function TileStorePage() {
   const [category, setCategory] = useState("All");
   const [selectedTileId, setSelectedTileId] = useState("");
 
-  const decoratedTiles = useMemo(
-    () =>
-      availableTiles.map((tile) => ({
+  const decoratedTiles = useMemo(() => {
+    const installedTileIds = new Set(
+      availableTiles.filter((tile) => tile.installed).map((tile) => tile.id)
+    );
+
+    return availableTiles.map((tile) => {
+      const storeInfo = getStoreInfo(tile);
+      const missingDependencies = (storeInfo.requiredTiles || []).filter(
+        (dependencyId) => !installedTileIds.has(dependencyId)
+      );
+
+      return {
         ...tile,
-        storeInfo: getStoreInfo(tile),
-      })),
-    [availableTiles]
-  );
+        storeInfo,
+        missingDependencies,
+        installBlocked: !tile.installed && missingDependencies.length > 0,
+      };
+    });
+  }, [availableTiles]);
 
   const filteredTiles = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -228,7 +245,7 @@ export default function TileStorePage() {
   const selectedTile = decoratedTiles.find((tile) => tile.id === selectedTileId);
 
   async function install(tile) {
-    if (tile.installed) return;
+    if (tile.installed || tile.installBlocked) return;
 
     await installTile(tile.id);
   }
@@ -334,7 +351,10 @@ function TileCard({ tile, onSelect, onInstall }) {
     <div
       role="button"
       tabIndex={0}
-      style={styles.card}
+      style={{
+        ...styles.card,
+        ...(tile.installBlocked ? styles.cardDisabled : {}),
+      }}
       onClick={onSelect}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -358,6 +378,11 @@ function TileCard({ tile, onSelect, onInstall }) {
 
       <div style={styles.cardTitle}>{tile.label}</div>
       <div style={styles.cardText}>{tile.storeInfo.shortDescription}</div>
+      {tile.installBlocked ? (
+        <div style={styles.dependencyNotice}>
+          Needs {tile.missingDependencies.join(", ")} installed first
+        </div>
+      ) : null}
 
       <div style={styles.cardFooter}>
         <span style={styles.status}>
@@ -372,7 +397,7 @@ function TileCard({ tile, onSelect, onInstall }) {
         </span>
         <button
           type="button"
-          disabled={tile.installed}
+          disabled={tile.installed || tile.installBlocked}
           onClick={(event) => {
             event.stopPropagation();
             onInstall();
@@ -380,9 +405,10 @@ function TileCard({ tile, onSelect, onInstall }) {
           style={{
             ...styles.installButton,
             ...(tile.installed ? styles.installButtonInstalled : {}),
+            ...(tile.installBlocked ? styles.installButtonDisabled : {}),
           }}
         >
-          {tile.installed ? "Installed" : "Install"}
+          {tile.installed ? "Installed" : tile.installBlocked ? "Needs Another Tile" : "Install"}
         </button>
       </div>
     </div>
@@ -424,8 +450,10 @@ function TileDetail({ tile, onBack, onInstall, onOpen }) {
           style={{
             ...styles.primaryInstall,
             ...(tile.installed ? styles.primaryOpen : {}),
+            ...(tile.installBlocked ? styles.primaryDisabled : {}),
           }}
-          onClick={tile.installed ? onOpen : onInstall}
+          onClick={tile.installed ? onOpen : tile.installBlocked ? undefined : onInstall}
+          disabled={tile.installBlocked}
         >
           {tile.installed ? (
             <>
@@ -440,6 +468,13 @@ function TileDetail({ tile, onBack, onInstall, onOpen }) {
           )}
         </button>
       </section>
+
+      {tile.installBlocked ? (
+        <div style={styles.detailNotice}>
+          This tile plugs into <strong>{tile.missingDependencies.join(", ")}</strong>. Install that
+          tile first, then this app will unlock.
+        </div>
+      ) : null}
 
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>Screenshots</h2>
@@ -798,6 +833,10 @@ const styles = {
     textAlign: "left",
     transition: "transform 0.18s ease, box-shadow 0.18s ease",
   },
+  cardDisabled: {
+    filter: "grayscale(0.28)",
+    opacity: 0.72,
+  },
   cardTop: {
     alignItems: "center",
     display: "flex",
@@ -834,6 +873,13 @@ const styles = {
     marginTop: "8px",
     minHeight: "38px",
   },
+  dependencyNotice: {
+    color: "#9a3412",
+    fontSize: "12px",
+    fontWeight: 800,
+    lineHeight: 1.45,
+    marginTop: "10px",
+  },
   cardFooter: {
     alignItems: "center",
     display: "flex",
@@ -864,6 +910,12 @@ const styles = {
     borderColor: "rgba(15, 23, 42, 0.08)",
     color: "#475569",
     cursor: "default",
+  },
+  installButtonDisabled: {
+    background: "rgba(148, 163, 184, 0.18)",
+    borderColor: "rgba(148, 163, 184, 0.18)",
+    color: "#64748b",
+    cursor: "not-allowed",
   },
   detail: {
     color: "#0f172a",
@@ -938,6 +990,21 @@ const styles = {
   primaryOpen: {
     background: "#166534",
     borderColor: "#166534",
+  },
+  primaryDisabled: {
+    background: "#94a3b8",
+    borderColor: "#94a3b8",
+    cursor: "not-allowed",
+  },
+  detailNotice: {
+    background: "rgba(251, 191, 36, 0.14)",
+    border: "1px solid rgba(245, 158, 11, 0.35)",
+    borderRadius: "16px",
+    color: "#92400e",
+    fontSize: "14px",
+    fontWeight: 700,
+    lineHeight: 1.6,
+    padding: "14px 16px",
   },
   section: {
     background: "rgba(255, 255, 255, 0.46)",

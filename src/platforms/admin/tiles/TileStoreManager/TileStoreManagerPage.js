@@ -48,6 +48,8 @@ function normalizeEditableApp(app) {
     modes: [...(app.modes || [])],
     features: [...(app.features || [])],
     screenshots: [...(app.screenshots || [])],
+    requiredTiles: [...(app.requiredTiles || [])],
+    hasWidget: app.hasWidget === true,
   };
 }
 
@@ -306,6 +308,10 @@ export default function TileStoreManagerPage() {
                     <div style={styles.appMeta}>
                       {app.category} • {app.id}
                     </div>
+                    <div style={styles.appSubMeta}>
+                      {app.hasWidget ? "Widget included" : "No widget"}
+                      {app.requiredTiles?.length ? ` • Needs ${app.requiredTiles.join(", ")}` : ""}
+                    </div>
                   </div>
                   <div style={styles.appState}>
                     {app.isGloballyEnabled ? (
@@ -467,73 +473,76 @@ export default function TileStoreManagerPage() {
 
               <section style={styles.panel}>
                 <div style={styles.sectionTitle}>Widget Manager</div>
-                {widgetConfigDefinition ? (
+                {selectedApp.hasWidget ? (
                   <>
                     <p style={styles.panelNote}>
-                      {widgetConfigDefinition.description}
+                      {widgetConfigDefinition
+                        ? widgetConfigDefinition.description
+                        : "This tile includes a widget. It can be turned on in widget settings even if it does not need extra widget-specific controls here."}
                     </p>
-                    <div style={styles.fieldGrid}>
-                      <label style={styles.field}>
-                        <span style={styles.fieldLabel}>
-                          {widgetConfigDefinition.primaryLabel}
-                        </span>
-                        <select
-                          value={
-                            selectedApp.widgetConfig?.primaryStat ||
-                            widgetConfigDefinition.defaults.primary
-                          }
-                          onChange={(event) =>
-                            updateSelectedApp((app) => ({
-                              ...app,
-                              widgetConfig: {
-                                ...app.widgetConfig,
-                                primaryStat: event.target.value,
-                              },
-                            }))
-                          }
-                          style={styles.input}
-                        >
-                          {widgetConfigDefinition.options.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                    {widgetConfigDefinition ? (
+                      <div style={styles.fieldGrid}>
+                        <label style={styles.field}>
+                          <span style={styles.fieldLabel}>
+                            {widgetConfigDefinition.primaryLabel}
+                          </span>
+                          <select
+                            value={
+                              selectedApp.widgetConfig?.primaryStat ||
+                              widgetConfigDefinition.defaults.primary
+                            }
+                            onChange={(event) =>
+                              updateSelectedApp((app) => ({
+                                ...app,
+                                widgetConfig: {
+                                  ...app.widgetConfig,
+                                  primaryStat: event.target.value,
+                                },
+                              }))
+                            }
+                            style={styles.input}
+                          >
+                            {widgetConfigDefinition.options.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
 
-                      <label style={styles.field}>
-                        <span style={styles.fieldLabel}>
-                          {widgetConfigDefinition.secondaryLabel}
-                        </span>
-                        <select
-                          value={
-                            selectedApp.widgetConfig?.secondaryStat ||
-                            widgetConfigDefinition.defaults.secondary
-                          }
-                          onChange={(event) =>
-                            updateSelectedApp((app) => ({
-                              ...app,
-                              widgetConfig: {
-                                ...app.widgetConfig,
-                                secondaryStat: event.target.value,
-                              },
-                            }))
-                          }
-                          style={styles.input}
-                        >
-                          {widgetConfigDefinition.options.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
+                        <label style={styles.field}>
+                          <span style={styles.fieldLabel}>
+                            {widgetConfigDefinition.secondaryLabel}
+                          </span>
+                          <select
+                            value={
+                              selectedApp.widgetConfig?.secondaryStat ||
+                              widgetConfigDefinition.defaults.secondary
+                            }
+                            onChange={(event) =>
+                              updateSelectedApp((app) => ({
+                                ...app,
+                                widgetConfig: {
+                                  ...app.widgetConfig,
+                                  secondaryStat: event.target.value,
+                                },
+                              }))
+                            }
+                            style={styles.input}
+                          >
+                            {widgetConfigDefinition.options.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    ) : null}
                   </>
                 ) : (
                   <p style={styles.panelNote}>
-                    This tile does not have a configurable widget yet. We can add
-                    custom widget data controls as each tile app gets built out.
+                    This tile does not include a widget yet.
                   </p>
                 )}
               </section>
@@ -827,6 +836,11 @@ const styles = {
     color: "#64748b",
     fontSize: 12,
     marginTop: 4,
+  },
+  appSubMeta: {
+    color: "#94a3b8",
+    fontSize: 11,
+    marginTop: 5,
   },
   appState: {
     flexShrink: 0,

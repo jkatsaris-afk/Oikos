@@ -1,5 +1,41 @@
 import { useMemo, useState } from "react";
 
+function formatAge(dateOfBirth) {
+  if (!dateOfBirth) {
+    return "Not set";
+  }
+
+  const birthDate = new Date(dateOfBirth);
+  if (Number.isNaN(birthDate.getTime())) {
+    return "Not set";
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDelta = today.getMonth() - birthDate.getMonth();
+
+  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 ? String(age) : "Not set";
+}
+
+function formatGuardianSummary(guardians = []) {
+  if (!Array.isArray(guardians) || guardians.length === 0) {
+    return "No guardians listed";
+  }
+
+  return guardians
+    .map((guardian) => {
+      const name = guardian?.name || "Guardian";
+      const relationship = guardian?.relationship ? ` (${guardian.relationship})` : "";
+      const contact = [guardian?.phone, guardian?.email].filter(Boolean).join(" • ");
+      return `${name}${relationship}${contact ? ` — ${contact}` : ""}`;
+    })
+    .join("\n");
+}
+
 export default function TeacherPortalClassroomPage({ students = [] }) {
   const [query, setQuery] = useState("");
 
@@ -59,16 +95,16 @@ export default function TeacherPortalClassroomPage({ students = [] }) {
               </div>
 
               <div style={styles.infoRow}>
+                <span style={styles.label}>Age</span>
+                <span style={styles.value}>{formatAge(student.dateOfBirth)}</span>
+              </div>
+              <div style={styles.infoRow}>
                 <span style={styles.label}>Teacher</span>
                 <span style={styles.value}>{student.homeroomTeacher || "Not set"}</span>
               </div>
               <div style={styles.infoRow}>
-                <span style={styles.label}>School</span>
-                <span style={styles.value}>{student.schoolName || "Not set"}</span>
-              </div>
-              <div style={styles.infoRow}>
-                <span style={styles.label}>Counselor</span>
-                <span style={styles.value}>{student.counselorName || "Not set"}</span>
+                <span style={styles.label}>Guardians</span>
+                <span style={styles.valueBlock}>{formatGuardianSummary(student.guardians)}</span>
               </div>
               <div style={styles.infoRow}>
                 <span style={styles.label}>Contact</span>
@@ -175,6 +211,13 @@ const styles = {
     fontSize: 13,
     fontWeight: 700,
     textAlign: "right",
+  },
+  valueBlock: {
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: 700,
+    textAlign: "right",
+    whiteSpace: "pre-wrap",
   },
   empty: {
     background: "#ffffff",

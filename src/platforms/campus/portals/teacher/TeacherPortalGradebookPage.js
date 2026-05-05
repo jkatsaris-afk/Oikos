@@ -41,6 +41,7 @@ export default function TeacherPortalGradebookPage({
   const [selectedQuarter, setSelectedQuarter] = useState("Q1");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [drafts, setDrafts] = useState({});
+  const draftKeyPrefix = `${selectedAssignmentId}:`;
 
   const gradeMap = useMemo(() => buildGradeMap(grades), [grades]);
   const quarterAssignments = useMemo(
@@ -109,6 +110,10 @@ export default function TeacherPortalGradebookPage({
     setSelectedSubjectId(availableSubjects[0]?.id || "");
   }, [availableSubjects, selectedSubjectId]);
 
+  useEffect(() => {
+    setDrafts({});
+  }, [selectedAssignmentId, selectedQuarter, selectedSubjectId]);
+
   const assignedStudents = useMemo(() => {
     if (!selectedAssignment) {
       return [];
@@ -174,7 +179,7 @@ export default function TeacherPortalGradebookPage({
   }, [assignedStudents, gradeMap, selectedAssignment]);
 
   function getDraft(studentId) {
-    const existing = drafts[studentId];
+    const existing = drafts[`${draftKeyPrefix}${studentId}`];
     const saved = gradeMap.get(`${selectedAssignmentId}:${studentId}`);
     return (
       existing || {
@@ -188,7 +193,7 @@ export default function TeacherPortalGradebookPage({
   function updateDraft(studentId, field, value) {
     setDrafts((current) => ({
       ...current,
-      [studentId]: {
+      [`${draftKeyPrefix}${studentId}`]: {
         ...getDraft(studentId),
         [field]: value,
       },

@@ -273,20 +273,27 @@ function deriveTeacherStudents(teacher, allStudents = []) {
       : []
   );
   const teacherName = normalizeText(teacher.displayName);
-  const gradeAssignments = new Set(
-    Array.isArray(teacher.gradeAssignments)
-      ? teacher.gradeAssignments.map((value) => normalizeText(value))
-      : []
-  );
 
   return allStudents.filter((student) => {
     const matchesDirect = directStudentIds.has(String(student.id || ""));
     const matchesTeacherName =
       teacherName && normalizeText(student.homeroomTeacher) === teacherName;
-    const matchesGrade =
-      gradeAssignments.size > 0 && gradeAssignments.has(normalizeText(student.gradeLevel));
+    const subjectTeacherAssignments = Array.isArray(student?.customFields?.subjectTeachers)
+      ? student.customFields.subjectTeachers
+      : [];
+    const matchesSubjectTeacher = subjectTeacherAssignments.some((assignment) => {
+      const assignmentTeacherStaffId = String(assignment?.teacherStaffId || "");
+      const assignmentTeacherUserId = String(assignment?.teacherUserId || "");
+      const assignmentTeacherName = normalizeText(assignment?.teacherDisplayName);
 
-    return matchesDirect || matchesTeacherName || matchesGrade;
+      return (
+        (teacher?.id && assignmentTeacherStaffId === String(teacher.id)) ||
+        (teacher?.linkedUserId && assignmentTeacherUserId === String(teacher.linkedUserId)) ||
+        (teacherName && assignmentTeacherName === teacherName)
+      );
+    });
+
+    return matchesDirect || matchesTeacherName || matchesSubjectTeacher;
   });
 }
 

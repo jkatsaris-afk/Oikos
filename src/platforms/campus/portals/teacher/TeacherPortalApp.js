@@ -290,6 +290,7 @@ export default function TeacherPortalApp() {
 
       setWorkspace((current) => {
         const existingGrades = current?.grades || [];
+        const existingAllGrades = current?.allGrades || existingGrades;
         const nextGrades = existingGrades.some(
           (item) =>
             item.assignmentId === grade.assignmentId && item.studentId === grade.studentId
@@ -300,11 +301,26 @@ export default function TeacherPortalApp() {
                 : item
             )
           : [...existingGrades, grade];
+        const nextAllGrades = existingAllGrades.some(
+          (item) =>
+            item.assignmentId === grade.assignmentId &&
+            item.studentId === grade.studentId &&
+            item.teacherUserId === grade.teacherUserId
+        )
+          ? existingAllGrades.map((item) =>
+              item.assignmentId === grade.assignmentId &&
+              item.studentId === grade.studentId &&
+              item.teacherUserId === grade.teacherUserId
+                ? grade
+                : item
+            )
+          : [...existingAllGrades, grade];
 
         return {
           ...current,
           schemaReady: true,
           grades: nextGrades,
+          allGrades: nextAllGrades,
         };
       });
       setNotice("Grade saved.");
@@ -331,6 +347,7 @@ export default function TeacherPortalApp() {
 
       setWorkspace((current) => {
         const existingReports = current?.reports || [];
+        const existingAllReports = current?.allReports || existingReports;
         const nextReports = existingReports.some(
           (item) =>
             item.studentId === report.studentId &&
@@ -343,11 +360,26 @@ export default function TeacherPortalApp() {
                 : item
             )
           : [report, ...existingReports];
+        const nextAllReports = existingAllReports.some(
+          (item) =>
+            item.studentId === report.studentId &&
+            item.academicQuarter === report.academicQuarter &&
+            item.teacherUserId === report.teacherUserId
+        )
+          ? existingAllReports.map((item) =>
+              item.studentId === report.studentId &&
+              item.academicQuarter === report.academicQuarter &&
+              item.teacherUserId === report.teacherUserId
+                ? report
+                : item
+            )
+          : [report, ...existingAllReports];
 
         return {
           ...current,
           schemaReady: true,
           reports: nextReports,
+          allReports: nextAllReports,
         };
       });
       setNotice("Report saved.");
@@ -361,6 +393,7 @@ export default function TeacherPortalApp() {
 
   const teacherLabel =
     workspace.teacher?.displayName || profile?.full_name || user.email || "Teacher";
+  const teacherPhoto = workspace.teacher?.photoUrl || "";
   const campusColor = workspace.account?.brand_color || "#0f172a";
   const campusColorRgb = hexToRgbString(campusColor);
   const sidebarStyle = {
@@ -397,9 +430,13 @@ export default function TeacherPortalApp() {
         </div>
 
         <div style={styles.teacherCard}>
-          <div style={styles.teacherAvatar}>
-            {String(teacherLabel || "T").slice(0, 1).toUpperCase()}
-          </div>
+          {teacherPhoto ? (
+            <img src={teacherPhoto} alt={teacherLabel} style={styles.teacherAvatarImage} />
+          ) : (
+            <div style={styles.teacherAvatar}>
+              {String(teacherLabel || "T").slice(0, 1).toUpperCase()}
+            </div>
+          )}
           <div>
             <div style={styles.teacherName}>{teacherLabel}</div>
             <div style={styles.teacherRole}>
@@ -469,11 +506,12 @@ export default function TeacherPortalApp() {
               <TeacherPortalDashboardPage
                 teacher={workspace.teacher}
                 account={workspace.account}
-                students={workspace.students}
-                subjects={workspace.subjects}
-                assignments={workspace.assignments}
-                subjectNameMap={subjectNameMap}
-              />
+              students={workspace.students}
+              subjects={workspace.subjects}
+              assignments={workspace.assignments}
+              grades={workspace.grades}
+              subjectNameMap={subjectNameMap}
+            />
             }
           />
           <Route
@@ -627,6 +665,13 @@ const styles = {
     fontWeight: 900,
     height: 46,
     justifyContent: "center",
+    width: 46,
+  },
+  teacherAvatarImage: {
+    border: "2px solid rgba(255,255,255,0.24)",
+    borderRadius: 16,
+    height: 46,
+    objectFit: "cover",
     width: 46,
   },
   teacherName: {

@@ -93,6 +93,8 @@ function normalizeTiles(tileCatalog, storedTiles, storedWidgets = []) {
       placement,
       sortOrder,
       hasWidget,
+      requiredTiles: Array.isArray(tile.requiredTiles) ? tile.requiredTiles : [],
+      store: tile.store || {},
       widgetEnabled: hasWidget ? Boolean(storedWidget?.is_enabled) : false,
       widgetSortOrder: storedWidget?.sort_order ?? nextOrder,
     };
@@ -286,6 +288,18 @@ export function TilePreferencesProvider({ children }) {
       availableTiles: tiles.filter((tile) => !tile.systemWidget),
       installTile: async (tileId) => {
         await applyTileUpdate((currentTiles) => {
+          const currentTile = currentTiles.find((tile) => tile.id === tileId);
+          const installedTileIds = new Set(
+            currentTiles.filter((tile) => tile.installed).map((tile) => tile.id)
+          );
+          const missingDependencies = (currentTile?.requiredTiles || []).filter(
+            (dependencyId) => !installedTileIds.has(dependencyId)
+          );
+
+          if (missingDependencies.length) {
+            return currentTiles;
+          }
+
           const lastVisibleOrder = currentTiles
             .filter((tile) => tile.installed && tile.visible)
             .reduce((maxOrder, tile) => Math.max(maxOrder, tile.sortOrder), 0);

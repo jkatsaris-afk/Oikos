@@ -1,4 +1,6 @@
 import { supabase } from "../../../auth/supabaseClient";
+import { getAllAppTiles, getDefaultAvailableTileIds } from "../../../core/tiles/tileCatalog";
+import { tileRegistry } from "../../../core/tiles/tileRegistry";
 
 const APPS_TABLE = "tile_store_apps";
 const MODES_TABLE = "tile_store_app_modes";
@@ -54,6 +56,51 @@ function normalizeApp(
   };
 }
 
+function getFallbackModes(tileId) {
+  return [
+    "home",
+    "business",
+    "church",
+    "campus",
+    "sports",
+    "edu",
+    "nightstand",
+    "admin",
+    "pages",
+    "farm",
+  ].filter((mode) => getDefaultAvailableTileIds(mode).includes(tileId));
+}
+
+function createFallbackApp(tile) {
+  const store = tile.store || {};
+
+  return {
+    id: tile.id,
+    appName: store.appName || tile.label || tile.id,
+    category: store.category || "Utilities",
+    shortDescription:
+      store.shortDescription ||
+      `${tile.label || tile.id} is available as a tile app.`,
+    fullDescription:
+      store.description ||
+      `${tile.label || tile.id} is registered in Oikos and available to add to the tile store catalog.`,
+    developerName: store.developer || "Oikos",
+    version: store.version || "1.0",
+    isGloballyEnabled: true,
+    createdAt: "",
+    updatedAt: "",
+    modes: getFallbackModes(tile.id),
+    features: Array.isArray(store.features) ? store.features : [],
+    screenshots: [],
+    widgetConfig: {
+      primaryStat: "",
+      secondaryStat: "",
+    },
+    hasWidget: Boolean(tileRegistry[tile.id]?.widget),
+    requiredTiles: Array.isArray(tile.requiredTiles) ? tile.requiredTiles : [],
+  };
+}
+
 export async function fetchTileStoreApps() {
   const [
     { data: apps, error: appError },
@@ -91,7 +138,7 @@ export async function fetchTileStoreApps() {
   if (screenshotError) throw screenshotError;
   if (widgetConfigError) throw widgetConfigError;
 
-  return (apps || []).map((appRow) =>
+  const databaseApps = (apps || []).map((appRow) =>
     normalizeApp(
       appRow,
       modes || [],
@@ -99,6 +146,46 @@ export async function fetchTileStoreApps() {
       screenshots || [],
       widgetConfigs || []
     )
+  );
+
+  const appMap = new Map(databaseApps.map((app) => [app.id, app]));
+
+  getAllAppTiles().forEach((tile) => {
+    const existing = appMap.get(tile.id);
+
+    if (!existing) {
+      appMap.set(tile.id, createFallbackApp(tile));
+      return;
+    }
+
+    appMap.set(tile.id, {
+      ...existing,
+      appName: existing.appName || tile.label || tile.id,
+      category: existing.category || tile.store?.category || "Utilities",
+      shortDescription:
+        existing.shortDescription ||
+        tile.store?.shortDescription ||
+        `${tile.label || tile.id} is available as a tile app.`,
+      fullDescription:
+        existing.fullDescription ||
+        tile.store?.description ||
+        `${tile.label || tile.id} is registered in Oikos and available to add to the tile store catalog.`,
+      developerName: existing.developerName || tile.store?.developer || "Oikos",
+      version: existing.version || tile.store?.version || "1.0",
+      features:
+        existing.features && existing.features.length
+          ? existing.features
+          : Array.isArray(tile.store?.features)
+            ? tile.store.features
+            : [],
+      modes: existing.modes && existing.modes.length ? existing.modes : getFallbackModes(tile.id),
+      hasWidget: Boolean(tileRegistry[tile.id]?.widget),
+      requiredTiles: Array.isArray(tile.requiredTiles) ? tile.requiredTiles : [],
+    });
+  });
+
+  return Array.from(appMap.values()).sort((a, b) =>
+    String(a.appName || a.id).localeCompare(String(b.appName || b.id))
   );
 }
 
