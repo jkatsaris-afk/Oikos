@@ -688,6 +688,26 @@ export async function saveCampusStudentTuitionProfile(
 
   const nextProfile = {
     ...existingProfile,
+    familyBillingGroupId:
+      updates.familyBillingGroupId !== undefined
+        ? normalizeText(updates.familyBillingGroupId)
+        : normalizeText(existingProfile.familyBillingGroupId),
+    familyBillingName:
+      updates.familyBillingName !== undefined
+        ? normalizeText(updates.familyBillingName)
+        : normalizeText(existingProfile.familyBillingName),
+    payerName:
+      updates.payerName !== undefined
+        ? normalizeText(updates.payerName)
+        : normalizeText(existingProfile.payerName),
+    payerEmail:
+      updates.payerEmail !== undefined
+        ? normalizeText(updates.payerEmail)
+        : normalizeText(existingProfile.payerEmail),
+    payerPhone:
+      updates.payerPhone !== undefined
+        ? normalizeText(updates.payerPhone)
+        : normalizeText(existingProfile.payerPhone),
     planId: nextPlanId,
     planLabel: selectedPlan?.label || "",
     autoChargeEnabled: nextAutoChargeEnabled,

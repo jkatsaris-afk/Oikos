@@ -10,14 +10,53 @@ import { getWidgetConfigDefinition } from "./widgetConfigRegistry";
 import WidgetConfigEditor from "./WidgetConfigEditor";
 
 const DASHBOARD_DATE_WIDGET_ID = "dashboard-date";
-const DATE_WIDGET_START_INDEX = 9;
-const DATE_WIDGET_RESERVED_INDEXES = new Set([9, 10, 13, 14]);
-const GRID_COLUMNS = 4;
+const DEFAULT_SLOT_COUNT = 24;
 
-function getGridPlacement(index) {
+function getDashboardColumnCount() {
+  if (typeof window === "undefined") {
+    return 4;
+  }
+
+  const width = window.innerWidth || 0;
+  if (width >= 1180) return 4;
+  if (width >= 820) return 3;
+  if (width >= 560) return 2;
+  return 1;
+}
+
+function getDatePlacement(columns) {
+  if (columns <= 1) {
+    return {
+      indexes: new Set([2]),
+      placement: {
+        gridColumn: "1 / span 1",
+        gridRow: "3 / span 1",
+      },
+    };
+  }
+
+  const startColumn = Math.max(1, Math.floor((columns - 2) / 2) + 1);
+  const startRow = 3;
+  const startIndex = (startRow - 1) * columns + (startColumn - 1);
+
   return {
-    gridColumn: `${(index % GRID_COLUMNS) + 1} / span 1`,
-    gridRow: `${Math.floor(index / GRID_COLUMNS) + 1} / span 1`,
+    indexes: new Set([
+      startIndex,
+      startIndex + 1,
+      startIndex + columns,
+      startIndex + columns + 1,
+    ]),
+    placement: {
+      gridColumn: `${startColumn} / span 2`,
+      gridRow: `${startRow} / span 2`,
+    },
+  };
+}
+
+function getGridPlacement(index, columns) {
+  return {
+    gridColumn: `${(index % columns) + 1} / span 1`,
+    gridRow: `${Math.floor(index / columns) + 1} / span 1`,
   };
 }
 
@@ -45,17 +84,31 @@ export default function DashboardWidgets() {
   const [draggedWidgetId, setDraggedWidgetId] = useState("");
   const [hoveredSlot, setHoveredSlot] = useState(null);
   const [configTileId, setConfigTileId] = useState("");
+  const [columnCount, setColumnCount] = useState(getDashboardColumnCount);
+
+  useEffect(() => {
+    function handleResize() {
+      setColumnCount(getDashboardColumnCount());
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   if (loading || enabledWidgets.length === 0) {
     return null;
   }
 
-  const slotCount = 24;
-  const slotMap = new Map();
   const dateWidget = enabledWidgets.find(
     (widget) => widget.id === DASHBOARD_DATE_WIDGET_ID
   );
   const dateWidgetEnabled = Boolean(dateWidget);
+  const datePlacement = getDatePlacement(columnCount);
+  const dateReservedIndexes = dateWidgetEnabled ? datePlacement.indexes : new Set();
+  const rowCount = Math.ceil(DEFAULT_SLOT_COUNT / columnCount);
+  const slotCount = Math.max(DEFAULT_SLOT_COUNT, rowCount * columnCount);
+  const slotMap = new Map();
 
   enabledWidgets.forEach((widget) => {
     if (widget.id === DASHBOARD_DATE_WIDGET_ID) {
@@ -68,7 +121,7 @@ export default function DashboardWidgets() {
     );
 
     if (
-      (!dateWidgetEnabled || !DATE_WIDGET_RESERVED_INDEXES.has(slotIndex)) &&
+      (!dateWidgetEnabled || !dateReservedIndexes.has(slotIndex)) &&
       !slotMap.has(slotIndex)
     ) {
       slotMap.set(slotIndex, widget);
@@ -89,14 +142,23 @@ export default function DashboardWidgets() {
   }
 
   return (
-    <section style={styles.grid}>
+    <section
+      style={{
+        ...styles.grid,
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${Math.ceil(slotCount / columnCount)}, minmax(118px, 1fr))`,
+      }}
+    >
       {slots.map(({ index, tile }) => {
-        if (dateWidgetEnabled && index === DATE_WIDGET_START_INDEX) {
+        const isDateStartIndex = dateWidgetEnabled && index === Math.min(...dateReservedIndexes);
+
+        if (isDateStartIndex) {
           return (
             <div
               key={DASHBOARD_DATE_WIDGET_ID}
               style={{
                 ...styles.dateWidget,
+                ...datePlacement.placement,
                 ...(hoveredSlot === index ? styles.widgetButtonDropTarget : {}),
               }}
               onDragOver={(event) => {
@@ -109,11 +171,11 @@ export default function DashboardWidgets() {
           );
         }
 
-        if (dateWidgetEnabled && DATE_WIDGET_RESERVED_INDEXES.has(index)) {
+        if (dateWidgetEnabled && dateReservedIndexes.has(index)) {
           return null;
         }
 
-        const placement = getGridPlacement(index);
+        const placement = getGridPlacement(index, columnCount);
 
         if (!tile) {
           return (
@@ -300,10 +362,8 @@ const styles = {
   grid: {
     display: "grid",
     gap: "clamp(8px, 1.15vh, 12px)",
-    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-    gridTemplateRows: "repeat(6, minmax(0, 1fr))",
-    height: "calc(100dvh - 266px)",
-    minHeight: 0,
+    alignItems: "stretch",
+    minHeight: "calc(100dvh - 120px)",
     position: "relative",
     zIndex: 1,
   },

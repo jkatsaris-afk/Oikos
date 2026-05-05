@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Component, Suspense, lazy } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -34,14 +34,99 @@ import { getDefaultPathForHostname } from "./core/utils/modeRouting";
 // =========================
 const load = (path) =>
   lazy(() =>
-    import(`${path}`).catch(() => ({
+    import(`${path}`).catch((error) => ({
       default: () => (
         <div style={{ padding: 20 }}>
-          Page not built yet: {path}
+          <h2>Could not load this page</h2>
+          <p>
+            The app could not download this route bundle. Refresh the page, and if this is deployed
+            online make sure the host redirects all routes back to <code>index.html</code>.
+          </p>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{error?.message || `Page not built yet: ${path}`}</pre>
         </div>
       ),
     }))
   );
+
+class RouteErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("Route render error:", error, info);
+  }
+
+  componentDidUpdate(previousProps) {
+    if (previousProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (!this.state.error) {
+      return this.props.children;
+    }
+
+    return (
+      <div style={routeErrorStyles.page}>
+        <div style={routeErrorStyles.card}>
+          <h1 style={routeErrorStyles.title}>This portal could not finish loading</h1>
+          <p style={routeErrorStyles.copy}>
+            Something crashed while rendering this screen. Refresh once; if it keeps happening, the
+            message below will point to the broken deployed route.
+          </p>
+          <pre style={routeErrorStyles.error}>
+            {this.state.error?.message || "Unknown route error"}
+          </pre>
+        </div>
+      </div>
+    );
+  }
+}
+
+const routeErrorStyles = {
+  page: {
+    alignItems: "center",
+    background: "#f8fafc",
+    boxSizing: "border-box",
+    color: "#0f172a",
+    display: "grid",
+    minHeight: "100dvh",
+    padding: 20,
+  },
+  card: {
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 18,
+    boxShadow: "0 18px 42px rgba(15, 23, 42, 0.08)",
+    maxWidth: 680,
+    padding: 24,
+    width: "100%",
+  },
+  title: {
+    fontSize: 24,
+    margin: "0 0 10px",
+  },
+  copy: {
+    color: "#475569",
+    lineHeight: 1.6,
+    margin: "0 0 16px",
+  },
+  error: {
+    background: "#f1f5f9",
+    borderRadius: 12,
+    color: "#b91c1c",
+    overflowX: "auto",
+    padding: 14,
+    whiteSpace: "pre-wrap",
+  },
+};
 
 // =========================
 // PAGES
@@ -209,7 +294,9 @@ export default function App() {
           />
         }
       >
-        <AppRoutes />
+        <RouteErrorBoundary resetKey={window.location.pathname}>
+          <AppRoutes />
+        </RouteErrorBoundary>
 
       </Suspense>
     </Router>

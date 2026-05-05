@@ -6,6 +6,7 @@ import {
   Receipt,
   Save,
   Search,
+  Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -31,12 +32,26 @@ function dollarsToCents(value) {
 
 function createStudentDraft(student, settings) {
   const breakdown = getStudentTuitionBreakdown(student, settings);
+  const tuitionProfile = student?.customFields?.tuition || {};
 
   return {
     planId: breakdown.selectedPlan?.id || "",
     autoChargeEnabled: breakdown.autoChargeEnabled,
     autoChargeDay: breakdown.autoChargeDay,
     tuitionBalanceDollars: centsToDollars(student.tuitionBalanceCents || 0),
+    familyBillingGroupId:
+      tuitionProfile.familyBillingGroupId ||
+      student.householdName ||
+      student.primaryEmail ||
+      student.id ||
+      "",
+    familyBillingName:
+      tuitionProfile.familyBillingName ||
+      student.householdName ||
+      `${student.displayName || "Student"} Family`,
+    payerName: tuitionProfile.payerName || getGuardiansPreview(student) || "",
+    payerEmail: tuitionProfile.payerEmail || student.primaryEmail || "",
+    payerPhone: tuitionProfile.payerPhone || student.primaryPhone || "",
     notes: breakdown.notes || "",
   };
 }
@@ -48,6 +63,30 @@ function getGuardiansPreview(student) {
     .filter(Boolean)
     .slice(0, 2)
     .join(", ");
+}
+
+function getTuitionProfile(student = {}) {
+  return student?.customFields?.tuition || {};
+}
+
+function getFamilyBillingKey(student = {}) {
+  const profile = getTuitionProfile(student);
+  return String(
+    profile.familyBillingGroupId ||
+      student.householdName ||
+      student.primaryEmail ||
+      student.id ||
+      ""
+  ).trim();
+}
+
+function getFamilyBillingName(student = {}) {
+  const profile = getTuitionProfile(student);
+  return (
+    profile.familyBillingName ||
+    student.householdName ||
+    `${student.displayName || "Student"} Family`
+  );
 }
 
 export default function TuitionPage() {
@@ -136,6 +175,26 @@ export default function TuitionPage() {
     [dashboard.students, selectedStudentId]
   );
 
+  const selectedFamilyStudents = useMemo(() => {
+    if (!selectedStudent) {
+      return [];
+    }
+
+    const selectedKey = getFamilyBillingKey(selectedStudent);
+    return (dashboard.students || []).filter(
+      (student) => getFamilyBillingKey(student) === selectedKey
+    );
+  }, [dashboard.students, selectedStudent]);
+
+  const selectedFamilyTotalCents = useMemo(
+    () =>
+      selectedFamilyStudents.reduce(
+        (sum, student) => sum + (Number(student.tuitionBalanceCents || 0) || 0),
+        0
+      ),
+    [selectedFamilyStudents]
+  );
+
   const breakdown = useMemo(
     () => (selectedStudent ? getStudentTuitionBreakdown(selectedStudent, dashboard.settings || undefined) : null),
     [dashboard.settings, selectedStudent]
@@ -157,7 +216,7 @@ export default function TuitionPage() {
     }));
   }
 
-  async function handleSave({ applyRecommendedCharges = false } = {}) {
+  async function handleSave({ applyRecommendedCharges = false, applyFamilyBilling = false } = {}) {
     if (!selectedStudent || !draft) {
       return;
     }
@@ -175,16 +234,42 @@ export default function TuitionPage() {
           autoChargeEnabled: draft.autoChargeEnabled,
           autoChargeDay: draft.autoChargeDay,
           tuitionBalanceCents: dollarsToCents(draft.tuitionBalanceDollars),
+          familyBillingGroupId: draft.familyBillingGroupId,
+          familyBillingName: draft.familyBillingName,
+          payerName: draft.payerName,
+          payerEmail: draft.payerEmail,
+          payerPhone: draft.payerPhone,
           notes: draft.notes,
           applyRecommendedCharges,
         },
         dashboard.settings
       );
+      const familyUpdates =
+        applyFamilyBilling && selectedFamilyStudents.length > 1
+          ? await Promise.all(
+              selectedFamilyStudents
+                .filter((student) => student.id !== selectedStudent.id)
+                .map((student) =>
+                  saveCampusStudentTuitionProfile(
+                    user?.id,
+                    student,
+                    {
+                      familyBillingGroupId: draft.familyBillingGroupId,
+                      familyBillingName: draft.familyBillingName,
+                      payerName: draft.payerName,
+                      payerEmail: draft.payerEmail,
+                      payerPhone: draft.payerPhone,
+                    },
+                    dashboard.settings
+                  )
+                )
+            )
+          : [];
+      const updatedStudents = [updatedStudent, ...familyUpdates];
 
       setDashboard((current) => {
-        const nextStudents = (current.students || []).map((student) =>
-          student.id === updatedStudent.id ? updatedStudent : student
-        );
+        const updatedStudentMap = new Map(updatedStudents.map((student) => [student.id, student]));
+        const nextStudents = (current.students || []).map((student) => updatedStudentMap.get(student.id) || student);
         return {
           ...current,
           students: nextStudents,
@@ -201,7 +286,13 @@ export default function TuitionPage() {
 
       setSelectedStudentId(updatedStudent.id);
       setDraft(createStudentDraft(updatedStudent, dashboard.settings));
-      setNotice(applyRecommendedCharges ? "Recommended tuition charges applied." : "Student tuition saved.");
+      setNotice(
+        applyFamilyBilling
+          ? "Family billing connection saved."
+          : applyRecommendedCharges
+            ? "Recommended tuition charges applied."
+            : "Student tuition saved."
+      );
       window.setTimeout(() => setNotice(""), 2500);
     } catch (saveError) {
       console.error("Tuition student save error:", saveError);
@@ -259,9 +350,14 @@ export default function TuitionPage() {
       setError("");
       setNotice("");
 
+      const invoiceStudentIds = allStudents
+        ? []
+        : selectedFamilyStudents.length
+          ? selectedFamilyStudents.map((student) => student.id)
+          : [selectedStudent.id];
       const result = await startCampusTuitionInvoiceGeneration({
         userId: user?.id,
-        studentIds: allStudents ? [] : [selectedStudent.id],
+        studentIds: invoiceStudentIds,
         sendToStripe: dashboard.settings?.invoiceAutomation?.sendToStripe === true,
       });
 
@@ -477,9 +573,65 @@ export default function TuitionPage() {
                     {formatCurrencyFromCents(breakdown.installmentAmountCents, dashboard.settings?.currency)}
                   </div>
                 </div>
+                <div style={styles.breakdownCard}>
+                  <div style={styles.breakdownLabel}>Family Balance</div>
+                  <div style={styles.breakdownValue}>
+                    {formatCurrencyFromCents(selectedFamilyTotalCents, dashboard.settings?.currency)}
+                  </div>
+                </div>
+                <div style={styles.breakdownCard}>
+                  <div style={styles.breakdownLabel}>Family Students</div>
+                  <div style={styles.breakdownValue}>{selectedFamilyStudents.length || 1}</div>
+                </div>
               </div>
 
               <div style={styles.formGrid}>
+                <label style={styles.field}>
+                  <span style={styles.label}>Family Billing Group</span>
+                  <input
+                    value={draft.familyBillingGroupId}
+                    onChange={(event) => updateDraft("familyBillingGroupId", event.target.value)}
+                    style={styles.input}
+                  />
+                </label>
+
+                <label style={styles.field}>
+                  <span style={styles.label}>Family Billing Name</span>
+                  <input
+                    value={draft.familyBillingName}
+                    onChange={(event) => updateDraft("familyBillingName", event.target.value)}
+                    style={styles.input}
+                  />
+                </label>
+
+                <label style={styles.field}>
+                  <span style={styles.label}>Payer Name</span>
+                  <input
+                    value={draft.payerName}
+                    onChange={(event) => updateDraft("payerName", event.target.value)}
+                    style={styles.input}
+                  />
+                </label>
+
+                <label style={styles.field}>
+                  <span style={styles.label}>Payer Email</span>
+                  <input
+                    type="email"
+                    value={draft.payerEmail}
+                    onChange={(event) => updateDraft("payerEmail", event.target.value)}
+                    style={styles.input}
+                  />
+                </label>
+
+                <label style={styles.field}>
+                  <span style={styles.label}>Payer Phone</span>
+                  <input
+                    value={draft.payerPhone}
+                    onChange={(event) => updateDraft("payerPhone", event.target.value)}
+                    style={styles.input}
+                  />
+                </label>
+
                 <label style={styles.field}>
                   <span style={styles.label}>Payment Status</span>
                   <div style={styles.readOnlyValue}>
@@ -550,6 +702,20 @@ export default function TuitionPage() {
               </div>
 
               <div style={styles.lineItemsCard}>
+                <div style={styles.lineItemsTitle}>Family invoice group</div>
+                <div style={styles.lineItemList}>
+                  {selectedFamilyStudents.map((student) => (
+                    <div key={student.id} style={styles.lineItemRow}>
+                      <span>{student.displayName}</span>
+                      <strong>
+                        {formatCurrencyFromCents(student.tuitionBalanceCents, dashboard.settings?.currency)}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={styles.lineItemsCard}>
                 <div style={styles.lineItemsTitle}>Charges included in the recommended total</div>
                 <div style={styles.lineItemList}>
                   {[...(breakdown.tuitionItems || []), ...(breakdown.feeItems || [])].map((item) => (
@@ -595,6 +761,15 @@ export default function TuitionPage() {
                 <button
                   type="button"
                   style={styles.secondaryButton}
+                  onClick={() => handleSave({ applyFamilyBilling: true })}
+                  disabled={saving}
+                >
+                  <Users size={16} />
+                  Connect Family Billing
+                </button>
+                <button
+                  type="button"
+                  style={styles.secondaryButton}
                   onClick={() => handleSave({ applyRecommendedCharges: true })}
                   disabled={saving}
                 >
@@ -616,7 +791,7 @@ export default function TuitionPage() {
                   disabled={generatingInvoices || dashboard.settings?.invoiceAutomation?.enabled !== true}
                 >
                   <Receipt size={16} />
-                  {generatingInvoices ? "Generating..." : "Generate Stripe Invoice"}
+                  {generatingInvoices ? "Generating..." : "Generate Family Invoice"}
                 </button>
                 <button
                   type="button"

@@ -33,7 +33,8 @@ const styles = {
   wrapper: {
     position: "relative",
     width: "100%",
-    height: "100%",
+    minHeight: "100dvh",
+    overflowX: "hidden",
   },
 
   background: {
@@ -50,7 +51,10 @@ const styles = {
   content: {
     position: "relative",
     zIndex: 1,
-    padding: "20px",
+    boxSizing: "border-box",
+    minHeight: "100dvh",
+    overflowY: "auto",
+    padding: "clamp(12px, 2vw, 20px)",
     color: "#fff",
   }
 };

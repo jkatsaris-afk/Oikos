@@ -82,12 +82,17 @@ export default function GlobalLoadingPage({
 
 const styles = {
   page: {
-    position: "fixed",
-    inset: 0,
-    display: "flex",
-    justifyContent: "center",
     alignItems: "center",
+    boxSizing: "border-box",
+    display: "grid",
+    inset: 0,
+    justifyItems: "center",
+    minHeight: "100dvh",
     padding: "24px",
+    placeItems: "center",
+    position: "fixed",
+    transform: "none",
+    width: "100vw",
     zIndex: 1200,
   },
 
@@ -104,6 +109,7 @@ const styles = {
     maxWidth: "420px",
     padding: "20px 24px",
     textAlign: "center",
+    transform: "none",
   },
 
   logoWrap: {

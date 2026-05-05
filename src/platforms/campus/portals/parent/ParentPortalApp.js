@@ -265,6 +265,35 @@ export default function ParentPortalApp() {
       return String(group || "") === String(selectedGroup || "");
     });
   }, [selectedStudent, workspace?.children]);
+  const selectedFamilyTuitionSummary = useMemo(() => {
+    const students = familyTuitionStudents.length ? familyTuitionStudents : selectedStudent ? [selectedStudent] : [];
+    const bills = students.flatMap((student) =>
+      getTuitionProfile(student).generatedBills.map((bill) => ({
+        ...bill,
+        studentName: student.displayName,
+      }))
+    );
+    const payments = students.flatMap((student) =>
+      getTuitionProfile(student).payments.map((payment) => ({
+        ...payment,
+        studentName: student.displayName,
+      }))
+    );
+    const packages = Array.from(
+      new Set(students.map((student) => getTuitionProfile(student).planLabel).filter(Boolean))
+    );
+
+    return {
+      balanceCents: students.reduce(
+        (sum, student) => sum + (Number(student.tuitionBalanceCents || 0) || 0),
+        0
+      ),
+      bills,
+      payments,
+      packages,
+      students,
+    };
+  }, [familyTuitionStudents, selectedStudent]);
 
   useEffect(() => {
     if (!selectedStudent || editingStudentId === selectedStudent.id) {
@@ -1185,15 +1214,15 @@ export default function ParentPortalApp() {
               <div style={pageStyles.sectionBody}>
                 <div style={pageStyles.snapshotGrid}>
                   <div style={pageStyles.snapshotCard}>
-                    <div style={pageStyles.snapshotLabel}>Package</div>
+                    <div style={pageStyles.snapshotLabel}>Family Package</div>
                     <div style={pageStyles.snapshotValue}>
-                      {selectedTuitionProfile.planLabel || "Not selected"}
+                      {selectedFamilyTuitionSummary.packages.join(", ") || "Not selected"}
                     </div>
                   </div>
                   <div style={pageStyles.snapshotCard}>
-                    <div style={pageStyles.snapshotLabel}>Balance</div>
+                    <div style={pageStyles.snapshotLabel}>Family Balance</div>
                     <div style={pageStyles.snapshotValue}>
-                      {formatCurrencyFromCents(selectedStudent.tuitionBalanceCents)}
+                      {formatCurrencyFromCents(selectedFamilyTuitionSummary.balanceCents)}
                     </div>
                   </div>
                   <div style={pageStyles.snapshotCard}>
@@ -1206,6 +1235,12 @@ export default function ParentPortalApp() {
                     <div style={pageStyles.snapshotLabel}>Payer</div>
                     <div style={pageStyles.snapshotValue}>
                       {selectedTuitionProfile.payerName || selectedStudent.matchedGuardian?.name || "Not set"}
+                    </div>
+                  </div>
+                  <div style={pageStyles.snapshotCard}>
+                    <div style={pageStyles.snapshotLabel}>Children</div>
+                    <div style={pageStyles.snapshotValue}>
+                      {selectedFamilyTuitionSummary.students.length || 1}
                     </div>
                   </div>
                 </div>
@@ -1329,12 +1364,26 @@ export default function ParentPortalApp() {
                       ) : null}
                     </div>
 
-                    {selectedTuitionProfile.generatedBills.length ? (
-                      selectedTuitionProfile.generatedBills.slice(0, 4).map((bill, index) => (
+                    {selectedFamilyTuitionSummary.students.length > 1 ? (
+                      <div style={pageStyles.infoCard}>
+                        <div style={pageStyles.infoTitle}>Family Students</div>
+                        <div style={pageStyles.gradeList}>
+                          {selectedFamilyTuitionSummary.students.map((student) => (
+                            <div key={student.id} style={pageStyles.gradeRow}>
+                              <span>{student.displayName}</span>
+                              <strong>{formatCurrencyFromCents(student.tuitionBalanceCents)}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {selectedFamilyTuitionSummary.bills.length ? (
+                      selectedFamilyTuitionSummary.bills.slice(0, 4).map((bill, index) => (
                         <div key={bill.id || `${bill.label}-${index}`} style={pageStyles.infoCard}>
                           <div style={pageStyles.infoTitle}>{bill.label || `Invoice ${index + 1}`}</div>
                           <div style={pageStyles.infoMeta}>
-                            Due {formatDate(bill.dueDate)} • {bill.status || "open"}
+                            {bill.studentName ? `${bill.studentName} • ` : ""}Due {formatDate(bill.dueDate)} • {bill.status || "open"}
                           </div>
                           <div style={pageStyles.infoValue}>
                             {formatCurrencyFromCents(bill.amountCents)}
@@ -1345,13 +1394,16 @@ export default function ParentPortalApp() {
                       <div style={pageStyles.emptyInline}>No tuition invoices have been posted yet.</div>
                     )}
 
-                    {selectedTuitionProfile.payments.length ? (
+                    {selectedFamilyTuitionSummary.payments.length ? (
                       <div style={pageStyles.infoCard}>
                         <div style={pageStyles.infoTitle}>Payments Received</div>
                         <div style={pageStyles.gradeList}>
-                          {selectedTuitionProfile.payments.slice(0, 4).map((payment, index) => (
+                          {selectedFamilyTuitionSummary.payments.slice(0, 4).map((payment, index) => (
                             <div key={payment.id || `${payment.date}-${index}`} style={pageStyles.gradeRow}>
-                              <span>{formatDate(payment.date)} • {payment.method || "Payment"}</span>
+                              <span>
+                                {formatDate(payment.date)} • {payment.studentName ? `${payment.studentName} • ` : ""}
+                                {payment.method || "Payment"}
+                              </span>
                               <strong>{formatCurrencyFromCents(payment.amountCents)}</strong>
                             </div>
                           ))}
