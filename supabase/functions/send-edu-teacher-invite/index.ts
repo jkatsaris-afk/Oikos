@@ -179,17 +179,12 @@ Deno.serve(async (req) => {
       },
     );
 
-    await adminClient.from("account_members").upsert(
-      {
-        account_id: accountId,
-        user_id: invitedUserId,
-        role: "member",
-        status: "active",
-      },
-      {
-        onConflict: "account_id,user_id",
-      },
-    );
+    await adminClient
+      .from("account_members")
+      .delete()
+      .eq("account_id", accountId)
+      .eq("user_id", invitedUserId)
+      .eq("role", "member");
 
     const { data: existingAccess } = await adminClient
       .from("user_access")

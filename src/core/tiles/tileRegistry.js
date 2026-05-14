@@ -9,6 +9,7 @@
 import { churchTileRegistry } from "../../platforms/church/tiles/tileRegistry";
 import { adminTileRegistry } from "../../platforms/admin/tiles/tileRegistry";
 import { campusTileRegistry } from "../../platforms/campus/tiles/tileRegistry";
+import { eduTileRegistry } from "../../platforms/edu/tiles/tileRegistry";
 
 export const tileRegistry = {
   /**
@@ -35,5 +36,6 @@ export const tileRegistry = {
 
   ...churchTileRegistry,
   ...campusTileRegistry,
+  ...eduTileRegistry,
   ...adminTileRegistry,
 };

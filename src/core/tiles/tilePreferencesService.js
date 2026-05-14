@@ -3,6 +3,7 @@ import {
   getAllAppTiles,
   getDefaultAvailableTileIds,
   getTileCatalogForMode,
+  tileSupportsMode,
 } from "./tileCatalog";
 
 const MODE_TILE_CATALOG_TABLE = "mode_tile_catalog";
@@ -44,7 +45,7 @@ async function fetchModeTileCatalogBase(mode) {
   );
 
   return getAllAppTiles()
-    .filter((tile) => allowedIds.has(tile.id))
+    .filter((tile) => allowedIds.has(tile.id) && tileSupportsMode(tile, mode))
     .sort((a, b) => {
       const aIndex = orderMap.get(a.id);
       const bIndex = orderMap.get(b.id);

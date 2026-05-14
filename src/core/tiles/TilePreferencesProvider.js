@@ -77,8 +77,9 @@ function normalizeTiles(tileCatalog, storedTiles, storedWidgets = []) {
     const stored = storedMap.get(tile.id);
     const storedWidget = widgetMap.get(tile.id);
     const hasWidget = Boolean(tileRegistry[tile.id]?.widget);
-    const installed = stored?.is_installed ?? !hasStoredTiles;
-    const visible = installed ? (stored?.is_visible ?? !hasStoredTiles) : false;
+    const shouldDefaultInstall = Boolean(tile.defaultInstalled);
+    const installed = stored?.is_installed ?? (!hasStoredTiles || shouldDefaultInstall);
+    const visible = installed ? (stored?.is_visible ?? (!hasStoredTiles || shouldDefaultInstall)) : false;
     const sortOrder = stored?.sort_order ?? nextOrder;
     const placement =
       stored?.placement ||

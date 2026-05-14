@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Download,
   ExternalLink,
+  FlaskConical,
   Globe2,
   GraduationCap,
   LayoutDashboard,
@@ -46,6 +47,7 @@ import {
   saveEduDeviceStudent,
   saveEduTeacher,
   saveEduTeacherStudents,
+  saveEduTestingApps,
   sendEduTeacherPasswordReset,
   syncEduChromeGuardPolicy,
   uploadEduDeviceBackgroundImage,
@@ -58,6 +60,17 @@ const EMPTY_APP = {
   color: "#2563eb",
   sortOrder: 0,
   isActive: true,
+};
+
+const EMPTY_TESTING_APP = {
+  id: "",
+  name: "",
+  type: "kiosk-pwa",
+  launchUrl: "",
+  logoUrl: "",
+  description: "",
+  isActive: true,
+  sortOrder: 0,
 };
 
 const EMPTY_STUDENT = {
@@ -245,6 +258,7 @@ export default function EduAdminPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [appDraft, setAppDraft] = useState(EMPTY_APP);
+  const [testingAppDraft, setTestingAppDraft] = useState(EMPTY_TESTING_APP);
   const [studentDraft, setStudentDraft] = useState(EMPTY_STUDENT);
   const [teacherDraft, setTeacherDraft] = useState(EMPTY_TEACHER);
   const [backgroundDraft, setBackgroundDraft] = useState(EMPTY_BACKGROUND);
@@ -710,6 +724,74 @@ export default function EduAdminPage() {
       await reload();
     } catch (deleteError) {
       setError(deleteError?.message || "Could not delete website.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  function getNextTestingApps(nextApp) {
+    const currentApps = workspace?.account?.testingApps || [];
+    const cleanId = String(nextApp.id || nextApp.name || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+    const payload = {
+      ...nextApp,
+      id: cleanId || `testing-${Date.now()}`,
+      sortOrder: Number(nextApp.sortOrder || currentApps.length),
+      isActive: nextApp.isActive !== false,
+    };
+    const exists = currentApps.some((app) => app.id === payload.id);
+    return exists
+      ? currentApps.map((app) => (app.id === payload.id ? payload : app))
+      : [...currentApps, payload];
+  }
+
+  async function handleSaveTestingApp(event) {
+    event.preventDefault();
+    setSaving("testing-app");
+    setError("");
+    setNotice("");
+    try {
+      if (!String(testingAppDraft.name || "").trim()) {
+        throw new Error("Testing app name is required.");
+      }
+      if (!String(testingAppDraft.launchUrl || "").trim()) {
+        throw new Error("Launch URL is required.");
+      }
+      const nextApps = getNextTestingApps(testingAppDraft);
+      const nextAccount = await saveEduTestingApps(workspace.account, nextApps);
+      setWorkspace((current) => ({
+        ...current,
+        account: {
+          ...current.account,
+          ...nextAccount,
+        },
+      }));
+      setTestingAppDraft(EMPTY_TESTING_APP);
+      setNotice("Testing app saved.");
+    } catch (saveError) {
+      setError(saveError?.message || "Could not save testing app.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleDeleteTestingApp(appId) {
+    setSaving(`testing-app:${appId}`);
+    setError("");
+    setNotice("");
+    try {
+      const nextApps = (workspace?.account?.testingApps || []).filter((app) => app.id !== appId);
+      const nextAccount = await saveEduTestingApps(workspace.account, nextApps);
+      setWorkspace((current) => ({
+        ...current,
+        account: {
+          ...current.account,
+          ...nextAccount,
+        },
+      }));
+      if (testingAppDraft.id === appId) setTestingAppDraft(EMPTY_TESTING_APP);
+      setNotice("Testing app deleted.");
+    } catch (deleteError) {
+      setError(deleteError?.message || "Could not delete testing app.");
     } finally {
       setSaving("");
     }
@@ -1318,10 +1400,11 @@ export default function EduAdminPage() {
   const navItems = [
     { id: "summary", label: "Overview", icon: LayoutDashboard },
     { id: "apps", label: "App Store", icon: AppWindow },
+    { id: "testing", label: "Testing Apps", icon: FlaskConical },
+    { id: "admins", label: "Admins", icon: UserPlus },
     { id: "teachers", label: "Teachers", icon: GraduationCap },
     { id: "students", label: "Students", icon: Users },
     { id: "devices", label: "Devices", icon: Monitor },
-    { id: "admins", label: "Admins", icon: UserPlus },
   ];
   const loginBackgroundUsesDevice = loginBackgroundDraft.useDeviceBackground !== false;
   const loginBackgroundPreview = loginBackgroundUsesDevice ? backgroundDraft : loginBackgroundDraft;
@@ -1471,6 +1554,117 @@ export default function EduAdminPage() {
                       type="button"
                       disabled={saving === `app:${app.id}`}
                       onClick={() => handleDeleteApp(app.id)}
+                      title="Delete"
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </form>
+          ) : null}
+
+          {activeSection === "testing" ? (
+            <form style={styles.panel} onSubmit={handleSaveTestingApp}>
+              <div style={styles.panelHeader}>
+                <h2 style={styles.panelTitle}>Testing Apps</h2>
+                <div style={styles.actionGroup}>
+                  {testingAppDraft.id ? (
+                    <button style={styles.secondaryButton} type="button" onClick={() => setTestingAppDraft(EMPTY_TESTING_APP)}>
+                      Clear
+                    </button>
+                  ) : null}
+                  <button style={styles.primaryButton} disabled={saving === "testing-app"} type="submit">
+                    <Save size={16} />
+                    Save
+                  </button>
+                </div>
+              </div>
+              <div style={styles.formGrid}>
+                <label style={styles.label}>
+                  Name
+                  <input
+                    style={styles.input}
+                    value={testingAppDraft.name}
+                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="TestNav"
+                  />
+                </label>
+                <label style={styles.label}>
+                  Launch URL
+                  <input
+                    style={styles.input}
+                    value={testingAppDraft.launchUrl}
+                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, launchUrl: event.target.value }))}
+                    placeholder="https://home.testnav.com/"
+                  />
+                </label>
+                <label style={styles.label}>
+                  Type
+                  <input
+                    style={styles.input}
+                    value={testingAppDraft.type}
+                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, type: event.target.value }))}
+                    placeholder="kiosk-pwa"
+                  />
+                </label>
+                <label style={styles.label}>
+                  Logo Link
+                  <input
+                    style={styles.input}
+                    value={testingAppDraft.logoUrl || ""}
+                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
+                    placeholder="https://..."
+                  />
+                </label>
+                <label style={styles.label}>
+                  Sort Order
+                  <input
+                    style={styles.input}
+                    value={testingAppDraft.sortOrder}
+                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, sortOrder: event.target.value.replace(/\D/g, "") }))}
+                    inputMode="numeric"
+                  />
+                </label>
+                <label style={styles.label}>
+                  Description
+                  <input
+                    style={styles.input}
+                    value={testingAppDraft.description}
+                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, description: event.target.value }))}
+                    placeholder="Secure testing launcher"
+                  />
+                </label>
+                <label style={{ ...styles.checkboxLabel, alignSelf: "end" }}>
+                  <input
+                    type="checkbox"
+                    checked={testingAppDraft.isActive !== false}
+                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, isActive: event.target.checked }))}
+                  />
+                  Active in student Testing Hub
+                </label>
+              </div>
+              <div style={styles.list}>
+                {(workspace.account.testingApps || []).map((app) => (
+                  <div key={app.id} style={styles.testingAppRow}>
+                    <div style={{ ...styles.appMark, background: "var(--color-primary)" }}>
+                      {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImageContain} /> : <FlaskConical size={22} />}
+                    </div>
+                    <div style={styles.rowMain}>
+                      <strong>{app.name}</strong>
+                      <span style={styles.rowSub}>{app.launchUrl}</span>
+                    </div>
+                    <span style={app.isActive !== false ? styles.statusPill : styles.inactivePill}>
+                      {app.isActive !== false ? "Active" : "Hidden"}
+                    </span>
+                    <button style={styles.iconButton} type="button" onClick={() => setTestingAppDraft(app)} title="Edit">
+                      <Pencil size={17} />
+                    </button>
+                    <button
+                      style={styles.dangerButton}
+                      type="button"
+                      disabled={saving === `testing-app:${app.id}`}
+                      onClick={() => handleDeleteTestingApp(app.id)}
                       title="Delete"
                     >
                       <Trash2 size={17} />
@@ -2772,6 +2966,17 @@ const styles = {
     minWidth: 0,
     padding: 10,
   },
+  testingAppRow: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 16,
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "42px minmax(0, 1fr) auto auto auto",
+    minWidth: 0,
+    padding: 10,
+  },
   studentSelectButton: {
     alignItems: "center",
     background: "transparent",
@@ -2788,6 +2993,26 @@ const styles = {
   },
   rowMain: { display: "grid", gap: 3, minWidth: 0 },
   rowSub: { color: "#64748b", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  statusPill: {
+    background: "#ecfdf5",
+    border: "1px solid #bbf7d0",
+    borderRadius: 999,
+    color: "#15803d",
+    fontSize: 12,
+    fontWeight: 900,
+    padding: "6px 10px",
+    whiteSpace: "nowrap",
+  },
+  inactivePill: {
+    background: "#f1f5f9",
+    border: "1px solid #cbd5e1",
+    borderRadius: 999,
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 900,
+    padding: "6px 10px",
+    whiteSpace: "nowrap",
+  },
   adminRow: {
     alignItems: "center",
     background: "rgba(255,255,255,0.64)",
@@ -2933,6 +3158,12 @@ const styles = {
     width: 42,
   },
   markImage: { height: "100%", objectFit: "cover", width: "100%" },
+  markImageContain: {
+    height: "100%",
+    objectFit: "contain",
+    padding: 6,
+    width: "100%",
+  },
   deviceGrid: {
     display: "grid",
     gap: 10,

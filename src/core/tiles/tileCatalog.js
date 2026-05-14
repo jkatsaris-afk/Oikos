@@ -4,7 +4,7 @@ import { getTileDesign } from "./tileDesign";
 export const defaultModeTileAvailability = {
   home: [],
   business: [],
-  edu: [],
+  edu: ["testing-hub"],
   nightstand: [],
   admin: ["global-users", "tile-store-manager"],
   church: ["announcements", "events", "hymns", "sermon", "service", "live-display", "remote"],
@@ -32,8 +32,12 @@ export function getDefaultAvailableTileIds(mode) {
   return defaultModeTileAvailability[mode] || [];
 }
 
+export function tileSupportsMode(tile, mode) {
+  return !Array.isArray(tile.allowedModes) || tile.allowedModes.includes(mode);
+}
+
 export function getTileCatalogForMode(mode) {
   const allowedIds = new Set(getDefaultAvailableTileIds(mode));
 
-  return getAllAppTiles().filter((tile) => allowedIds.has(tile.id));
+  return getAllAppTiles().filter((tile) => allowedIds.has(tile.id) && tileSupportsMode(tile, mode));
 }

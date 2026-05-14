@@ -28,16 +28,18 @@ export default function GlobalHeader() {
 
   const mode = getModeFromPath(location.pathname, hostname);
   const isEduAdmin = location.pathname.startsWith("/edu/admin");
+  const isEduTeacher = location.pathname.startsWith("/edu/teacher");
+  const isEduManagement = isEduAdmin || isEduTeacher;
 
   const modeData = getModeConfig(mode);
-  const headerLogo = isEduAdmin ? oikosEduLogo : modeData.logo;
-  const headerLogoAlt = isEduAdmin ? "Oikos EDU" : modeData.label;
+  const headerLogo = isEduManagement ? oikosEduLogo : modeData.logo;
+  const headerLogoAlt = isEduManagement ? "Oikos EDU" : modeData.label;
 
   /* =========================
      DISPLAY / TV CHECK
   ========================= */
   const isDisplayMode =
-    !isEduAdmin &&
+    !isEduManagement &&
     (mode === "home" ||
       mode === "business" ||
       mode === "edu" ||
@@ -120,12 +122,14 @@ export default function GlobalHeader() {
           )}
 
           {/* SETTINGS */}
-          <button
-            style={styles.iconBtn}
-            onClick={() => setOpenSettings(true)} // 🔥 ADDED
-          >
-            <Settings size={20} />
-          </button>
+          {!isEduTeacher ? (
+            <button
+              style={styles.iconBtn}
+              onClick={() => setOpenSettings(true)} // 🔥 ADDED
+            >
+              <Settings size={20} />
+            </button>
+          ) : null}
 
           <button
             style={styles.iconBtn}

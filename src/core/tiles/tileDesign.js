@@ -13,6 +13,7 @@ import EnrollmentTileDesign from "../../platforms/campus/tiles/Enrollment/TileDe
 import StaffTileDesign from "../../platforms/campus/tiles/Staff/TileDesign";
 import StudentsTileDesign from "../../platforms/campus/tiles/Students/TileDesign";
 import TuitionTileDesign from "../../platforms/campus/tiles/Tuition/TileDesign";
+import TestingHubTileDesign from "../../platforms/edu/tiles/TestingHub/TileDesign";
 import GlobalUsersTileDesign from "../../platforms/admin/tiles/GlobalUsers/TileDesign";
 import TileStoreManagerTileDesign from "../../platforms/admin/tiles/TileStoreManager/TileDesign";
 
@@ -62,6 +63,7 @@ export const tileDesign = {
   [StaffTileDesign.id]: StaffTileDesign,
   [StudentsTileDesign.id]: StudentsTileDesign,
   [TuitionTileDesign.id]: TuitionTileDesign,
+  [TestingHubTileDesign.id]: TestingHubTileDesign,
   [GlobalUsersTileDesign.id]: GlobalUsersTileDesign,
   [TileStoreManagerTileDesign.id]: TileStoreManagerTileDesign,
 };

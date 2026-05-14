@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  AppWindow,
   GraduationCap,
   LayoutDashboard,
   Monitor,
@@ -17,12 +18,24 @@ import {
 import GlobalLoadingPage from "../../../core/components/GlobalLoadingPage";
 import {
   addEduTeacherStudent,
+  deleteEduTeacherDeviceApp,
   deleteEduTeacherClassGroup,
   loadEduTeacherPortalWorkspace,
   removeEduTeacherStudent,
+  saveEduTeacherDeviceApp,
   saveEduTeacherClassGroup,
   updateEduTeacherStudentPin,
 } from "../services/studentDeviceService";
+
+const EMPTY_APP = {
+  id: "",
+  name: "",
+  url: "",
+  logoUrl: "",
+  color: "#2563eb",
+  isActive: true,
+  sortOrder: 0,
+};
 
 const EMPTY_GROUP = {
   id: "",
@@ -59,6 +72,7 @@ export default function EduTeacherPortalPage() {
   const [activeSection, setActiveSection] = useState("summary");
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [pinDraft, setPinDraft] = useState("");
+  const [appDraft, setAppDraft] = useState(EMPTY_APP);
   const [groupDraft, setGroupDraft] = useState(EMPTY_GROUP);
 
   async function reload() {
@@ -80,6 +94,7 @@ export default function EduTeacherPortalPage() {
 
   const students = workspace?.students || [];
   const availableStudents = workspace?.availableStudents || [];
+  const apps = workspace?.apps || [];
   const devices = workspace?.devices || [];
   const groups = workspace?.groups || [];
   const groupStudents = workspace?.groupStudents || [];
@@ -147,6 +162,39 @@ export default function EduTeacherPortalPage() {
       setNotice(`PIN updated for ${selectedStudent.displayName}.`);
     } catch (pinError) {
       setError(pinError?.message || "Could not update student PIN.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleSaveApp(event) {
+    event.preventDefault();
+    setSaving("app");
+    setError("");
+    setNotice("");
+    try {
+      const savedApp = await saveEduTeacherDeviceApp(appDraft);
+      setAppDraft(EMPTY_APP);
+      setNotice(`${savedApp.name} saved to the student App Store.`);
+      await reload();
+    } catch (appError) {
+      setError(appError?.message || "Could not save App Store website.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleDeleteApp(app) {
+    setSaving(`app:${app.id}`);
+    setError("");
+    setNotice("");
+    try {
+      await deleteEduTeacherDeviceApp(app.id);
+      if (appDraft.id === app.id) setAppDraft(EMPTY_APP);
+      setNotice(`${app.name} removed from the student App Store.`);
+      await reload();
+    } catch (appError) {
+      setError(appError?.message || "Could not delete App Store website.");
     } finally {
       setSaving("");
     }
@@ -246,6 +294,7 @@ export default function EduTeacherPortalPage() {
 
   const navItems = [
     { id: "summary", label: "Overview", icon: LayoutDashboard },
+    { id: "apps", label: "App Store", icon: AppWindow },
     { id: "students", label: "Students", icon: Users },
     { id: "groups", label: "Class Groups", icon: GraduationCap },
     { id: "devices", label: "Devices", icon: Monitor },
@@ -268,7 +317,7 @@ export default function EduTeacherPortalPage() {
 
       <div style={styles.workspaceShell}>
         <aside style={styles.sideNav}>
-          <div style={styles.sideNavTitle}>Teacher</div>
+          <div style={styles.sideNavTitle}>Manage</div>
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = activeSection === item.id;
@@ -303,6 +352,11 @@ export default function EduTeacherPortalPage() {
                 <strong style={styles.summaryValue}>{groups.length}</strong>
               </div>
               <div style={styles.summaryTile}>
+                <AppWindow size={20} />
+                <span style={styles.summaryLabel}>App Store</span>
+                <strong style={styles.summaryValue}>{apps.length}</strong>
+              </div>
+              <div style={styles.summaryTile}>
                 <Monitor size={20} />
                 <span style={styles.summaryLabel}>Devices</span>
                 <strong style={styles.summaryValue}>{devices.length}</strong>
@@ -313,6 +367,82 @@ export default function EduTeacherPortalPage() {
                 <strong style={styles.summaryValue}>{devices.filter((device) => device.isOnline).length}</strong>
               </div>
             </section>
+          ) : null}
+
+          {activeSection === "apps" ? (
+            <form style={styles.panel} onSubmit={handleSaveApp}>
+              <div style={styles.panelHeader}>
+                <h2 style={styles.panelTitle}>App Store Websites</h2>
+                <button style={styles.primaryButton} disabled={saving === "app"} type="submit">
+                  <Save size={16} />
+                  Save
+                </button>
+              </div>
+              <div style={styles.formGrid}>
+                <label style={styles.label}>
+                  Name
+                  <input
+                    style={styles.input}
+                    value={appDraft.name}
+                    onChange={(event) => setAppDraft((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="IXL"
+                  />
+                </label>
+                <label style={styles.label}>
+                  Website Link
+                  <input
+                    style={styles.input}
+                    value={appDraft.url}
+                    onChange={(event) => setAppDraft((current) => ({ ...current, url: event.target.value }))}
+                    placeholder="https://www.example.com"
+                  />
+                </label>
+                <label style={styles.label}>
+                  Logo Link
+                  <input
+                    style={styles.input}
+                    value={appDraft.logoUrl}
+                    onChange={(event) => setAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
+                    placeholder="https://..."
+                  />
+                </label>
+                <label style={styles.label}>
+                  Color
+                  <input
+                    style={{ ...styles.input, ...styles.colorInput }}
+                    type="color"
+                    value={appDraft.color}
+                    onChange={(event) => setAppDraft((current) => ({ ...current, color: event.target.value }))}
+                  />
+                </label>
+              </div>
+              <div style={styles.list}>
+                {apps.map((app) => (
+                  <div key={app.id} style={styles.row}>
+                    <div style={{ ...styles.appMark, background: app.color }}>
+                      {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
+                    </div>
+                    <div style={styles.rowMain}>
+                      <strong>{app.name}</strong>
+                      <span style={styles.rowSub}>{app.url}</span>
+                    </div>
+                    <button style={styles.iconButton} type="button" onClick={() => setAppDraft(app)} title="Edit">
+                      <Pencil size={17} />
+                    </button>
+                    <button
+                      style={styles.dangerButton}
+                      type="button"
+                      disabled={saving === `app:${app.id}`}
+                      onClick={() => handleDeleteApp(app)}
+                      title="Delete"
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
+                ))}
+                {apps.length === 0 ? <div style={styles.muted}>No App Store websites yet.</div> : null}
+              </div>
+            </form>
           ) : null}
 
           {activeSection === "students" ? (
@@ -580,76 +710,93 @@ export default function EduTeacherPortalPage() {
 const styles = {
   page: {
     color: "#0f172a",
-    margin: "0 auto",
-    maxWidth: 1280,
+    margin: 0,
+    maxWidth: "none",
     padding: "10px 0 28px",
   },
   header: {
     alignItems: "center",
     display: "flex",
-    gap: 14,
+    gap: 16,
     justifyContent: "space-between",
-    marginBottom: 16,
+    margin: "0 0 18px 268px",
+    paddingRight: 20,
   },
   eyebrow: {
-    color: "var(--color-primary)",
+    color: "#e86a1f",
     fontSize: 12,
-    fontWeight: 900,
+    fontWeight: 800,
+    letterSpacing: 0,
     textTransform: "uppercase",
   },
-  title: { fontSize: 30, lineHeight: 1.08, margin: "4px 0" },
+  title: { fontSize: 28, lineHeight: 1.1, margin: "4px 0 0" },
   subtle: { color: "#64748b", fontSize: 13 },
   workspaceShell: {
-    display: "grid",
-    gap: 16,
-    gridTemplateColumns: "220px minmax(0, 1fr)",
+    display: "block",
   },
   sideNav: {
-    alignSelf: "start",
     background: "rgba(255,255,255,0.72)",
+    backdropFilter: "blur(18px) saturate(1.12)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.12)",
     border: "1px solid rgba(255,255,255,0.56)",
-    borderRadius: 22,
-    boxShadow: "0 16px 42px rgba(15,23,42,0.12)",
-    display: "grid",
+    borderRadius: 24,
+    bottom: 16,
+    boxShadow: "0 18px 46px rgba(15,23,42,0.14)",
+    display: "flex",
+    flexDirection: "column",
     gap: 8,
+    left: 16,
     padding: 12,
+    position: "fixed",
+    top: 82,
+    width: 224,
+    zIndex: 90,
   },
   sideNavTitle: {
     color: "#64748b",
     fontSize: 12,
     fontWeight: 900,
-    padding: "4px 8px",
+    padding: "8px 12px 4px",
     textTransform: "uppercase",
   },
   navButton: {
     alignItems: "center",
-    background: "transparent",
-    border: "1px solid transparent",
-    borderRadius: 14,
-    color: "#475569",
+    background: "rgba(var(--color-primary-rgb),0.08)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.10)",
+    borderRadius: 999,
+    color: "var(--color-primary-dark)",
     cursor: "pointer",
     display: "flex",
     font: "inherit",
-    fontWeight: 800,
+    fontSize: 13,
+    fontWeight: 850,
     gap: 9,
-    minHeight: 40,
-    padding: "0 10px",
+    minHeight: 42,
+    padding: "0 13px",
     textAlign: "left",
+    width: "100%",
   },
   navButtonActive: {
-    background: "rgba(var(--color-primary-rgb),0.12)",
-    borderColor: "rgba(var(--color-primary-rgb),0.16)",
-    color: "var(--color-primary-dark)",
+    background: "var(--color-primary)",
+    borderColor: "var(--color-primary)",
+    color: "#fff",
+    boxShadow: "0 10px 22px rgba(var(--color-primary-rgb),0.22)",
   },
-  contentPane: { minWidth: 0 },
+  contentPane: {
+    marginLeft: 268,
+    minWidth: 0,
+    paddingRight: 20,
+  },
   summaryGrid: {
     display: "grid",
-    gap: 14,
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    marginBottom: 16,
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
   },
   summaryTile: {
+    alignItems: "center",
     background: "rgba(255,255,255,0.72)",
+    backdropFilter: "blur(18px) saturate(1.12)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.12)",
     border: "1px solid rgba(255,255,255,0.56)",
     borderRadius: 22,
     boxShadow: "0 16px 42px rgba(15,23,42,0.12)",
@@ -668,6 +815,8 @@ const styles = {
   },
   panel: {
     background: "rgba(255,255,255,0.72)",
+    backdropFilter: "blur(18px) saturate(1.12)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.12)",
     border: "1px solid rgba(255,255,255,0.56)",
     borderRadius: 22,
     boxShadow: "0 16px 42px rgba(15,23,42,0.12)",
@@ -784,6 +933,17 @@ const styles = {
     justifyContent: "flex-end",
   },
   list: { display: "grid", gap: 8 },
+  row: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 16,
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "42px minmax(0, 1fr) auto auto",
+    minWidth: 0,
+    padding: 10,
+  },
   rowMain: { display: "grid", gap: 3, minWidth: 0 },
   rowSub: { color: "#64748b", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   studentSelectButton: {
@@ -846,6 +1006,22 @@ const styles = {
     height: 42,
     justifyContent: "center",
     width: 42,
+  },
+  appMark: {
+    alignItems: "center",
+    borderRadius: 14,
+    color: "#fff",
+    display: "flex",
+    fontWeight: 900,
+    height: 42,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 42,
+  },
+  markImage: {
+    height: "100%",
+    objectFit: "cover",
+    width: "100%",
   },
   detailStack: {
     display: "grid",

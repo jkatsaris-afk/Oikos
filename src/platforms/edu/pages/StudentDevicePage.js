@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
+  FlaskConical,
   Home,
   Info,
   KeyRound,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 
 import oikosEduLogo from "../../../assets/logos/Oikos_EDU_logo.png";
+import TestingHubPopup from "../testing/TestingHubPopup";
 import {
   clearStudentDeviceEnrollment,
   clearStudentDeviceSession,
@@ -30,7 +32,7 @@ import {
 } from "../services/studentDeviceService";
 
 const COLORS = ["#2563eb", "#0f766e", "#e86a1f", "#7c3aed", "#be123c", "#334155"];
-const DESKTOP_SLOT_COUNT = 18;
+const DESKTOP_SLOT_COUNT = 48;
 const SETTINGS_TABS = [
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "pin", label: "PIN", icon: KeyRound },
@@ -399,7 +401,6 @@ export default function StudentDevicePage() {
       app: layout[index] && !globalDockAppIdSet.has(layout[index]) ? appMap.get(layout[index]) || null : null,
     }));
   }, [appMap, globalDockAppIdSet, installedAppIds]);
-  const storeSlotIndex = desktopSlots.findIndex((slot) => !slot.app && !slot.appId);
   const availableApps = apps.filter((app) => !installedAppIdsWithoutHoles.includes(app.id) && !globalDockAppIdSet.has(app.id));
   const dockApps = globalDockAppIds.map((id) => appMap.get(id)).filter(Boolean).slice(0, 3);
   const orgThemeColor = session?.account?.brandColor || enrollment?.account?.brandColor || "#2563eb";
@@ -859,36 +860,6 @@ export default function StudentDevicePage() {
                   </span>
                   <span style={styles.tileLabel}>{app.name}</span>
                 </button>
-              ) : index === storeSlotIndex ? (
-                <button
-                  key="app-store-slot"
-                  style={{
-                    ...styles.tileButton,
-                    ...(dragOverAppId === String(index) ? styles.tileButtonDropTarget : null),
-                  }}
-                  onClick={() => {
-                    if (!draggedAppId) setActiveView("store");
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
-                    setDragOverAppId(String(index));
-                  }}
-                  onDragLeave={() => setDragOverAppId("")}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    const sourceId = event.dataTransfer.getData("text/plain") || draggedAppId;
-                    moveInstalledAppToSlot(sourceId, index);
-                    setDraggedAppId("");
-                    setDragOverAppId("");
-                  }}
-                  type="button"
-                >
-                  <span style={styles.tileIcon}>
-                    <Store size={30} />
-                  </span>
-                  <span style={styles.tileLabel}>{draggedAppId ? "Drop here" : "App Store"}</span>
-                </button>
               ) : (
                 <div
                   key={`slot-${index}-${appId || "empty"}`}
@@ -1123,6 +1094,10 @@ export default function StudentDevicePage() {
           </div>
         ) : null}
 
+        {activeView === "testing" ? (
+          <TestingHubPopup apps={session.account?.testingApps} onClose={() => setActiveView("home")} />
+        ) : null}
+
       </section>
 
       <nav style={styles.dock}>
@@ -1141,6 +1116,10 @@ export default function StudentDevicePage() {
         <button style={{ ...styles.dockButton, ...styles.dockPrimaryButton }} onClick={() => setActiveView("store")} type="button">
           <Store size={22} />
           <span>Store</span>
+        </button>
+        <button style={{ ...styles.dockButton, ...styles.dockTestingButton }} onClick={() => setActiveView("testing")} type="button">
+          <FlaskConical size={22} />
+          <span>Testing</span>
         </button>
       </nav>
 
@@ -1258,10 +1237,12 @@ const styles = {
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
     backgroundSize: "cover",
+    inset: 0,
     minHeight: "100dvh",
     overflow: "hidden",
     padding: "82px 20px 124px",
-    position: "relative",
+    position: "fixed",
+    width: "100vw",
   },
   topBar: {
     alignItems: "center",
@@ -1313,14 +1294,20 @@ const styles = {
   windowArea: {
     height: "calc(100dvh - 206px)",
     margin: "0 auto",
+    minHeight: 0,
+    overflow: "hidden",
     position: "relative",
     width: "100%",
   },
   desktopGrid: {
+    alignContent: "start",
     display: "grid",
     gap: 18,
-    gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))",
     gridAutoRows: 112,
+    gridTemplateColumns: "repeat(auto-fill, minmax(96px, 112px))",
+    height: "100%",
+    justifyContent: "start",
+    overflow: "auto",
     padding: 10,
   },
   tileButton: {
@@ -1722,7 +1709,7 @@ const styles = {
     boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
     display: "grid",
     gap: 0,
-    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
     height: 80,
     left: 20,
     overflow: "hidden",
@@ -1759,6 +1746,12 @@ const styles = {
   },
   dockPrimaryButton: {
     background: "rgba(var(--color-primary-rgb), 0.9)",
+    color: "#fff",
+  },
+  dockTestingButton: {
+    background: "var(--color-primary)",
+    border: "1px solid var(--color-primary)",
+    boxShadow: "0 10px 22px rgba(var(--color-primary-rgb),0.24)",
     color: "#fff",
   },
   dockIcon: {

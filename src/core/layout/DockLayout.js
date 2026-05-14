@@ -32,7 +32,9 @@ function getTileStyle(design, isActive) {
 export default function DockLayout({ children }) {
 
   const location = useLocation();
-  const dockless = location.pathname.startsWith("/edu/admin");
+  const dockless =
+    location.pathname.startsWith("/edu/admin") ||
+    location.pathname.startsWith("/edu/teacher");
 
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
@@ -127,6 +129,21 @@ export default function DockLayout({ children }) {
     setActiveTile(tileId);
   };
 
+  useEffect(() => {
+    const handleTestingHubShortcut = (event) => {
+      if (event.ctrlKey && event.altKey && event.key.toLowerCase() === "t") {
+        event.preventDefault();
+        openTile("testing-hub");
+      }
+    };
+
+    window.addEventListener("keydown", handleTestingHubShortcut);
+    return () => window.removeEventListener("keydown", handleTestingHubShortcut);
+  });
+
+  const activeTileDefinition = tileRegistry[activeTile] || null;
+  const activeTileIsOverlay = Boolean(activeTileDefinition?.overlay);
+
   return (
     <DockNavigationProvider value={{ activeTile, openTile }}>
     <div className="app-container">
@@ -136,7 +153,7 @@ export default function DockLayout({ children }) {
       ========================= */}
       <div className="content-area" style={dockless ? { paddingBottom: 24 } : null}>
 
-        <div style={{ display: activeTile === "home" ? "block" : "none", height: "100%" }}>
+        <div style={{ display: activeTile === "home" || activeTileIsOverlay ? "block" : "none", height: "100%" }}>
           {children}
         </div>
 
@@ -149,15 +166,21 @@ export default function DockLayout({ children }) {
         {openedTileIds
           .filter((tileId) => tileId !== "store")
           .map((tileId) => {
-            const TileComponent = tileRegistry[tileId]?.page || null;
+            const tileDefinition = tileRegistry[tileId] || null;
+            const TileComponent = tileDefinition?.page || null;
+            const isOverlay = Boolean(tileDefinition?.overlay);
 
             return (
               <div
                 key={tileId}
-                style={{ display: activeTile === tileId ? "block" : "none", height: "100%" }}
+                style={{
+                  display: activeTile === tileId ? "block" : "none",
+                  height: isOverlay ? 0 : "100%",
+                }}
               >
                 {TileComponent ? (
                   React.createElement(TileComponent, {
+                    onClose: () => openTile("home"),
                     onUninstall: () => uninstallTile(tileId),
                     showUninstall:
                       !tileRegistry[tileId]?.system &&

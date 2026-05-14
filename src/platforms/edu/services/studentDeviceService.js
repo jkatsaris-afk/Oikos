@@ -35,6 +35,28 @@ const DEFAULT_CHROME_EXTENSION = {
   blockUnknownHosts: true,
   overlayEnabled: true,
 };
+const DEFAULT_TESTING_APPS = [
+  {
+    id: "testnav",
+    name: "TestNav",
+    type: "kiosk-pwa",
+    launchUrl: "https://home.testnav.com/",
+    logoUrl: "",
+    description: "Pearson TestNav kiosk launcher",
+    isActive: true,
+    sortOrder: 0,
+  },
+  {
+    id: "drc",
+    name: "DRC",
+    type: "kiosk-pwa",
+    launchUrl: "https://cdn-app-prod.drcedirect.com/drc-insight-chromeos-ui/index.html",
+    logoUrl: "",
+    description: "DRC INSIGHT secure testing launcher",
+    isActive: true,
+    sortOrder: 1,
+  },
+];
 
 function getCachedEduAccount() {
   if (typeof window === "undefined") return null;
@@ -81,6 +103,10 @@ function normalizeEduAccount(row = {}) {
     ...DEFAULT_CHROME_EXTENSION,
     ...(integrations?.eduStudentDevice?.chromeExtension || row.chromeExtension || {}),
   };
+  const testingApps =
+    integrations?.eduStudentDevice?.testingApps ||
+    row.testingApps ||
+    DEFAULT_TESTING_APPS;
 
   return row?.id
     ? {
@@ -109,6 +135,9 @@ function normalizeEduAccount(row = {}) {
             ? chromeExtension.allowedHosts.filter(Boolean)
             : [],
         },
+        testingApps: Array.isArray(testingApps) && testingApps.length > 0
+          ? testingApps
+          : DEFAULT_TESTING_APPS,
         deviceCode: row.edu_device_code || row.deviceCode || "",
       }
     : null;
@@ -566,6 +595,39 @@ export async function saveEduChromeExtensionSettings(account, settings = {}) {
   return normalizeEduAccount(nextAccount);
 }
 
+export async function saveEduTestingApps(account, testingApps = []) {
+  if (!account?.id) {
+    throw new Error("Missing organization account.");
+  }
+
+  const normalizedApps = testingApps
+    .map((app, index) => ({
+      id: String(app.id || app.name || `testing-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+      name: String(app.name || "").trim(),
+      type: String(app.type || "kiosk-pwa").trim() || "kiosk-pwa",
+      launchUrl: String(app.launchUrl || "").trim(),
+      logoUrl: String(app.logoUrl || "").trim(),
+      description: String(app.description || "").trim(),
+      isActive: app.isActive !== false,
+      sortOrder: Number(app.sortOrder || index),
+    }))
+    .filter((app) => app.name && app.launchUrl);
+
+  const integrations = account.integrations || {};
+  const eduStudentDevice = integrations.eduStudentDevice || {};
+  const nextAccount = await updateOrganizationSettings(account.id, {
+    integrations: {
+      ...integrations,
+      eduStudentDevice: {
+        ...eduStudentDevice,
+        testingApps: normalizedApps,
+      },
+    },
+  });
+
+  return normalizeEduAccount(nextAccount);
+}
+
 export async function syncEduChromeGuardPolicy(accountId) {
   if (!accountId) {
     throw new Error("Missing Edu organization.");
@@ -733,12 +795,36 @@ export async function loadEduTeacherPortalWorkspace() {
   return {
     account: data?.account || null,
     teacher: data?.teacher || null,
+    apps: (data?.apps || []).map(normalizeApp),
     students: data?.students || [],
     availableStudents: data?.availableStudents || [],
     groups: (data?.groups || []).map(normalizeTeacherGroup),
     groupStudents: (data?.groupStudents || []).map(normalizeTeacherGroupStudent),
     devices,
   };
+}
+
+export async function saveEduTeacherDeviceApp(app) {
+  const { data, error } = await supabase.rpc("edu_teacher_portal_save_app", {
+    p_app_id: app.id || null,
+    p_name: app.name || "",
+    p_url: app.url || "",
+    p_logo_url: app.logoUrl || "",
+    p_color: app.color || "#2563eb",
+    p_is_active: app.isActive !== false,
+  });
+
+  if (error) throw error;
+  return normalizeApp(data || {});
+}
+
+export async function deleteEduTeacherDeviceApp(appId) {
+  const { data, error } = await supabase.rpc("edu_teacher_portal_delete_app", {
+    p_app_id: appId,
+  });
+
+  if (error) throw error;
+  return data;
 }
 
 export async function updateEduTeacherStudentPin(studentId, pin) {

@@ -122,10 +122,15 @@ export default function RequireAuth({ children }) {
           if ((platform === "campus" || platform === "edu") && mode === "default") {
             try {
               const orgAccess = await fetchOrganizationAccess(userId, platform);
+              const isEduAdminRoute = path.startsWith("/edu/admin");
+              const orgRole = String(orgAccess?.membership?.role || "").toLowerCase();
               const hasCampusOrgAccess =
                 Boolean(orgAccess?.account?.id) &&
                 (orgAccess?.isOwner === true ||
-                  String(orgAccess?.membership?.status || "").toLowerCase() === "active");
+                  (
+                    String(orgAccess?.membership?.status || "").toLowerCase() === "active" &&
+                    (!isEduAdminRoute || ["owner", "admin"].includes(orgRole))
+                  ));
 
               console.log("RequireAuth:campus-org-fallback", {
                 userId,
