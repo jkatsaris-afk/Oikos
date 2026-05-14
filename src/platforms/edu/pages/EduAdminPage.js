@@ -67,6 +67,7 @@ const EMPTY_TESTING_APP = {
   name: "",
   type: "kiosk-pwa",
   launchUrl: "",
+  launchMode: "new-window",
   logoUrl: "",
   description: "",
   isActive: true,
@@ -271,6 +272,8 @@ export default function EduAdminPage() {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [showTeacherForm, setShowTeacherForm] = useState(false);
   const [showStudentForm, setShowStudentForm] = useState(false);
+  const [showAppForm, setShowAppForm] = useState(false);
+  const [showTestingAppForm, setShowTestingAppForm] = useState(false);
   const [showAdminForm, setShowAdminForm] = useState(false);
   const [adminInviteName, setAdminInviteName] = useState("");
   const [adminInviteEmail, setAdminInviteEmail] = useState("");
@@ -595,8 +598,12 @@ export default function EduAdminPage() {
     setError("");
     setNotice("");
     try {
-      await saveEduDeviceApp(workspace.account.id, appDraft);
+      await saveEduDeviceApp(workspace.account.id, {
+        ...appDraft,
+        color: appDraft.color || workspace.account.brand_color || workspace.account.brandColor || "#2563eb",
+      });
       setAppDraft(EMPTY_APP);
+      setShowAppForm(false);
       await syncChromePolicyAfterEdit("Website saved.");
       await reload();
     } catch (saveError) {
@@ -720,6 +727,10 @@ export default function EduAdminPage() {
     setError("");
     try {
       await deleteEduDeviceApp(appId);
+      if (appDraft.id === appId) {
+        setAppDraft(EMPTY_APP);
+        setShowAppForm(false);
+      }
       await syncChromePolicyAfterEdit("Website deleted.");
       await reload();
     } catch (deleteError) {
@@ -727,6 +738,31 @@ export default function EduAdminPage() {
     } finally {
       setSaving("");
     }
+  }
+
+  function handleAddApp() {
+    setAppDraft({
+      ...EMPTY_APP,
+      color: workspace.account.brand_color || workspace.account.brandColor || EMPTY_APP.color,
+      sortOrder: workspace?.apps?.length || 0,
+    });
+    setShowAppForm(true);
+  }
+
+  function handleEditApp(app) {
+    setAppDraft({
+      ...EMPTY_APP,
+      ...app,
+      color: app.color || workspace.account.brand_color || workspace.account.brandColor || EMPTY_APP.color,
+      isActive: app.isActive !== false,
+    });
+    setShowAppForm(true);
+    setActiveSection("apps");
+  }
+
+  function handleCancelAppEdit() {
+    setAppDraft(EMPTY_APP);
+    setShowAppForm(false);
   }
 
   function getNextTestingApps(nextApp) {
@@ -766,6 +802,7 @@ export default function EduAdminPage() {
         },
       }));
       setTestingAppDraft(EMPTY_TESTING_APP);
+      setShowTestingAppForm(false);
       setNotice("Testing app saved.");
     } catch (saveError) {
       setError(saveError?.message || "Could not save testing app.");
@@ -788,13 +825,40 @@ export default function EduAdminPage() {
           ...nextAccount,
         },
       }));
-      if (testingAppDraft.id === appId) setTestingAppDraft(EMPTY_TESTING_APP);
+      if (testingAppDraft.id === appId) {
+        setTestingAppDraft(EMPTY_TESTING_APP);
+        setShowTestingAppForm(false);
+      }
       setNotice("Testing app deleted.");
     } catch (deleteError) {
       setError(deleteError?.message || "Could not delete testing app.");
     } finally {
       setSaving("");
     }
+  }
+
+  function handleAddTestingApp() {
+    setTestingAppDraft({
+      ...EMPTY_TESTING_APP,
+      sortOrder: workspace?.account?.testingApps?.length || 0,
+    });
+    setShowTestingAppForm(true);
+  }
+
+  function handleEditTestingApp(app) {
+    setTestingAppDraft({
+      ...EMPTY_TESTING_APP,
+      ...app,
+      launchMode: app.launchMode || "new-window",
+      isActive: app.isActive !== false,
+    });
+    setShowTestingAppForm(true);
+    setActiveSection("testing");
+  }
+
+  function handleCancelTestingAppEdit() {
+    setTestingAppDraft(EMPTY_TESTING_APP);
+    setShowTestingAppForm(false);
   }
 
   async function handleDeleteStudent(studentId) {
@@ -1305,6 +1369,170 @@ export default function EduAdminPage() {
     </form>
   );
 
+  const appForm = (
+    <form style={styles.modalPanel} onSubmit={handleSaveApp}>
+      <div style={styles.panelHeader}>
+        <h2 style={styles.panelTitle}>{appDraft.id ? "Edit Student App" : "Add Student App"}</h2>
+        <button style={styles.iconButton} type="button" onClick={handleCancelAppEdit} title="Close">
+          <X size={17} />
+        </button>
+      </div>
+      <div style={styles.formGrid}>
+        <label style={styles.label}>
+          Name
+          <input
+            style={styles.input}
+            value={appDraft.name}
+            onChange={(event) => setAppDraft((current) => ({ ...current, name: event.target.value }))}
+            placeholder="IXL"
+          />
+        </label>
+        <label style={styles.label}>
+          Website Link
+          <input
+            style={styles.input}
+            value={appDraft.url}
+            onChange={(event) => setAppDraft((current) => ({ ...current, url: event.target.value }))}
+            placeholder="https://www.example.com"
+          />
+        </label>
+        <label style={styles.label}>
+          Logo Link
+          <input
+            style={styles.input}
+            value={appDraft.logoUrl}
+            onChange={(event) => setAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
+            placeholder="https://..."
+          />
+        </label>
+        <label style={{ ...styles.checkboxLabel, alignSelf: "end" }}>
+          <input
+            type="checkbox"
+            checked={appDraft.isActive !== false}
+            onChange={(event) => setAppDraft((current) => ({ ...current, isActive: event.target.checked }))}
+          />
+          Active in Student App Store
+        </label>
+      </div>
+      <div style={styles.actionGroup}>
+        {appDraft.id ? (
+          <button
+            style={styles.dangerWideButton}
+            type="button"
+            disabled={saving === `app:${appDraft.id}`}
+            onClick={() => handleDeleteApp(appDraft.id)}
+          >
+            <Trash2 size={17} />
+            Delete
+          </button>
+        ) : null}
+        <button style={styles.secondaryButton} type="button" onClick={handleCancelAppEdit}>
+          Cancel
+        </button>
+        <button style={styles.primaryButton} disabled={saving === "app"} type="submit">
+          <Save size={16} />
+          {appDraft.id ? "Update App" : "Add App"}
+        </button>
+      </div>
+    </form>
+  );
+
+  const testingAppForm = (
+    <form style={styles.modalPanel} onSubmit={handleSaveTestingApp}>
+      <div style={styles.panelHeader}>
+        <h2 style={styles.panelTitle}>{testingAppDraft.id ? "Edit Testing App" : "Add Testing App"}</h2>
+        <button style={styles.iconButton} type="button" onClick={handleCancelTestingAppEdit} title="Close">
+          <X size={17} />
+        </button>
+      </div>
+      <div style={styles.formGrid}>
+        <label style={styles.label}>
+          Name
+          <input
+            style={styles.input}
+            value={testingAppDraft.name}
+            onChange={(event) => setTestingAppDraft((current) => ({ ...current, name: event.target.value }))}
+            placeholder="TestNav"
+          />
+        </label>
+        <label style={styles.label}>
+          Launch URL
+          <input
+            style={styles.input}
+            value={testingAppDraft.launchUrl}
+            onChange={(event) => setTestingAppDraft((current) => ({ ...current, launchUrl: event.target.value }))}
+            placeholder="https://home.testnav.com/"
+          />
+        </label>
+        <label style={styles.label}>
+          Type
+          <input
+            style={styles.input}
+            value={testingAppDraft.type}
+            onChange={(event) => setTestingAppDraft((current) => ({ ...current, type: event.target.value }))}
+            placeholder="kiosk-pwa"
+          />
+        </label>
+        <label style={styles.label}>
+          Logo Link
+          <input
+            style={styles.input}
+            value={testingAppDraft.logoUrl || ""}
+            onChange={(event) => setTestingAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
+            placeholder="https://..."
+          />
+        </label>
+        <label style={styles.label}>
+          Launch Method
+          <select
+            style={styles.input}
+            value={testingAppDraft.launchMode || "new-window"}
+            onChange={(event) => setTestingAppDraft((current) => ({ ...current, launchMode: event.target.value }))}
+          >
+            <option value="new-window">New window / kiosk handoff</option>
+            <option value="replace">Replace current page</option>
+            <option value="same-window">Same window</option>
+          </select>
+        </label>
+        <label style={styles.label}>
+          Sort Order
+          <input
+            style={styles.input}
+            value={testingAppDraft.sortOrder}
+            onChange={(event) => setTestingAppDraft((current) => ({ ...current, sortOrder: event.target.value.replace(/\D/g, "") }))}
+            inputMode="numeric"
+          />
+        </label>
+        <label style={styles.label}>
+          Description
+          <input
+            style={styles.input}
+            value={testingAppDraft.description}
+            onChange={(event) => setTestingAppDraft((current) => ({ ...current, description: event.target.value }))}
+            placeholder="Secure testing launcher"
+          />
+        </label>
+        <label style={{ ...styles.checkboxLabel, alignSelf: "end" }}>
+          <input
+            type="checkbox"
+            checked={testingAppDraft.isActive !== false}
+            onChange={(event) => setTestingAppDraft((current) => ({ ...current, isActive: event.target.checked }))}
+          />
+          Active in student Testing Hub
+        </label>
+      </div>
+      <div style={styles.actionGroup}>
+        <button style={styles.secondaryButton} type="button" onClick={handleCancelTestingAppEdit}>
+          Cancel
+        </button>
+        <button style={styles.primaryButton} disabled={saving === "testing-app"} type="submit">
+          <Save size={16} />
+          {testingAppDraft.id ? "Update App" : "Add App"}
+        </button>
+      </div>
+    </form>
+  );
+
   const studentForm = (
     <form style={styles.modalPanel} onSubmit={handleSaveStudent}>
       <div style={styles.panelHeader}>
@@ -1399,7 +1627,7 @@ export default function EduAdminPage() {
 
   const navItems = [
     { id: "summary", label: "Overview", icon: LayoutDashboard },
-    { id: "apps", label: "App Store", icon: AppWindow },
+    { id: "apps", label: "Student App Store", icon: AppWindow },
     { id: "testing", label: "Testing Apps", icon: FlaskConical },
     { id: "admins", label: "Admins", icon: UserPlus },
     { id: "teachers", label: "Teachers", icon: GraduationCap },
@@ -1490,67 +1718,26 @@ export default function EduAdminPage() {
           ) : null}
 
           {activeSection === "apps" ? (
-            <form style={styles.panel} onSubmit={handleSaveApp}>
+            <section style={styles.panel}>
               <div style={styles.panelHeader}>
-                <h2 style={styles.panelTitle}>App Store Websites</h2>
-                <button style={styles.primaryButton} disabled={saving === "app"} type="submit">
-                  <Save size={16} />
-                  Save
+                <h2 style={styles.panelTitle}>Student App Store</h2>
+                <button style={styles.primaryButton} type="button" onClick={handleAddApp}>
+                  <Plus size={16} />
+                  Add
                 </button>
               </div>
-              <div style={styles.formGrid}>
-            <label style={styles.label}>
-              Name
-              <input
-                style={styles.input}
-                value={appDraft.name}
-                onChange={(event) => setAppDraft((current) => ({ ...current, name: event.target.value }))}
-                placeholder="IXL"
-              />
-            </label>
-            <label style={styles.label}>
-              Website Link
-              <input
-                style={styles.input}
-                value={appDraft.url}
-                onChange={(event) => setAppDraft((current) => ({ ...current, url: event.target.value }))}
-                placeholder="https://www.example.com"
-              />
-            </label>
-            <label style={styles.label}>
-              Logo Link
-              <input
-                style={styles.input}
-                value={appDraft.logoUrl}
-                onChange={(event) => setAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
-                placeholder="https://..."
-              />
-            </label>
-            <label style={styles.label}>
-              Color
-              <input
-                style={{ ...styles.input, ...styles.colorInput }}
-                type="color"
-                value={appDraft.color}
-                onChange={(event) => setAppDraft((current) => ({ ...current, color: event.target.value }))}
-              />
-            </label>
-              </div>
-              <div style={styles.list}>
+              <div style={styles.appStoreGrid}>
                 {workspace.apps.map((app) => (
-                  <div key={app.id} style={styles.row}>
-                    <div style={{ ...styles.appMark, background: app.color }}>
-                      {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
-                    </div>
-                    <div style={styles.rowMain}>
+                  <div key={app.id} style={styles.appStoreTileWrap}>
+                    <button style={styles.appStoreTile} type="button" onClick={() => handleEditApp(app)}>
+                      <span style={{ ...styles.studentAppIcon, background: app.color || "var(--color-primary)" }}>
+                        {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
+                      </span>
                       <strong>{app.name}</strong>
-                      <span style={styles.rowSub}>{app.url}</span>
-                    </div>
-                    <button style={styles.iconButton} type="button" onClick={() => setAppDraft(app)} title="Edit">
-                      <Plus size={17} />
+                      <span>{app.url}</span>
                     </button>
                     <button
-                      style={styles.dangerButton}
+                      style={styles.tileDeleteButton}
                       type="button"
                       disabled={saving === `app:${app.id}`}
                       onClick={() => handleDeleteApp(app.id)}
@@ -1560,89 +1747,19 @@ export default function EduAdminPage() {
                     </button>
                   </div>
                 ))}
+                {workspace.apps.length === 0 ? <div style={styles.emptyState}>No Student App Store websites yet.</div> : null}
               </div>
-            </form>
+            </section>
           ) : null}
 
           {activeSection === "testing" ? (
-            <form style={styles.panel} onSubmit={handleSaveTestingApp}>
+            <section style={styles.panel}>
               <div style={styles.panelHeader}>
                 <h2 style={styles.panelTitle}>Testing Apps</h2>
-                <div style={styles.actionGroup}>
-                  {testingAppDraft.id ? (
-                    <button style={styles.secondaryButton} type="button" onClick={() => setTestingAppDraft(EMPTY_TESTING_APP)}>
-                      Clear
-                    </button>
-                  ) : null}
-                  <button style={styles.primaryButton} disabled={saving === "testing-app"} type="submit">
-                    <Save size={16} />
-                    Save
-                  </button>
-                </div>
-              </div>
-              <div style={styles.formGrid}>
-                <label style={styles.label}>
-                  Name
-                  <input
-                    style={styles.input}
-                    value={testingAppDraft.name}
-                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, name: event.target.value }))}
-                    placeholder="TestNav"
-                  />
-                </label>
-                <label style={styles.label}>
-                  Launch URL
-                  <input
-                    style={styles.input}
-                    value={testingAppDraft.launchUrl}
-                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, launchUrl: event.target.value }))}
-                    placeholder="https://home.testnav.com/"
-                  />
-                </label>
-                <label style={styles.label}>
-                  Type
-                  <input
-                    style={styles.input}
-                    value={testingAppDraft.type}
-                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, type: event.target.value }))}
-                    placeholder="kiosk-pwa"
-                  />
-                </label>
-                <label style={styles.label}>
-                  Logo Link
-                  <input
-                    style={styles.input}
-                    value={testingAppDraft.logoUrl || ""}
-                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
-                    placeholder="https://..."
-                  />
-                </label>
-                <label style={styles.label}>
-                  Sort Order
-                  <input
-                    style={styles.input}
-                    value={testingAppDraft.sortOrder}
-                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, sortOrder: event.target.value.replace(/\D/g, "") }))}
-                    inputMode="numeric"
-                  />
-                </label>
-                <label style={styles.label}>
-                  Description
-                  <input
-                    style={styles.input}
-                    value={testingAppDraft.description}
-                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, description: event.target.value }))}
-                    placeholder="Secure testing launcher"
-                  />
-                </label>
-                <label style={{ ...styles.checkboxLabel, alignSelf: "end" }}>
-                  <input
-                    type="checkbox"
-                    checked={testingAppDraft.isActive !== false}
-                    onChange={(event) => setTestingAppDraft((current) => ({ ...current, isActive: event.target.checked }))}
-                  />
-                  Active in student Testing Hub
-                </label>
+                <button style={styles.primaryButton} type="button" onClick={handleAddTestingApp}>
+                  <Plus size={16} />
+                  Add
+                </button>
               </div>
               <div style={styles.list}>
                 {(workspace.account.testingApps || []).map((app) => (
@@ -1652,12 +1769,14 @@ export default function EduAdminPage() {
                     </div>
                     <div style={styles.rowMain}>
                       <strong>{app.name}</strong>
-                      <span style={styles.rowSub}>{app.launchUrl}</span>
+                      <span style={styles.rowSub}>
+                        {app.launchUrl} · {app.launchMode === "new-window" ? "New window handoff" : app.launchMode === "replace" ? "Replace page" : "Same window"}
+                      </span>
                     </div>
                     <span style={app.isActive !== false ? styles.statusPill : styles.inactivePill}>
                       {app.isActive !== false ? "Active" : "Hidden"}
                     </span>
-                    <button style={styles.iconButton} type="button" onClick={() => setTestingAppDraft(app)} title="Edit">
+                    <button style={styles.iconButton} type="button" onClick={() => handleEditTestingApp(app)} title="Edit">
                       <Pencil size={17} />
                     </button>
                     <button
@@ -1671,8 +1790,11 @@ export default function EduAdminPage() {
                     </button>
                   </div>
                 ))}
+                {(workspace.account.testingApps || []).length === 0 ? (
+                  <div style={styles.emptyState}>No testing apps have been added yet.</div>
+                ) : null}
               </div>
-            </form>
+            </section>
           ) : null}
 
           {activeSection === "admins" ? (
@@ -2610,6 +2732,20 @@ export default function EduAdminPage() {
           </div>
         </div>
       ) : null}
+      {showAppForm ? (
+        <div style={styles.modalOverlay} role="presentation" onMouseDown={handleCancelAppEdit}>
+          <div role="dialog" aria-modal="true" aria-label="Student app form" onMouseDown={(event) => event.stopPropagation()}>
+            {appForm}
+          </div>
+        </div>
+      ) : null}
+      {showTestingAppForm ? (
+        <div style={styles.modalOverlay} role="presentation" onMouseDown={handleCancelTestingAppEdit}>
+          <div role="dialog" aria-modal="true" aria-label="Testing app form" onMouseDown={(event) => event.stopPropagation()}>
+            {testingAppForm}
+          </div>
+        </div>
+      ) : null}
       {showStudentForm ? (
         <div style={styles.modalOverlay} role="presentation" onMouseDown={handleCancelStudentEdit}>
           <div role="dialog" aria-modal="true" aria-label="Student form" onMouseDown={(event) => event.stopPropagation()}>
@@ -2976,6 +3112,60 @@ const styles = {
     gridTemplateColumns: "42px minmax(0, 1fr) auto auto auto",
     minWidth: 0,
     padding: 10,
+  },
+  appStoreGrid: {
+    display: "grid",
+    gap: 14,
+    gridTemplateColumns: "repeat(auto-fill, minmax(118px, 1fr))",
+  },
+  appStoreTileWrap: {
+    minWidth: 0,
+    position: "relative",
+  },
+  appStoreTile: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 18,
+    color: "#0f172a",
+    cursor: "pointer",
+    display: "grid",
+    font: "inherit",
+    gap: 8,
+    justifyItems: "center",
+    minHeight: 148,
+    minWidth: 0,
+    padding: "14px 10px",
+    textAlign: "center",
+    width: "100%",
+  },
+  studentAppIcon: {
+    alignItems: "center",
+    borderRadius: 24,
+    boxShadow: "0 14px 28px rgba(15,23,42,0.14)",
+    color: "#fff",
+    display: "flex",
+    fontSize: 28,
+    fontWeight: 900,
+    height: 72,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 72,
+  },
+  tileDeleteButton: {
+    alignItems: "center",
+    background: "#fff1f2",
+    border: "1px solid #fecdd3",
+    borderRadius: 13,
+    color: "#be123c",
+    cursor: "pointer",
+    display: "inline-flex",
+    justifyContent: "center",
+    minHeight: 34,
+    minWidth: 34,
+    position: "absolute",
+    right: 8,
+    top: 8,
   },
   studentSelectButton: {
     alignItems: "center",

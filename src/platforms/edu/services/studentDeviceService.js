@@ -41,6 +41,7 @@ const DEFAULT_TESTING_APPS = [
     name: "TestNav",
     type: "kiosk-pwa",
     launchUrl: "https://home.testnav.com/",
+    launchMode: "new-window",
     logoUrl: "",
     description: "Pearson TestNav kiosk launcher",
     isActive: true,
@@ -51,10 +52,22 @@ const DEFAULT_TESTING_APPS = [
     name: "DRC",
     type: "kiosk-pwa",
     launchUrl: "https://cdn-app-prod.drcedirect.com/drc-insight-chromeos-ui/index.html",
+    launchMode: "new-window",
     logoUrl: "",
     description: "DRC INSIGHT secure testing launcher",
     isActive: true,
     sortOrder: 1,
+  },
+  {
+    id: "nwea",
+    name: "NWEA MAP Growth",
+    type: "kiosk-pwa",
+    launchUrl: "https://test.mapnwea.org/#/nopopup",
+    launchMode: "new-window",
+    logoUrl: "",
+    description: "NWEA secure testing launcher",
+    isActive: true,
+    sortOrder: 2,
   },
 ];
 
@@ -83,6 +96,37 @@ function normalizeApp(row = {}) {
     isActive: row.is_active !== false,
     sortOrder: Number(row.sort_order || 0),
   };
+}
+
+function normalizeTestingAppConfig(app = {}, index = 0) {
+  return {
+    ...app,
+    id: String(app.id || app.name || `testing-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+    name: String(app.name || "").trim(),
+    type: String(app.type || "kiosk-pwa").trim() || "kiosk-pwa",
+    launchUrl: String(app.launchUrl || app.url || "").trim(),
+    launchMode: String(app.launchMode || app.launch_mode || "new-window").trim() || "new-window",
+    logoUrl: String(app.logoUrl || app.logo_url || app.iconUrl || app.imageUrl || app.logo || "").trim(),
+    description: String(app.description || "").trim(),
+    isActive: app.isActive !== false,
+    sortOrder: Number(app.sortOrder || index),
+  };
+}
+
+function normalizeTestingApps(apps = []) {
+  return Array.isArray(apps)
+    ? apps.map(normalizeTestingAppConfig).filter((app) => app.name && app.launchUrl)
+    : [];
+}
+
+function mergeDefaultTestingApps(apps = []) {
+  const normalizedApps = normalizeTestingApps(apps);
+  const existingIds = new Set(normalizedApps.map((app) => app.id));
+  const missingDefaults = DEFAULT_TESTING_APPS.filter((app) => !existingIds.has(app.id));
+
+  return [...normalizedApps, ...missingDefaults]
+    .map(normalizeTestingAppConfig)
+    .sort((first, second) => first.sortOrder - second.sortOrder || first.name.localeCompare(second.name));
 }
 
 function normalizeEduAccount(row = {}) {
@@ -135,9 +179,7 @@ function normalizeEduAccount(row = {}) {
             ? chromeExtension.allowedHosts.filter(Boolean)
             : [],
         },
-        testingApps: Array.isArray(testingApps) && testingApps.length > 0
-          ? testingApps
-          : DEFAULT_TESTING_APPS,
+        testingApps: mergeDefaultTestingApps(testingApps),
         deviceCode: row.edu_device_code || row.deviceCode || "",
       }
     : null;
@@ -600,18 +642,7 @@ export async function saveEduTestingApps(account, testingApps = []) {
     throw new Error("Missing organization account.");
   }
 
-  const normalizedApps = testingApps
-    .map((app, index) => ({
-      id: String(app.id || app.name || `testing-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
-      name: String(app.name || "").trim(),
-      type: String(app.type || "kiosk-pwa").trim() || "kiosk-pwa",
-      launchUrl: String(app.launchUrl || "").trim(),
-      logoUrl: String(app.logoUrl || "").trim(),
-      description: String(app.description || "").trim(),
-      isActive: app.isActive !== false,
-      sortOrder: Number(app.sortOrder || index),
-    }))
-    .filter((app) => app.name && app.launchUrl);
+  const normalizedApps = normalizeTestingApps(testingApps);
 
   const integrations = account.integrations || {};
   const eduStudentDevice = integrations.eduStudentDevice || {};

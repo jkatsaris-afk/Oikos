@@ -15,7 +15,9 @@ export default function TestingHubTile({ app, launching, onLaunch }) {
         {launching ? (
           <Loader2 size={30} style={styles.spinIcon} />
         ) : app.logoUrl ? (
-          <img src={app.logoUrl} alt="" style={styles.logo} />
+          <span style={styles.logoPlate}>
+            <img src={app.logoUrl} alt="" style={styles.logo} />
+          </span>
         ) : (
           <ShieldCheck size={31} />
         )}
@@ -64,8 +66,18 @@ const styles = {
   logo: {
     height: "100%",
     objectFit: "contain",
-    padding: 10,
     width: "100%",
+  },
+  logoPlate: {
+    alignItems: "center",
+    background: "#fff",
+    borderRadius: 18,
+    boxSizing: "border-box",
+    display: "flex",
+    height: 58,
+    justifyContent: "center",
+    padding: 8,
+    width: 58,
   },
   tileBody: {
     display: "grid",

@@ -4,6 +4,7 @@ export const defaultTestingApps = [
     name: "TestNav",
     type: "kiosk-pwa",
     launchUrl: "https://home.testnav.com/",
+    launchMode: "new-window",
     logoUrl: "",
     description: "Pearson TestNav kiosk launcher",
   },
@@ -12,8 +13,18 @@ export const defaultTestingApps = [
     name: "DRC",
     type: "kiosk-pwa",
     launchUrl: "https://cdn-app-prod.drcedirect.com/drc-insight-chromeos-ui/index.html",
+    launchMode: "new-window",
     logoUrl: "",
     description: "DRC INSIGHT secure testing launcher",
+  },
+  {
+    id: "nwea",
+    name: "NWEA MAP Growth",
+    type: "kiosk-pwa",
+    launchUrl: "https://test.mapnwea.org/#/nopopup",
+    launchMode: "new-window",
+    logoUrl: "",
+    description: "NWEA secure testing launcher",
   },
 ];
 
@@ -26,7 +37,8 @@ export function normalizeTestingApp(app = {}, index = 0) {
     name,
     type: String(app.type || "kiosk-pwa").trim() || "kiosk-pwa",
     launchUrl,
-    logoUrl: String(app.logoUrl || app.logo_url || "").trim(),
+    launchMode: String(app.launchMode || app.launch_mode || "new-window").trim() || "new-window",
+    logoUrl: String(app.logoUrl || app.logo_url || app.iconUrl || app.imageUrl || app.logo || "").trim(),
     description: String(app.description || "").trim(),
     isActive: app.isActive !== false,
     sortOrder: Number(app.sortOrder || index),
@@ -35,13 +47,27 @@ export function normalizeTestingApp(app = {}, index = 0) {
 
 export function launchKioskTarget(app) {
   const launchUrl = String(app?.launchUrl || "").trim();
+  const launchMode = String(app?.launchMode || "").trim();
 
   if (!launchUrl) {
     throw new Error("Testing app launch URL is missing.");
   }
 
+  if (launchMode === "new-window") {
+    const opened = window.open(launchUrl, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      window.location.assign(launchUrl);
+    }
+    return;
+  }
+
+  if (launchMode === "replace") {
+    window.location.replace(launchUrl);
+    return;
+  }
+
   try {
-    window.location.href = launchUrl;
+    window.location.assign(launchUrl);
   } catch (error) {
     window.open(launchUrl, "_blank", "noopener,noreferrer");
   }

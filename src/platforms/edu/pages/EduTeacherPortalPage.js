@@ -73,6 +73,7 @@ export default function EduTeacherPortalPage() {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [pinDraft, setPinDraft] = useState("");
   const [appDraft, setAppDraft] = useState(EMPTY_APP);
+  const [showAppForm, setShowAppForm] = useState(false);
   const [groupDraft, setGroupDraft] = useState(EMPTY_GROUP);
 
   async function reload() {
@@ -173,12 +174,16 @@ export default function EduTeacherPortalPage() {
     setError("");
     setNotice("");
     try {
-      const savedApp = await saveEduTeacherDeviceApp(appDraft);
+      const savedApp = await saveEduTeacherDeviceApp({
+        ...appDraft,
+        color: appDraft.color || workspace?.account?.brandColor || workspace?.account?.brand_color || "#2563eb",
+      });
       setAppDraft(EMPTY_APP);
-      setNotice(`${savedApp.name} saved to the student App Store.`);
+      setShowAppForm(false);
+      setNotice(`${savedApp.name} saved to the Student App Store.`);
       await reload();
     } catch (appError) {
-      setError(appError?.message || "Could not save App Store website.");
+      setError(appError?.message || "Could not save Student App Store website.");
     } finally {
       setSaving("");
     }
@@ -190,14 +195,42 @@ export default function EduTeacherPortalPage() {
     setNotice("");
     try {
       await deleteEduTeacherDeviceApp(app.id);
-      if (appDraft.id === app.id) setAppDraft(EMPTY_APP);
-      setNotice(`${app.name} removed from the student App Store.`);
+      if (appDraft.id === app.id) {
+        setAppDraft(EMPTY_APP);
+        setShowAppForm(false);
+      }
+      setNotice(`${app.name} removed from the Student App Store.`);
       await reload();
     } catch (appError) {
-      setError(appError?.message || "Could not delete App Store website.");
+      setError(appError?.message || "Could not delete Student App Store website.");
     } finally {
       setSaving("");
     }
+  }
+
+  function handleAddApp() {
+    setAppDraft({
+      ...EMPTY_APP,
+      color: workspace?.account?.brandColor || workspace?.account?.brand_color || EMPTY_APP.color,
+      sortOrder: apps.length,
+    });
+    setShowAppForm(true);
+  }
+
+  function handleEditApp(app) {
+    setAppDraft({
+      ...EMPTY_APP,
+      ...app,
+      color: app.color || workspace?.account?.brandColor || workspace?.account?.brand_color || EMPTY_APP.color,
+      isActive: app.isActive !== false,
+    });
+    setShowAppForm(true);
+    setActiveSection("apps");
+  }
+
+  function handleCancelAppEdit() {
+    setAppDraft(EMPTY_APP);
+    setShowAppForm(false);
   }
 
   async function handleAddStudent(student) {
@@ -292,9 +325,77 @@ export default function EduTeacherPortalPage() {
     );
   }
 
+  const appForm = (
+    <form style={styles.modalPanel} onSubmit={handleSaveApp}>
+      <div style={styles.panelHeader}>
+        <h2 style={styles.panelTitle}>{appDraft.id ? "Edit Student App" : "Add Student App"}</h2>
+        <button style={styles.iconButton} type="button" onClick={handleCancelAppEdit} title="Close">
+          <X size={17} />
+        </button>
+      </div>
+      <div style={styles.formGrid}>
+        <label style={styles.label}>
+          Name
+          <input
+            style={styles.input}
+            value={appDraft.name}
+            onChange={(event) => setAppDraft((current) => ({ ...current, name: event.target.value }))}
+            placeholder="IXL"
+          />
+        </label>
+        <label style={styles.label}>
+          Website Link
+          <input
+            style={styles.input}
+            value={appDraft.url}
+            onChange={(event) => setAppDraft((current) => ({ ...current, url: event.target.value }))}
+            placeholder="https://www.example.com"
+          />
+        </label>
+        <label style={styles.label}>
+          Logo Link
+          <input
+            style={styles.input}
+            value={appDraft.logoUrl}
+            onChange={(event) => setAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
+            placeholder="https://..."
+          />
+        </label>
+        <label style={{ ...styles.checkboxLabel, alignSelf: "end" }}>
+          <input
+            type="checkbox"
+            checked={appDraft.isActive !== false}
+            onChange={(event) => setAppDraft((current) => ({ ...current, isActive: event.target.checked }))}
+          />
+          Active in Student App Store
+        </label>
+      </div>
+      <div style={styles.actionGroup}>
+        {appDraft.id ? (
+          <button
+            style={styles.dangerWideButton}
+            type="button"
+            disabled={saving === `app:${appDraft.id}`}
+            onClick={() => handleDeleteApp(appDraft)}
+          >
+            <Trash2 size={17} />
+            Delete
+          </button>
+        ) : null}
+        <button style={styles.secondaryButton} type="button" onClick={handleCancelAppEdit}>
+          Cancel
+        </button>
+        <button style={styles.primaryButton} disabled={saving === "app"} type="submit">
+          <Save size={16} />
+          {appDraft.id ? "Update App" : "Add App"}
+        </button>
+      </div>
+    </form>
+  );
+
   const navItems = [
     { id: "summary", label: "Overview", icon: LayoutDashboard },
-    { id: "apps", label: "App Store", icon: AppWindow },
+    { id: "apps", label: "Student App Store", icon: AppWindow },
     { id: "students", label: "Students", icon: Users },
     { id: "groups", label: "Class Groups", icon: GraduationCap },
     { id: "devices", label: "Devices", icon: Monitor },
@@ -353,7 +454,7 @@ export default function EduTeacherPortalPage() {
               </div>
               <div style={styles.summaryTile}>
                 <AppWindow size={20} />
-                <span style={styles.summaryLabel}>App Store</span>
+                <span style={styles.summaryLabel}>Student App Store</span>
                 <strong style={styles.summaryValue}>{apps.length}</strong>
               </div>
               <div style={styles.summaryTile}>
@@ -370,67 +471,26 @@ export default function EduTeacherPortalPage() {
           ) : null}
 
           {activeSection === "apps" ? (
-            <form style={styles.panel} onSubmit={handleSaveApp}>
+            <section style={styles.panel}>
               <div style={styles.panelHeader}>
-                <h2 style={styles.panelTitle}>App Store Websites</h2>
-                <button style={styles.primaryButton} disabled={saving === "app"} type="submit">
-                  <Save size={16} />
-                  Save
+                <h2 style={styles.panelTitle}>Student App Store</h2>
+                <button style={styles.primaryButton} type="button" onClick={handleAddApp}>
+                  <Plus size={16} />
+                  Add
                 </button>
               </div>
-              <div style={styles.formGrid}>
-                <label style={styles.label}>
-                  Name
-                  <input
-                    style={styles.input}
-                    value={appDraft.name}
-                    onChange={(event) => setAppDraft((current) => ({ ...current, name: event.target.value }))}
-                    placeholder="IXL"
-                  />
-                </label>
-                <label style={styles.label}>
-                  Website Link
-                  <input
-                    style={styles.input}
-                    value={appDraft.url}
-                    onChange={(event) => setAppDraft((current) => ({ ...current, url: event.target.value }))}
-                    placeholder="https://www.example.com"
-                  />
-                </label>
-                <label style={styles.label}>
-                  Logo Link
-                  <input
-                    style={styles.input}
-                    value={appDraft.logoUrl}
-                    onChange={(event) => setAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
-                    placeholder="https://..."
-                  />
-                </label>
-                <label style={styles.label}>
-                  Color
-                  <input
-                    style={{ ...styles.input, ...styles.colorInput }}
-                    type="color"
-                    value={appDraft.color}
-                    onChange={(event) => setAppDraft((current) => ({ ...current, color: event.target.value }))}
-                  />
-                </label>
-              </div>
-              <div style={styles.list}>
+              <div style={styles.appStoreGrid}>
                 {apps.map((app) => (
-                  <div key={app.id} style={styles.row}>
-                    <div style={{ ...styles.appMark, background: app.color }}>
-                      {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
-                    </div>
-                    <div style={styles.rowMain}>
+                  <div key={app.id} style={styles.appStoreTileWrap}>
+                    <button style={styles.appStoreTile} type="button" onClick={() => handleEditApp(app)}>
+                      <span style={{ ...styles.studentAppIcon, background: app.color || "var(--color-primary)" }}>
+                        {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
+                      </span>
                       <strong>{app.name}</strong>
-                      <span style={styles.rowSub}>{app.url}</span>
-                    </div>
-                    <button style={styles.iconButton} type="button" onClick={() => setAppDraft(app)} title="Edit">
-                      <Pencil size={17} />
+                      <span>{app.url}</span>
                     </button>
                     <button
-                      style={styles.dangerButton}
+                      style={styles.tileDeleteButton}
                       type="button"
                       disabled={saving === `app:${app.id}`}
                       onClick={() => handleDeleteApp(app)}
@@ -440,9 +500,9 @@ export default function EduTeacherPortalPage() {
                     </button>
                   </div>
                 ))}
-                {apps.length === 0 ? <div style={styles.muted}>No App Store websites yet.</div> : null}
+                {apps.length === 0 ? <div style={styles.muted}>No Student App Store websites yet.</div> : null}
               </div>
-            </form>
+            </section>
           ) : null}
 
           {activeSection === "students" ? (
@@ -703,6 +763,13 @@ export default function EduTeacherPortalPage() {
           ) : null}
         </section>
       </div>
+      {showAppForm ? (
+        <div style={styles.modalOverlay} role="presentation" onMouseDown={handleCancelAppEdit}>
+          <div role="dialog" aria-modal="true" aria-label="Student app form" onMouseDown={(event) => event.stopPropagation()}>
+            {appForm}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -822,6 +889,18 @@ const styles = {
     boxShadow: "0 16px 42px rgba(15,23,42,0.12)",
     padding: 16,
   },
+  modalPanel: {
+    background: "rgba(255,255,255,0.86)",
+    backdropFilter: "blur(18px) saturate(1.12)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.12)",
+    border: "1px solid rgba(255,255,255,0.64)",
+    borderRadius: 22,
+    boxShadow: "0 24px 70px rgba(15,23,42,0.22)",
+    maxHeight: "min(680px, calc(100vh - 48px))",
+    overflow: "auto",
+    padding: 16,
+    width: "min(720px, calc(100vw - 28px))",
+  },
   panelHeader: {
     alignItems: "center",
     display: "flex",
@@ -874,12 +953,34 @@ const styles = {
     width: "100%",
   },
   colorInput: { padding: 4 },
+  checkboxLabel: {
+    alignItems: "center",
+    color: "#475569",
+    display: "flex",
+    fontSize: 13,
+    fontWeight: 800,
+    gap: 8,
+    minHeight: 42,
+  },
   primaryButton: {
     alignItems: "center",
     background: "var(--color-primary)",
     border: "1px solid var(--color-primary)",
     borderRadius: 14,
     color: "#fff",
+    cursor: "pointer",
+    display: "inline-flex",
+    fontWeight: 800,
+    gap: 8,
+    minHeight: 38,
+    padding: "0 13px",
+  },
+  secondaryButton: {
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.12)",
+    borderRadius: 14,
+    color: "var(--color-primary-dark)",
     cursor: "pointer",
     display: "inline-flex",
     fontWeight: 800,
@@ -943,6 +1044,60 @@ const styles = {
     gridTemplateColumns: "42px minmax(0, 1fr) auto auto",
     minWidth: 0,
     padding: 10,
+  },
+  appStoreGrid: {
+    display: "grid",
+    gap: 14,
+    gridTemplateColumns: "repeat(auto-fill, minmax(118px, 1fr))",
+  },
+  appStoreTileWrap: {
+    minWidth: 0,
+    position: "relative",
+  },
+  appStoreTile: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 18,
+    color: "#0f172a",
+    cursor: "pointer",
+    display: "grid",
+    font: "inherit",
+    gap: 8,
+    justifyItems: "center",
+    minHeight: 148,
+    minWidth: 0,
+    padding: "14px 10px",
+    textAlign: "center",
+    width: "100%",
+  },
+  studentAppIcon: {
+    alignItems: "center",
+    borderRadius: 24,
+    boxShadow: "0 14px 28px rgba(15,23,42,0.14)",
+    color: "#fff",
+    display: "flex",
+    fontSize: 28,
+    fontWeight: 900,
+    height: 72,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 72,
+  },
+  tileDeleteButton: {
+    alignItems: "center",
+    background: "#fff1f2",
+    border: "1px solid #fecdd3",
+    borderRadius: 13,
+    color: "#be123c",
+    cursor: "pointer",
+    display: "inline-flex",
+    justifyContent: "center",
+    minHeight: 34,
+    minWidth: 34,
+    position: "absolute",
+    right: 8,
+    top: 8,
   },
   rowMain: { display: "grid", gap: 3, minWidth: 0 },
   rowSub: { color: "#64748b", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
@@ -1088,5 +1243,17 @@ const styles = {
     color: "#15803d",
     marginBottom: 12,
     padding: 12,
+  },
+  modalOverlay: {
+    alignItems: "center",
+    background: "rgba(15,23,42,0.28)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    display: "flex",
+    inset: 0,
+    justifyContent: "center",
+    padding: 14,
+    position: "fixed",
+    zIndex: 200,
   },
 };

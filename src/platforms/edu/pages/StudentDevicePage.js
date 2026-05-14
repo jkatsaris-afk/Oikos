@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   FlaskConical,
@@ -33,6 +33,9 @@ import {
 
 const COLORS = ["#2563eb", "#0f766e", "#e86a1f", "#7c3aed", "#be123c", "#334155"];
 const DESKTOP_SLOT_COUNT = 48;
+const DESKTOP_SLOT_WIDTH = 112;
+const DESKTOP_SLOT_HEIGHT = 130;
+const DESKTOP_SLOT_GAP = 18;
 const SETTINGS_TABS = [
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "pin", label: "PIN", icon: KeyRound },
@@ -144,8 +147,29 @@ function mergeLoginBackground(primary = {}, fallback = {}, deviceBackground = {}
   };
 }
 
+function normalizeTestingApps(apps = []) {
+  if (!Array.isArray(apps)) return [];
+  return apps
+    .map((app, index) => ({
+      ...app,
+      id: String(app.id || app.name || `testing-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+      name: String(app.name || "").trim(),
+      launchUrl: String(app.launchUrl || app.url || "").trim(),
+      logoUrl: String(app.logoUrl || app.logo_url || app.iconUrl || app.imageUrl || app.logo || "").trim(),
+      sortOrder: Number(app.sortOrder || index),
+      isActive: app.isActive !== false,
+    }))
+    .filter((app) => app.name && app.launchUrl);
+}
+
+function hasTestingAppLogos(apps = []) {
+  return normalizeTestingApps(apps).some((app) => app.logoUrl);
+}
+
 function mergeAccountForStudentDevice(primary = {}, fallback = {}) {
   const deviceBackground = mergeDeviceBackground(primary?.deviceBackground, fallback?.deviceBackground);
+  const primaryTestingApps = normalizeTestingApps(primary?.testingApps);
+  const fallbackTestingApps = normalizeTestingApps(fallback?.testingApps);
   return {
     ...(fallback || {}),
     ...(primary || {}),
@@ -160,6 +184,9 @@ function mergeAccountForStudentDevice(primary = {}, fallback = {}) {
       : Array.isArray(fallback?.deviceDockAppIds)
         ? fallback.deviceDockAppIds
         : [],
+    testingApps: hasTestingAppLogos(primaryTestingApps) || fallbackTestingApps.length === 0
+      ? primaryTestingApps
+      : fallbackTestingApps,
   };
 }
 
@@ -231,6 +258,15 @@ function getNetworkInfo() {
   };
 }
 
+function getAdaptiveDesktopSlotCount() {
+  if (typeof window === "undefined") return DESKTOP_SLOT_COUNT;
+  const usableWidth = Math.max(320, window.innerWidth - 40);
+  const usableHeight = Math.max(260, window.innerHeight - 206);
+  const columns = Math.max(1, Math.floor((usableWidth + DESKTOP_SLOT_GAP) / (DESKTOP_SLOT_WIDTH + DESKTOP_SLOT_GAP)));
+  const rows = Math.max(1, Math.floor((usableHeight + DESKTOP_SLOT_GAP) / (DESKTOP_SLOT_HEIGHT + DESKTOP_SLOT_GAP)));
+  return Math.max(DESKTOP_SLOT_COUNT, columns * rows);
+}
+
 export default function StudentDevicePage() {
   const { schoolCode: routeSchoolCode = "" } = useParams();
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -250,6 +286,10 @@ export default function StudentDevicePage() {
   const [networkInfo, setNetworkInfo] = useState(getNetworkInfo);
   const [draggedAppId, setDraggedAppId] = useState("");
   const [dragOverAppId, setDragOverAppId] = useState("");
+  const [selectedMoveAppId, setSelectedMoveAppId] = useState("");
+  const [desktopSlotCount, setDesktopSlotCount] = useState(getAdaptiveDesktopSlotCount);
+  const movePressTimerRef = useRef(null);
+  const moveSelectionJustSetRef = useRef(false);
   const [pinDraft, setPinDraft] = useState({
     currentPin: "",
     nextPin: "",
@@ -382,6 +422,20 @@ export default function StudentDevicePage() {
     setThemeColorDraft(themeColor || "#2563eb");
   }, [themeColor]);
 
+  useEffect(() => {
+    function updateDesktopSlots() {
+      setDesktopSlotCount(getAdaptiveDesktopSlotCount());
+    }
+
+    updateDesktopSlots();
+    window.addEventListener("resize", updateDesktopSlots);
+    window.addEventListener("orientationchange", updateDesktopSlots);
+    return () => {
+      window.removeEventListener("resize", updateDesktopSlots);
+      window.removeEventListener("orientationchange", updateDesktopSlots);
+    };
+  }, []);
+
   const appMap = useMemo(() => new Map(apps.map((app) => [app.id, app])), [apps]);
   const globalDockAppIds = Array.isArray(session?.account?.deviceDockAppIds)
     ? session.account.deviceDockAppIds
@@ -394,13 +448,13 @@ export default function StudentDevicePage() {
     .filter(Boolean);
   const desktopSlots = useMemo(() => {
     const layout = normalizeDesktopLayout(installedAppIds);
-    const slotCount = Math.max(DESKTOP_SLOT_COUNT, layout.length + 1);
+    const slotCount = Math.max(DESKTOP_SLOT_COUNT, desktopSlotCount, layout.length + 1);
     return Array.from({ length: slotCount }, (_, index) => ({
       index,
       appId: layout[index] || null,
       app: layout[index] && !globalDockAppIdSet.has(layout[index]) ? appMap.get(layout[index]) || null : null,
     }));
-  }, [appMap, globalDockAppIdSet, installedAppIds]);
+  }, [appMap, desktopSlotCount, globalDockAppIdSet, installedAppIds]);
   const availableApps = apps.filter((app) => !installedAppIdsWithoutHoles.includes(app.id) && !globalDockAppIdSet.has(app.id));
   const dockApps = globalDockAppIds.map((id) => appMap.get(id)).filter(Boolean).slice(0, 3);
   const orgThemeColor = session?.account?.brandColor || enrollment?.account?.brandColor || "#2563eb";
@@ -686,6 +740,44 @@ export default function StudentDevicePage() {
     persistDesktop(nextIds, themeColor);
   }
 
+  function startMoveSelection(appId) {
+    if (!appId) return;
+    setSelectedMoveAppId(appId);
+    moveSelectionJustSetRef.current = true;
+    window.setTimeout(() => {
+      moveSelectionJustSetRef.current = false;
+    }, 250);
+  }
+
+  function clearMovePressTimer() {
+    if (movePressTimerRef.current) {
+      window.clearTimeout(movePressTimerRef.current);
+      movePressTimerRef.current = null;
+    }
+  }
+
+  function handleDesktopAppClick(appId, index) {
+    if (moveSelectionJustSetRef.current) return;
+    if (selectedMoveAppId) {
+      if (selectedMoveAppId === appId) {
+        setSelectedMoveAppId("");
+        openApp(appId);
+        return;
+      }
+      moveInstalledAppToSlot(selectedMoveAppId, index);
+      setSelectedMoveAppId("");
+      return;
+    }
+    openApp(appId);
+  }
+
+  function handleDesktopSpotSelect(index) {
+    if (!selectedMoveAppId) return;
+    moveInstalledAppToSlot(selectedMoveAppId, index);
+    setSelectedMoveAppId("");
+    setDragOverAppId("");
+  }
+
   async function handleChangePin(event) {
     event.preventDefault();
     setError("");
@@ -819,7 +911,18 @@ export default function StudentDevicePage() {
 
       <section style={styles.windowArea}>
         {activeView === "home" ? (
-          <div style={styles.desktopGrid}>
+          <div
+            style={{
+              ...styles.desktopGrid,
+              gridTemplateColumns: `repeat(auto-fill, ${DESKTOP_SLOT_WIDTH}px)`,
+              gridAutoRows: DESKTOP_SLOT_HEIGHT,
+            }}
+          >
+            {selectedMoveAppId ? (
+              <div style={styles.moveHint}>
+                Tap an open spot to place {appMap.get(selectedMoveAppId)?.name || "this app"}.
+              </div>
+            ) : null}
             {desktopSlots.map(({ index, app, appId }) =>
               app ? (
                 <button
@@ -829,10 +932,26 @@ export default function StudentDevicePage() {
                     ...styles.tileButton,
                     ...(dragOverAppId === String(index) && draggedAppId !== app.id ? styles.tileButtonDropTarget : null),
                     ...(draggedAppId === app.id ? styles.tileButtonDragging : null),
+                    ...(selectedMoveAppId === app.id ? styles.tileButtonSelectedMove : null),
                   }}
-                  onClick={() => openApp(app.id)}
+                  onClick={() => handleDesktopAppClick(app.id, index)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    startMoveSelection(app.id);
+                  }}
+                  onPointerDown={() => {
+                    clearMovePressTimer();
+                    movePressTimerRef.current = window.setTimeout(() => {
+                      startMoveSelection(app.id);
+                    }, 520);
+                  }}
+                  onPointerMove={clearMovePressTimer}
+                  onPointerCancel={clearMovePressTimer}
+                  onPointerUp={clearMovePressTimer}
                   onDragStart={(event) => {
+                    clearMovePressTimer();
                     setDraggedAppId(app.id);
+                    setSelectedMoveAppId("");
                     event.dataTransfer.effectAllowed = "move";
                     event.dataTransfer.setData("text/plain", app.id);
                   }}
@@ -865,9 +984,11 @@ export default function StudentDevicePage() {
                   key={`slot-${index}-${appId || "empty"}`}
                   style={{
                     ...styles.desktopDropSlot,
-                    ...(draggedAppId ? styles.desktopDropSlotVisible : null),
+                    ...(draggedAppId || selectedMoveAppId ? styles.desktopDropSlotVisible : null),
                     ...(dragOverAppId === String(index) ? styles.desktopDropSlotActive : null),
+                    ...(selectedMoveAppId ? styles.desktopSelectableSlot : null),
                   }}
+                  onClick={() => handleDesktopSpotSelect(index)}
                   onDragOver={(event) => {
                     event.preventDefault();
                     event.dataTransfer.dropEffect = "move";
@@ -882,7 +1003,7 @@ export default function StudentDevicePage() {
                     setDragOverAppId("");
                   }}
                 >
-                  <span>{draggedAppId ? "Drop here" : ""}</span>
+                  <span>{draggedAppId || selectedMoveAppId ? "Place here" : ""}</span>
                 </div>
               )
             )}
@@ -1302,13 +1423,12 @@ const styles = {
   desktopGrid: {
     alignContent: "start",
     display: "grid",
-    gap: 18,
-    gridAutoRows: 112,
-    gridTemplateColumns: "repeat(auto-fill, minmax(96px, 112px))",
+    gap: DESKTOP_SLOT_GAP,
     height: "100%",
     justifyContent: "start",
     overflow: "auto",
-    padding: 10,
+    padding: "10px 10px 36px",
+    position: "relative",
   },
   tileButton: {
     alignItems: "center",
@@ -1333,6 +1453,11 @@ const styles = {
     boxShadow: "0 0 0 4px rgba(var(--color-primary-rgb), 0.16)",
     transform: "translateY(-2px)",
   },
+  tileButtonSelectedMove: {
+    borderColor: "var(--color-primary)",
+    boxShadow: "0 0 0 5px rgba(var(--color-primary-rgb), 0.22), 0 16px 42px rgba(15,23,42,0.10)",
+    transform: "translateY(-2px)",
+  },
   tileButtonDragging: {
     opacity: 0.54,
   },
@@ -1346,7 +1471,8 @@ const styles = {
     fontSize: 12,
     fontWeight: 900,
     justifyContent: "center",
-    minHeight: 112,
+    cursor: "pointer",
+    minHeight: DESKTOP_SLOT_HEIGHT,
     opacity: 0,
     padding: 10,
     textShadow: "0 1px 8px rgba(15,23,42,0.32)",
@@ -1360,6 +1486,27 @@ const styles = {
     borderColor: "var(--color-primary)",
     boxShadow: "0 0 0 4px rgba(var(--color-primary-rgb), 0.16)",
     transform: "translateY(-2px)",
+  },
+  desktopSelectableSlot: {
+    background: "rgba(255,255,255,0.26)",
+    borderColor: "rgba(255,255,255,0.42)",
+  },
+  moveHint: {
+    alignItems: "center",
+    background: "rgba(15,23,42,0.78)",
+    border: "1px solid rgba(255,255,255,0.18)",
+    borderRadius: 999,
+    color: "#fff",
+    display: "inline-flex",
+    fontSize: 13,
+    fontWeight: 900,
+    left: 10,
+    minHeight: 38,
+    padding: "0 14px",
+    position: "sticky",
+    top: 0,
+    width: "max-content",
+    zIndex: 5,
   },
   tileIcon: {
     alignItems: "center",
