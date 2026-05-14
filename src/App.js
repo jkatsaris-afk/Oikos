@@ -142,6 +142,9 @@ const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
 const TeacherPortalApp = load("./platforms/campus/portals/teacher/TeacherPortalApp");
 const ParentPortalApp = load("./platforms/campus/portals/parent/ParentPortalApp");
 const CampusEnrollmentPublicPage = load("./platforms/campus/pages/CampusEnrollmentPublicPage");
+const EduAdminPage = load("./platforms/edu/pages/EduAdminPage");
+const EduTeacherPortalPage = load("./platforms/edu/pages/EduTeacherPortalPage");
+const StudentDevicePage = load("./platforms/edu/pages/StudentDevicePage");
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
 const SportsDashboard = load("./platforms/sports/pages/SportsDashboardPage");
 const FarmDashboard = load("./platforms/farm/pages/FarmDashboardPage");
@@ -175,6 +178,10 @@ function AppRoutes() {
     path === "/login" ||
     path === "/teacher/login" ||
     path === "/parent/login" ||
+    path === "/studentdevice" ||
+    path.startsWith("/studentdevice/") ||
+    path === "/studentdevices" ||
+    path.startsWith("/studentdevices/") ||
     path === "/signup" ||
     path === "/join" ||
     path.startsWith("/campus/enroll/") ||
@@ -231,6 +238,10 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/teacher/login" element={<TeacherLoginPage />} />
         <Route path="/parent/login" element={<ParentLoginPage />} />
+        <Route path="/studentdevice" element={<StudentDevicePage />} />
+        <Route path="/studentdevice/:schoolCode" element={<StudentDevicePage />} />
+        <Route path="/studentdevices" element={<StudentDevicePage />} />
+        <Route path="/studentdevices/:schoolCode" element={<StudentDevicePage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/join" element={<JoinPage />} />
         <Route path="/campus/enroll/:publicCode" element={<CampusEnrollmentPublicPage />} />
@@ -257,6 +268,8 @@ function AppRoutes() {
               <Route path="/home" element={<DisplayHomeDashboard />} />
               <Route path="/business" element={<DisplayBusinessDashboard />} />
               <Route path="/edu" element={<DisplayEduDashboard />} />
+              <Route path="/edu/admin" element={<EduAdminPage />} />
+              <Route path="/edu/teacher" element={<EduTeacherPortalPage />} />
               <Route path="/nightstand" element={<DisplayNightstandDashboard />} />
 
               <Route path="/church" element={<ChurchDashboard />} />
@@ -275,6 +288,25 @@ function AppRoutes() {
   );
 }
 
+function AppShell() {
+  const location = useLocation();
+
+  return (
+    <Suspense
+      fallback={
+        <GlobalLoadingPage
+          title="Loading Page"
+          detail="Pulling in the next screen and getting everything ready..."
+        />
+      }
+    >
+      <RouteErrorBoundary resetKey={location.pathname}>
+        <AppRoutes />
+      </RouteErrorBoundary>
+    </Suspense>
+  );
+}
+
 // =========================
 // APP
 // =========================
@@ -286,19 +318,7 @@ export default function App() {
         v7_relativeSplatPath: true,
       }}
     >
-      <Suspense
-        fallback={
-          <GlobalLoadingPage
-            title="Loading Page"
-            detail="Pulling in the next screen and getting everything ready..."
-          />
-        }
-      >
-        <RouteErrorBoundary resetKey={window.location.pathname}>
-          <AppRoutes />
-        </RouteErrorBoundary>
-
-      </Suspense>
+      <AppShell />
     </Router>
   );
 }

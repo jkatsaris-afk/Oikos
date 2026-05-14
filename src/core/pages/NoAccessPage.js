@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../auth/useAuth";
 import { modeTheme } from "../../core/theme/modeTheme";
 import { getModeFromPath } from "../../core/utils/getMode";
 import { resolveOriginalPath } from "../../core/utils/modeRouting";
+import { requestPlatformAccess } from "../services/platformAccessRequestService";
 
 // LOGOS
 import DisplayHomeLogo from "../../assets/logos/Display-Home-Logo.png";
@@ -16,6 +19,11 @@ import SportsLogo from "../../assets/logos/Sports-Logo.png";
 export default function NoAccessPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const [schoolName, setSchoolName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
 
   const originalPath = resolveOriginalPath(
     location.state?.from,
@@ -31,6 +39,16 @@ export default function NoAccessPage() {
   );
 
   const primaryColor = modeTheme[mode]?.primary || "#2f6ea3";
+  const platform = originalPath.startsWith("/edu/admin") || originalPath.startsWith("/edu/teacher")
+    ? "edu"
+    : ["church", "admin", "campus", "sports", "pages", "farm"].includes(mode)
+      ? mode
+      : "display";
+  const accessMode = originalPath.startsWith("/edu/teacher")
+    ? "teacher_portal"
+    : platform === "display"
+      ? mode
+      : "default";
 
   const logoMap = {
     home: DisplayHomeLogo,
@@ -44,6 +62,26 @@ export default function NoAccessPage() {
   };
 
   const logo = logoMap[mode] || DisplayHomeLogo;
+
+  async function handleRequestAccess(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setNotice("");
+    setError("");
+
+    try {
+      await requestPlatformAccess({
+        platform,
+        mode: accessMode,
+        schoolName,
+      });
+      setNotice("Request sent. Main admin can review it in Global Users.");
+    } catch (requestError) {
+      setError(requestError?.message || "Could not send access request.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div style={{ ...pageStyle, background: `${primaryColor}12` }}>
@@ -61,19 +99,33 @@ export default function NoAccessPage() {
         </p>
 
         <div style={{ ...noticeStyle, borderLeft: `4px solid ${primaryColor}` }}>
-          Access was denied for <strong>{mode}</strong>.
+          Access was denied for <strong>{platform}</strong>.
         </div>
 
-        <button
-          style={{ ...buttonStyle, background: primaryColor }}
-          onClick={() =>
-            navigate("/login", {
-              state: { from: originalPath },
-            })
-          }
-        >
-          Back to Login
-        </button>
+        {user ? (
+          <form onSubmit={handleRequestAccess} style={formStyle}>
+            <label style={labelStyle}>
+              School Name
+              <input
+                style={inputStyle}
+                value={schoolName}
+                onChange={(event) => setSchoolName(event.target.value)}
+                placeholder="Your school or organization"
+              />
+            </label>
+
+            {notice ? <div style={successStyle}>{notice}</div> : null}
+            {error ? <div style={errorStyle}>{error}</div> : null}
+
+            <button
+              style={{ ...buttonStyle, background: primaryColor }}
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting ? "Sending..." : "Request Access"}
+            </button>
+          </form>
+        ) : null}
 
         <button
           style={{
@@ -82,12 +134,12 @@ export default function NoAccessPage() {
             borderColor: primaryColor,
           }}
           onClick={() =>
-            navigate("/signup", {
+            navigate("/login", {
               state: { from: originalPath },
             })
           }
         >
-          Request Access
+          Back to Login
         </button>
 
       </div>
@@ -141,6 +193,49 @@ const noticeStyle = {
   borderRadius: "8px",
   color: "#475569",
   fontSize: "13px",
+};
+
+const formStyle = {
+  display: "grid",
+  gap: "10px",
+  marginBottom: "12px",
+  textAlign: "left",
+};
+
+const labelStyle = {
+  color: "#475569",
+  display: "grid",
+  fontSize: "13px",
+  fontWeight: "700",
+  gap: "6px",
+};
+
+const inputStyle = {
+  border: "1px solid #cbd5e1",
+  borderRadius: "8px",
+  boxSizing: "border-box",
+  font: "inherit",
+  minHeight: "42px",
+  padding: "9px 10px",
+  width: "100%",
+};
+
+const successStyle = {
+  background: "#ecfdf5",
+  border: "1px solid #bbf7d0",
+  borderRadius: "8px",
+  color: "#166534",
+  fontSize: "13px",
+  padding: "10px",
+};
+
+const errorStyle = {
+  background: "#fff1f2",
+  border: "1px solid #fecdd3",
+  borderRadius: "8px",
+  color: "#be123c",
+  fontSize: "13px",
+  padding: "10px",
 };
 
 const buttonStyle = {

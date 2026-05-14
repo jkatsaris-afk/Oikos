@@ -14,6 +14,7 @@ export default function RequireAuth({ children }) {
   const [checked, setChecked] = useState(false);
 
   const path = location.pathname;
+  const userId = user?.id || "";
 
   useEffect(() => {
     if (
@@ -45,10 +46,10 @@ export default function RequireAuth({ children }) {
   // ACCESS CHECK
   // =========================
   useEffect(() => {
-    if (loading || !user || !profileReady) {
+    if (loading || !userId || !profileReady) {
       console.log("Waiting for auth readiness", {
         loading,
-        user,
+        userId,
         profileReady,
       });
       return;
@@ -77,7 +78,13 @@ export default function RequireAuth({ children }) {
         let platform = "display";
         let mode = detectedMode;
 
-        if (
+        if (path.startsWith("/edu/teacher")) {
+          platform = "edu";
+          mode = "teacher_portal";
+        } else if (path.startsWith("/edu/admin")) {
+          platform = "edu";
+          mode = "default";
+        } else if (
           ["church", "admin", "campus", "sports", "pages", "farm"].includes(
             detectedMode
           )
@@ -91,7 +98,7 @@ export default function RequireAuth({ children }) {
           detectedMode,
           platform,
           mode,
-          user: user.id,
+          user: userId,
         });
 
         const start = Date.now();
@@ -99,7 +106,7 @@ export default function RequireAuth({ children }) {
         const { data, error } = await supabase
           .from("user_access")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .eq("platform", platform)
           .eq("mode", mode)
           .limit(1);
@@ -112,16 +119,16 @@ export default function RequireAuth({ children }) {
         if (error) {
           setHasAccess(false);
         } else if (!data || data.length === 0) {
-          if (platform === "campus" && mode === "default") {
+          if ((platform === "campus" || platform === "edu") && mode === "default") {
             try {
-              const orgAccess = await fetchOrganizationAccess(user.id, "campus");
+              const orgAccess = await fetchOrganizationAccess(userId, platform);
               const hasCampusOrgAccess =
                 Boolean(orgAccess?.account?.id) &&
                 (orgAccess?.isOwner === true ||
                   String(orgAccess?.membership?.status || "").toLowerCase() === "active");
 
               console.log("RequireAuth:campus-org-fallback", {
-                userId: user.id,
+                userId,
                 orgAccess,
                 hasCampusOrgAccess,
               });
@@ -150,7 +157,7 @@ export default function RequireAuth({ children }) {
     setChecked(false);
     checkAccess();
 
-  }, [user, profile, profileReady, loading, path]);
+  }, [userId, profile?.is_approved, profileReady, loading, path]);
 
   // =========================
   // RENDER STATES

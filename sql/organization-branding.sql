@@ -111,7 +111,7 @@ begin
   where a.id = account_uuid
   limit 1;
 
-  if account_type in ('campus', 'church', 'sports', 'pages', 'farm', 'admin') then
+  if account_type in ('campus', 'church', 'sports', 'pages', 'farm', 'admin', 'edu') then
     update public.user_access
     set has_access = true
     where

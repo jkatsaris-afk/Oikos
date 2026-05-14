@@ -13,6 +13,7 @@ export default function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    let activeUserId = null;
 
     async function loadProfile(userId) {
       if (!mounted) return;
@@ -109,6 +110,7 @@ export default function AuthProvider({ children }) {
       }
 
       const currentUser = data?.session?.user || null;
+      activeUserId = currentUser?.id || null;
       console.log("AuthProvider:getSession:resolved", {
         userId: currentUser?.id || null,
         email: currentUser?.email || null,
@@ -130,11 +132,25 @@ export default function AuthProvider({ children }) {
         if (!mounted) return;
 
         const user = session?.user || null;
+        const previousUserId = activeUserId;
+        const nextUserId = user?.id || null;
+        activeUserId = nextUserId;
+
         console.log("AuthProvider:onAuthStateChange", {
           event,
           userId: user?.id || null,
           email: user?.email || null,
         });
+
+        if (
+          user &&
+          previousUserId === user.id &&
+          ["INITIAL_SESSION", "SIGNED_IN", "TOKEN_REFRESHED"].includes(event)
+        ) {
+          setLoading(false);
+          return;
+        }
+
         setUser(user);
         setLoading(false);
 

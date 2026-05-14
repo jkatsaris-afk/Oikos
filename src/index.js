@@ -18,3 +18,11 @@ root.render(
     </AuthProvider>
   </React.StrictMode>
 );
+
+if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch((error) => {
+      console.warn("Oikos service worker registration failed:", error);
+    });
+  });
+}

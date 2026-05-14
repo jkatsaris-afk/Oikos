@@ -40,6 +40,25 @@ function buildPlatformSettings(title, integrationsComponent = null) {
   );
 }
 
+function buildSimpleOrganizationSettings() {
+  return (
+    <SettingsLayout
+      sections={[
+        {
+          key: "organization",
+          label: "Organization",
+          component: <OrganizationAccessPanel />,
+        },
+        {
+          key: "profile",
+          label: "Profile",
+          component: <ProfileSettingsPanel />,
+        },
+      ]}
+    />
+  );
+}
+
 /* =========================
    MODE SETTINGS LOADER
 ========================= */
@@ -48,9 +67,11 @@ export function getModeSettings(mode) {
   switch (mode) {
     case "home":
     case "business":
-    case "edu":
     case "nightstand":
       return <DisplaySettings />;
+
+    case "edu":
+      return buildSimpleOrganizationSettings();
 
     case "church":
       return buildPlatformSettings("Church");

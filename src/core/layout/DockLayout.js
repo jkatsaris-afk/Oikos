@@ -3,7 +3,7 @@ import {
   Grid,
   MoreHorizontal
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import TileStorePage from "../../store/pages/TileStorePage";
 import { tileRegistry } from "../tiles/tileRegistry";
@@ -32,8 +32,7 @@ function getTileStyle(design, isActive) {
 export default function DockLayout({ children }) {
 
   const location = useLocation();
-
-  console.log("🚨 DOCK LAYOUT MOUNTED:", location.pathname);
+  const dockless = location.pathname.startsWith("/edu/admin");
 
   const [activeTile, setActiveTile] = useState("home");
   const [showOverflow, setShowOverflow] = useState(false);
@@ -44,22 +43,26 @@ export default function DockLayout({ children }) {
   // =========================
   // 🔥 USER TILES
   // =========================
-  const installedTiles = userVisibleTiles
-    .filter(t => t.id !== "home" && t.id !== "store")
-    .map(t => {
-      const registryTile = tileRegistry[t.id];
+  const installedTiles = useMemo(
+    () =>
+      userVisibleTiles
+        .filter(t => t.id !== "home" && t.id !== "store")
+        .map(t => {
+          const registryTile = tileRegistry[t.id];
 
-      if (!registryTile) {
-        console.warn("Missing tile in registry:", t.id);
-        return null;
-      }
+          if (!registryTile) {
+            console.warn("Missing tile in registry:", t.id);
+            return null;
+          }
 
-      return {
-        ...t,
-        ...registryTile,
-      };
-    })
-    .filter(Boolean);
+          return {
+            ...t,
+            ...registryTile,
+          };
+        })
+        .filter(Boolean),
+    [userVisibleTiles]
+  );
 
   useEffect(() => {
     if (
@@ -72,9 +75,13 @@ export default function DockLayout({ children }) {
   }, [activeTile, installedTiles]);
 
   useEffect(() => {
-    setOpenedTileIds((current) =>
-      current.filter((tileId) => tileId === "store" || installedTiles.some((tile) => tile.id === tileId))
-    );
+    setOpenedTileIds((current) => {
+      const next = current.filter((tileId) => tileId === "store" || installedTiles.some((tile) => tile.id === tileId));
+      if (next.length === current.length && next.every((tileId, index) => tileId === current[index])) {
+        return current;
+      }
+      return next;
+    });
   }, [installedTiles]);
 
   // =========================
@@ -127,7 +134,7 @@ export default function DockLayout({ children }) {
       {/* =========================
           🔥 CONTENT
       ========================= */}
-      <div className="content-area">
+      <div className="content-area" style={dockless ? { paddingBottom: 24 } : null}>
 
         <div style={{ display: activeTile === "home" ? "block" : "none", height: "100%" }}>
           {children}
@@ -170,7 +177,7 @@ export default function DockLayout({ children }) {
       {/* =========================
           🔥 OVERFLOW PANEL
       ========================= */}
-      {showOverflow && (
+      {!dockless && showOverflow && (
         <div
           className="overflow-backdrop"
           onClick={() => setShowOverflow(false)}
@@ -212,6 +219,7 @@ export default function DockLayout({ children }) {
       {/* =========================
           🔥 DOCK
       ========================= */}
+      {!dockless && (
       <div className="nav-wrap">
 
         {/* HOME */}
@@ -266,6 +274,7 @@ export default function DockLayout({ children }) {
         ))}
 
       </div>
+      )}
 
     </div>
     </DockNavigationProvider>

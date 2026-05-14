@@ -1,20 +1,33 @@
 {
-  "short_name": "Oikos",
-  "name": "Oikos OS Platform",
+  "short_name": "Oikos Edu",
+  "name": "Oikos Edu Student Device",
   "icons": [
     {
-      "src": "logo192.png",
-      "type": "image/png",
-      "sizes": "192x192"
+      "src": "oikos-edu-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
     },
     {
-      "src": "logo512.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "src": "favicon.ico",
+      "type": "image/x-icon",
+      "sizes": "16x16 32x32 48x48"
     }
   ],
-  "start_url": ".",
+  "start_url": "/studentdevice",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#4A4A4A",
-  "background_color": "#ffffff"
+  "orientation": "landscape-primary",
+  "theme_color": "#2563eb",
+  "background_color": "#0f172a",
+  "shortcuts": [
+    {
+      "name": "Student Device",
+      "url": "/studentdevice"
+    },
+    {
+      "name": "Edu Admin",
+      "url": "/edu/admin"
+    }
+  ]
 }

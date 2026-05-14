@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { getModeConfig } from "../theme/modeConfig";
 import { supabase } from "../../auth/supabaseClient";
 import { getModeFromPath } from "../utils/getMode";
+import oikosEduLogo from "../../assets/logos/Oikos_EDU_logo.png";
 
 /* 🔥 ADD THESE */
 import SettingsModal from "../settings/SettingsModal";
@@ -26,18 +27,22 @@ export default function GlobalHeader() {
   const [openSettings, setOpenSettings] = useState(false);
 
   const mode = getModeFromPath(location.pathname, hostname);
+  const isEduAdmin = location.pathname.startsWith("/edu/admin");
 
   const modeData = getModeConfig(mode);
+  const headerLogo = isEduAdmin ? oikosEduLogo : modeData.logo;
+  const headerLogoAlt = isEduAdmin ? "Oikos EDU" : modeData.label;
 
   /* =========================
      DISPLAY / TV CHECK
   ========================= */
   const isDisplayMode =
-    mode === "home" ||
-    mode === "business" ||
-    mode === "edu" ||
-    mode === "nightstand" ||
-    mode === "tv";
+    !isEduAdmin &&
+    (mode === "home" ||
+      mode === "business" ||
+      mode === "edu" ||
+      mode === "nightstand" ||
+      mode === "tv");
 
   /* =========================
      CLOCK
@@ -90,8 +95,8 @@ export default function GlobalHeader() {
         ========================= */}
         <div style={styles.left}>
           <img
-            src={modeData.logo}
-            alt={modeData.label}
+            src={headerLogo}
+            alt={headerLogoAlt}
             style={styles.logo}
           />
         </div>

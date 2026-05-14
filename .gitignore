@@ -14,3 +14,12 @@ sql/
 *.log
 .DS_Store
 **/Thumbs.db
+
+# Local Chrome Web Store publishing artifacts
+chrome-extension/
+docs/edu-chrome-policy-setup.md
+chrome-extension/oikos-student-guard.zip
+chrome-extension/oikos-student-guard 2/
+chrome-extension/oikos-student-guard/PUBLISHING.md
+chrome-extension/oikos-student-guard/STORE_LISTING.md
+chrome-extension/oikos-student-guard/PRIVACY_POLICY_TEMPLATE.md
