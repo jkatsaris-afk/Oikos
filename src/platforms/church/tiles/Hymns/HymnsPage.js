@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../../../auth/useAuth";
-import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
+import PanelLoadingState from "../../../../core/components/PanelLoadingState";
+import useResponsive from "../../../../core/hooks/useResponsive";
 import {
   addHymnToService,
   loadChurchHymns,
@@ -12,6 +13,7 @@ import { quickLiveChurchHymn } from "../../services/liveDisplayService";
 
 export default function HymnsPage() {
   const { user } = useAuth();
+  const { isPhone } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [editingId, setEditingId] = useState("");
@@ -157,7 +159,7 @@ export default function HymnsPage() {
 
   if (loading) {
     return (
-      <GlobalLoadingPage
+      <PanelLoadingState
         title="Loading Hymns"
         detail="Reading your church hymn library and preparing search..."
       />
@@ -166,7 +168,7 @@ export default function HymnsPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.hero}>
+      <div style={{ ...styles.hero, ...(isPhone ? styles.heroPhone : {}) }}>
         <div>
           <div style={styles.title}>Hymn Library</div>
           <div style={styles.meta}>
@@ -211,7 +213,7 @@ export default function HymnsPage() {
           </div>
         </div>
       ) : (
-        <div style={styles.resultsLayout}>
+        <div style={{ ...styles.resultsLayout, ...(isPhone ? styles.resultsLayoutPhone : {}) }}>
           <div style={styles.groupList}>
             {groupedHymns.map(([groupLabel, groupItems]) => (
               <div key={groupLabel} style={styles.groupSection}>
@@ -222,7 +224,7 @@ export default function HymnsPage() {
                   </div>
                 </div>
 
-                <div style={styles.grid}>
+                <div style={{ ...styles.grid, ...(isPhone ? styles.gridPhone : {}) }}>
                   {groupItems.map((hymn) => (
                     <button
                       key={hymn.id}
@@ -233,7 +235,7 @@ export default function HymnsPage() {
                       }}
                       onClick={() => setSelectedHymnId(hymn.id)}
                     >
-                      <div style={styles.cardHeader}>
+                      <div style={{ ...styles.cardHeader, ...(isPhone ? styles.cardHeaderPhone : {}) }}>
                         <div>
                           <div style={styles.songNumber}>#{hymn.songNumber || "?"}</div>
                           <div style={styles.songTitle}>{hymn.title || "Untitled hymn"}</div>
@@ -257,7 +259,7 @@ export default function HymnsPage() {
 
           {selectedHymn ? (
             <div style={styles.detailCard}>
-              <div style={styles.cardHeader}>
+              <div style={{ ...styles.cardHeader, ...(isPhone ? styles.cardHeaderPhone : {}) }}>
                 <div>
                   <div style={styles.songNumber}>#{selectedHymn.songNumber || "?"}</div>
                   <div style={styles.songTitle}>{selectedHymn.title || "Untitled hymn"}</div>
@@ -328,7 +330,7 @@ export default function HymnsPage() {
                 )}
               </div>
 
-              <div style={styles.actionRow}>
+              <div style={{ ...styles.actionRow, ...(isPhone ? styles.actionRowPhone : {}) }}>
                 <button
                   type="button"
                   style={styles.quickLiveButton}
@@ -366,6 +368,10 @@ const styles = {
     display: "flex",
     gap: 14,
     justifyContent: "space-between",
+  },
+  heroPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
   },
   title: {
     color: "#0f172a",
@@ -451,11 +457,17 @@ const styles = {
     gap: 14,
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
   },
+  gridPhone: {
+    gridTemplateColumns: "1fr",
+  },
   resultsLayout: {
     alignItems: "start",
     display: "grid",
     gap: 16,
     gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 420px)",
+  },
+  resultsLayoutPhone: {
+    gridTemplateColumns: "1fr",
   },
   groupList: {
     display: "flex",
@@ -514,6 +526,10 @@ const styles = {
     display: "flex",
     gap: 12,
     justifyContent: "space-between",
+  },
+  cardHeaderPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
   },
   songNumber: {
     color: "#4f7c74",
@@ -588,6 +604,9 @@ const styles = {
   actionRow: {
     display: "flex",
     gap: 10,
+  },
+  actionRowPhone: {
+    flexDirection: "column",
   },
   smallActionButton: {
     background: "#4f7c74",

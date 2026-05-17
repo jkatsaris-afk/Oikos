@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CalendarPlus, Eye, EyeOff, Trash2 } from "lucide-react";
 
 import { useAuth } from "../../../../auth/useAuth";
+import useResponsive from "../../../../core/hooks/useResponsive";
 import {
   createChurchEvent,
   deleteChurchEvent,
@@ -29,6 +30,7 @@ function createEvent() {
 
 export default function EventsPage() {
   const { user } = useAuth();
+  const { isPhone } = useResponsive();
   const [events, setEvents] = useState(getChurchEvents());
   const [draft, setDraft] = useState(createEvent());
   const [isSaving, setIsSaving] = useState(false);
@@ -128,7 +130,7 @@ export default function EventsPage() {
       <div style={styles.formCard}>
         <div style={styles.sectionTitle}>Add Event</div>
 
-        <div style={styles.formGrid}>
+        <div style={{ ...styles.formGrid, ...(isPhone ? styles.formGridPhone : {}) }}>
           <input
             style={styles.input}
             placeholder="Event title"
@@ -201,14 +203,14 @@ export default function EventsPage() {
           <div style={styles.list}>
             {events.map((item) => (
               <div key={item.id} style={styles.itemCard}>
-                <div style={styles.itemHeader}>
+                <div style={{ ...styles.itemHeader, ...(isPhone ? styles.itemHeaderPhone : {}) }}>
                   <div>
                     <div style={styles.itemTitle}>{item.title}</div>
                     <div style={styles.itemMeta}>
                       {[item.eventDate, item.location, item.eventTime].filter(Boolean).join(" • ") || "Details coming soon"}
                     </div>
                   </div>
-                  <div style={styles.itemActions}>
+                  <div style={{ ...styles.itemActions, ...(isPhone ? styles.itemActionsPhone : {}) }}>
                     <button
                       type="button"
                       style={{
@@ -279,6 +281,9 @@ const styles = {
     gap: 10,
     gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
   },
+  formGridPhone: {
+    gridTemplateColumns: "1fr",
+  },
   input: {
     background: "#f8fafc",
     border: "1px solid #d7e3dc",
@@ -342,11 +347,18 @@ const styles = {
     gap: 12,
     justifyContent: "space-between",
   },
+  itemHeaderPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
   itemActions: {
     alignItems: "flex-end",
     display: "flex",
     flexDirection: "column",
     gap: 8,
+  },
+  itemActionsPhone: {
+    alignItems: "stretch",
   },
   itemTitle: {
     color: "#0f172a",

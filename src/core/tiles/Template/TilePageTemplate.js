@@ -11,6 +11,7 @@ export default function TilePageTemplate({
   InfoComponent,
   onUninstall,
   showUninstall,
+  showHeader = true,
 }) {
   const [openSettings, setOpenSettings] = useState(false);
   const [openInfo, setOpenInfo] = useState(false);
@@ -25,6 +26,7 @@ export default function TilePageTemplate({
         onUninstall={onUninstall}
         onClose={() => openTile("home")}
         showUninstall={showUninstall}
+        showHeader={showHeader}
       >
         <PageComponent />
       </TilePageLayout>

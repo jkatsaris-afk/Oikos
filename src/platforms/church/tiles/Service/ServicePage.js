@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../../../auth/useAuth";
-import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
+import PanelLoadingState from "../../../../core/components/PanelLoadingState";
+import useResponsive from "../../../../core/hooks/useResponsive";
 import {
   buildSlidesFromServiceItems,
   getCurrentServiceId,
@@ -13,6 +14,7 @@ import {
 
 export default function ServicePage() {
   const { user } = useAuth();
+  const { isPhone } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [serviceId, setServiceId] = useState(getCurrentServiceId());
@@ -95,7 +97,7 @@ export default function ServicePage() {
 
   if (loading) {
     return (
-      <GlobalLoadingPage
+      <PanelLoadingState
         title="Loading Service"
         detail="Preparing the current service queue and slide preview..."
       />
@@ -104,7 +106,7 @@ export default function ServicePage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.topRow}>
+      <div style={{ ...styles.topRow, ...(isPhone ? styles.topRowPhone : {}) }}>
         <div>
           <div style={styles.sectionTitle}>Current Service Queue</div>
           <div style={styles.serviceMeta}>Service ID: {serviceId}</div>
@@ -127,7 +129,7 @@ export default function ServicePage() {
           </div>
         </div>
       ) : (
-        <div style={styles.layout}>
+        <div style={{ ...styles.layout, ...(isPhone ? styles.layoutPhone : {}) }}>
           <div style={styles.queuePanel}>
             <div style={styles.panelTitle}>Slideshows</div>
 
@@ -170,6 +172,7 @@ export default function ServicePage() {
                         key={slide.id}
                         style={{
                           ...styles.slideRow,
+                          ...(isPhone ? styles.slideRowPhone : {}),
                           ...(isCurrent ? styles.slideRowActive : {}),
                         }}
                       >
@@ -187,7 +190,7 @@ export default function ServicePage() {
                           </div>
                         </button>
 
-                        <div style={styles.slideRowActions}>
+                        <div style={{ ...styles.slideRowActions, ...(isPhone ? styles.slideRowActionsPhone : {}) }}>
                           <button
                             type="button"
                             style={styles.smallButton}
@@ -253,14 +256,14 @@ export default function ServicePage() {
           </div>
 
           <div style={styles.previewPanel}>
-            <div style={styles.previewHeader}>
+            <div style={{ ...styles.previewHeader, ...(isPhone ? styles.previewHeaderPhone : {}) }}>
               <div>
                 <div style={styles.panelTitle}>{getItemLabel(selectedItem)}</div>
                 <div style={styles.previewMeta}>{getItemMeta(selectedItem)}</div>
               </div>
 
               {slides.length > 1 ? (
-                <div style={styles.slideControls}>
+                <div style={{ ...styles.slideControls, ...(isPhone ? styles.slideControlsPhone : {}) }}>
                   <button
                     style={styles.navButton}
                     onClick={() =>
@@ -290,7 +293,7 @@ export default function ServicePage() {
 
             {selectedSlide ? (
               <>
-                <div style={styles.screenPreview}>
+                <div style={{ ...styles.screenPreview, ...(isPhone ? styles.screenPreviewPhone : {}) }}>
                   {selectedSlide.itemType === "title_slide" ? (
                     <div style={styles.titleSlide}>
                       <div style={styles.titleHeadline}>{selectedSlide.title}</div>
@@ -366,6 +369,10 @@ const styles = {
     justifyContent: "space-between",
     gap: 14,
   },
+  topRowPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
   sectionTitle: {
     color: "#0f172a",
     fontSize: "clamp(18px, 1.5vw, 22px)",
@@ -389,6 +396,9 @@ const styles = {
     display: "grid",
     gap: 14,
     gridTemplateColumns: "320px minmax(0, 1fr)",
+  },
+  layoutPhone: {
+    gridTemplateColumns: "1fr",
   },
   queuePanel: {
     background: "#ffffff",
@@ -459,6 +469,10 @@ const styles = {
     gap: 14,
     justifyContent: "space-between",
   },
+  previewHeaderPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
   previewMeta: {
     color: "#64748b",
     fontSize: 13,
@@ -468,6 +482,10 @@ const styles = {
     alignItems: "center",
     display: "flex",
     gap: 8,
+  },
+  slideControlsPhone: {
+    alignItems: "stretch",
+    flexWrap: "wrap",
   },
   navButton: {
     background: "#fff",
@@ -493,6 +511,10 @@ const styles = {
     minHeight: 500,
     overflow: "hidden",
     padding: 24,
+  },
+  screenPreviewPhone: {
+    minHeight: 320,
+    padding: 16,
   },
   titleSlide: {
     alignItems: "center",
@@ -598,6 +620,10 @@ const styles = {
     justifyContent: "space-between",
     padding: 10,
   },
+  slideRowPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
   slideRowActive: {
     border: "1px solid #7ea087",
     boxShadow: "0 0 0 1px rgba(126, 160, 135, 0.18)",
@@ -642,6 +668,9 @@ const styles = {
   slideRowActions: {
     display: "flex",
     gap: 8,
+  },
+  slideRowActionsPhone: {
+    flexWrap: "wrap",
   },
   smallButton: {
     background: "#ffffff",

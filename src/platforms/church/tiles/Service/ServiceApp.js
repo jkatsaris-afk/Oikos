@@ -4,7 +4,7 @@ import ServicePage from "./ServicePage";
 import ServiceSettings from "./ServiceSettings";
 import ServiceInfo from "./ServiceInfo";
 
-export default function ServiceApp({ onUninstall, showUninstall }) {
+export default function ServiceApp({ onUninstall, showHeader = true, showUninstall }) {
   return (
     <TilePageTemplate
       tileId="service"
@@ -13,6 +13,7 @@ export default function ServiceApp({ onUninstall, showUninstall }) {
       SettingsComponent={ServiceSettings}
       InfoComponent={ServiceInfo}
       onUninstall={onUninstall}
+      showHeader={showHeader}
       showUninstall={showUninstall}
     />
   );

@@ -9,6 +9,7 @@ export default function TilePageLayout({
   showInfo = true,
   showUninstall = false,
   showClose = true,
+  showHeader = true,
 
   onSettings = () => console.log("Settings clicked"),
   onInfo = () => console.log("Info clicked"),
@@ -21,59 +22,61 @@ export default function TilePageLayout({
       {/* =========================
           TOP BAR
       ========================= */}
-      <div className="tile-top">
+      {showHeader ? (
+        <div className="tile-top">
 
-        <div className="tile-title">
-          {title}
+          <div className="tile-title">
+            {title}
+          </div>
+
+          <div className="tile-actions">
+            {showUninstall && (
+              <button
+                className="tile-icon-btn danger uninstall-btn"
+                onClick={() => {
+                  if (window.confirm("Uninstall this app?")) {
+                    onUninstall();
+                  }
+                }}
+              >
+                <Trash2 size={18} />
+                <span>Uninstall</span>
+              </button>
+            )}
+
+            {showSettings && (
+              <button
+                className="tile-icon-btn"
+                onClick={onSettings}
+              >
+                <Settings size={20} />
+              </button>
+            )}
+
+            {showInfo && (
+              <button
+                className="tile-icon-btn"
+                onClick={onInfo}
+              >
+                <Info size={20} />
+              </button>
+            )}
+
+            {showClose && (
+              <button
+                className="tile-icon-btn close-btn"
+                onClick={onClose}
+                aria-label="Close tile app"
+                title="Close"
+              >
+                <X size={20} />
+              </button>
+            )}
+
+          </div>
+
         </div>
-
-        <div className="tile-actions">
-          {showUninstall && (
-            <button
-              className="tile-icon-btn danger uninstall-btn"
-              onClick={() => {
-                if (window.confirm("Uninstall this app?")) {
-                  onUninstall();
-                }
-              }}
-            >
-              <Trash2 size={18} />
-              <span>Uninstall</span>
-            </button>
-          )}
-
-          {showSettings && (
-            <button
-              className="tile-icon-btn"
-              onClick={onSettings}
-            >
-              <Settings size={20} />
-            </button>
-          )}
-
-          {showInfo && (
-            <button
-              className="tile-icon-btn"
-              onClick={onInfo}
-            >
-              <Info size={20} />
-            </button>
-          )}
-
-          {showClose && (
-            <button
-              className="tile-icon-btn close-btn"
-              onClick={onClose}
-              aria-label="Close tile app"
-              title="Close"
-            >
-              <X size={20} />
-            </button>
-          )}
-
-        </div>
-
-      </div>
+      ) : null}
 
       {/* =========================
           BODY

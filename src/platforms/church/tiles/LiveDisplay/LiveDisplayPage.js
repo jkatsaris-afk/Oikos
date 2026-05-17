@@ -2,7 +2,8 @@ import { ChevronLeft, ChevronRight, Copy, ExternalLink, Monitor, PlayCircle, Rad
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../../../auth/useAuth";
-import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
+import PanelLoadingState from "../../../../core/components/PanelLoadingState";
+import useResponsive from "../../../../core/hooks/useResponsive";
 import {
   goToChurchLiveSlide,
   loadChurchLiveDisplay,
@@ -28,6 +29,7 @@ function formatTimestamp(value) {
 
 export default function LiveDisplayPage() {
   const { user } = useAuth();
+  const { isPhone } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyAction, setBusyAction] = useState("");
@@ -119,7 +121,7 @@ export default function LiveDisplayPage() {
 
   if (loading) {
     return (
-      <GlobalLoadingPage
+      <PanelLoadingState
         title="Loading Live Display"
         detail="Preparing your screens, pre-service loop, and live takeover controls..."
       />
@@ -128,10 +130,10 @@ export default function LiveDisplayPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.topRow}>
+      <div style={{ ...styles.pageHeader, ...(isPhone ? styles.pageHeaderPhone : {}) }}>
         <div>
-          <div style={styles.sectionTitle}>Live Display Control</div>
-          <div style={styles.serviceMeta}>
+          <h2 style={styles.pageTitle}>Live Display</h2>
+          <div style={styles.pageMeta}>
             Service ID: {display?.serviceId || "current_service"} • Updated {formatTimestamp(display?.updatedAt)}
           </div>
         </div>
@@ -144,7 +146,7 @@ export default function LiveDisplayPage() {
       {error ? <div style={styles.error}>{error}</div> : null}
       {notice ? <div style={styles.notice}>{notice}</div> : null}
 
-      <div style={styles.statsRow}>
+      <div style={{ ...styles.statsRow, ...(isPhone ? styles.statsRowPhone : {}) }}>
         <div style={styles.statCard}>
           <div style={styles.statLabel}>Behavior</div>
           <div style={styles.statValue}>{display?.state || "loop"}</div>
@@ -164,7 +166,7 @@ export default function LiveDisplayPage() {
       </div>
 
       <div style={styles.controlCard}>
-        <div style={styles.controlHeader}>
+        <div style={{ ...styles.controlHeader, ...(isPhone ? styles.controlHeaderPhone : {}) }}>
           <div>
             <div style={styles.cardTitle}>Live Link</div>
             <div style={styles.cardMeta}>
@@ -174,9 +176,9 @@ export default function LiveDisplayPage() {
           <div style={styles.codeBadge}>{display?.publicCode}</div>
         </div>
 
-        <div style={styles.urlRow}>
+        <div style={{ ...styles.urlRow, ...(isPhone ? styles.urlRowPhone : {}) }}>
           <div style={styles.urlValue}>{display?.publicUrl}</div>
-          <div style={styles.urlActions}>
+          <div style={{ ...styles.urlActions, ...(isPhone ? styles.urlActionsPhone : {}) }}>
             <button type="button" style={styles.secondaryButton} onClick={copyLiveUrl}>
               <Copy size={14} />
               Copy URL
@@ -204,7 +206,7 @@ export default function LiveDisplayPage() {
         </div>
       </div>
 
-      <div style={styles.layout}>
+      <div style={{ ...styles.layout, ...(isPhone ? styles.layoutPhone : {}) }}>
         <div style={styles.leftColumn}>
           <div style={styles.controlCard}>
             <div style={styles.cardTitle}>Pre-Service Loop</div>
@@ -237,7 +239,7 @@ export default function LiveDisplayPage() {
             <div style={styles.loopList}>
               {(display?.loopItems || []).map((item) => (
                 <div key={item.id} style={styles.loopCard}>
-                  <div style={styles.loopHeader}>
+                  <div style={{ ...styles.loopHeader, ...(isPhone ? styles.loopHeaderPhone : {}) }}>
                     <div style={styles.loopTone}>{item.tone}</div>
                     <button
                       type="button"
@@ -350,7 +352,7 @@ export default function LiveDisplayPage() {
 
             {display?.state === "live" ? (
               <div style={styles.manualControlCard}>
-                <div style={styles.manualHeader}>
+                <div style={{ ...styles.manualHeader, ...(isPhone ? styles.manualHeaderPhone : {}) }}>
                   <div>
                     <div style={styles.manualTitle}>Live Slide Control</div>
                     <div style={styles.manualMeta}>{selectedSourceLabel}</div>
@@ -360,7 +362,7 @@ export default function LiveDisplayPage() {
                   </div>
                 </div>
 
-                <div style={styles.manualButtons}>
+                <div style={{ ...styles.manualButtons, ...(isPhone ? styles.manualButtonsPhone : {}) }}>
                   <button
                     type="button"
                     style={styles.secondaryButton}
@@ -416,7 +418,7 @@ export default function LiveDisplayPage() {
 
         <div style={styles.rightColumn}>
           <div style={styles.controlCard}>
-            <div style={styles.controlHeader}>
+            <div style={{ ...styles.controlHeader, ...(isPhone ? styles.controlHeaderPhone : {}) }}>
               <div>
                 <div style={styles.cardTitle}>Connected Screens</div>
                 <div style={styles.cardMeta}>
@@ -553,6 +555,30 @@ const styles = {
     gap: 14,
     padding: 14,
   },
+  pageHeader: {
+    alignItems: "flex-start",
+    display: "flex",
+    gap: 14,
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  pageHeaderPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
+  pageTitle: {
+    color: "#0f172a",
+    fontSize: "clamp(44px, 5vw, 78px)",
+    fontWeight: 950,
+    lineHeight: 0.96,
+    margin: 0,
+  },
+  pageMeta: {
+    color: "#64748b",
+    fontSize: 14,
+    fontWeight: 750,
+    marginTop: 12,
+  },
   topRow: {
     alignItems: "center",
     display: "flex",
@@ -582,6 +608,9 @@ const styles = {
     display: "grid",
     gap: 12,
     gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  },
+  statsRowPhone: {
+    gridTemplateColumns: "1fr",
   },
   statCard: {
     background: "#ffffff",
@@ -620,6 +649,10 @@ const styles = {
     gap: 12,
     justifyContent: "space-between",
   },
+  controlHeaderPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
   cardTitle: {
     color: "#0f172a",
     fontSize: 16,
@@ -647,6 +680,10 @@ const styles = {
     gap: 14,
     justifyContent: "space-between",
   },
+  urlRowPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
   urlValue: {
     background: "#f8fafc",
     border: "1px solid #e2e8f0",
@@ -659,7 +696,11 @@ const styles = {
   },
   urlActions: {
     display: "flex",
+    flexWrap: "wrap",
     gap: 10,
+  },
+  urlActionsPhone: {
+    flexDirection: "column",
   },
   primaryButton: {
     alignItems: "center",
@@ -708,6 +749,9 @@ const styles = {
     gap: 14,
     gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 0.9fr)",
   },
+  layoutPhone: {
+    gridTemplateColumns: "1fr",
+  },
   leftColumn: {
     display: "flex",
     flexDirection: "column",
@@ -733,6 +777,10 @@ const styles = {
     display: "flex",
     gap: 12,
     justifyContent: "space-between",
+  },
+  loopHeaderPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
   },
   loopTone: {
     color: "#356f60",
@@ -815,6 +863,10 @@ const styles = {
     gap: 12,
     justifyContent: "space-between",
   },
+  manualHeaderPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
   manualTitle: {
     color: "#0f172a",
     fontSize: 14,
@@ -828,6 +880,9 @@ const styles = {
   manualButtons: {
     display: "flex",
     gap: 10,
+  },
+  manualButtonsPhone: {
+    flexDirection: "column",
   },
   screenCount: {
     alignItems: "center",

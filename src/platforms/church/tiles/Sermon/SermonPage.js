@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../../../auth/useAuth";
-import GlobalLoadingPage from "../../../../core/components/GlobalLoadingPage";
+import PanelLoadingState from "../../../../core/components/PanelLoadingState";
+import useResponsive from "../../../../core/hooks/useResponsive";
 import {
   buildTitleSlide,
   createDraftFromSermon,
@@ -63,6 +64,7 @@ function getEnabledSlideCount(item) {
 
 export default function SermonPage() {
   const { user } = useAuth();
+  const { isPhone } = useResponsive();
 
   const [viewMode, setViewMode] = useState("dashboard");
   const [draft, setDraft] = useState(getDefaultSermonDraft());
@@ -366,7 +368,7 @@ export default function SermonPage() {
 
   if (loading) {
     return (
-      <GlobalLoadingPage
+      <PanelLoadingState
         title="Loading Sermons"
         detail="Restoring your sermon dashboard and preparing the builder..."
       />
@@ -375,7 +377,7 @@ export default function SermonPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.topBar}>
+      <div style={{ ...styles.topBar, ...(isPhone ? styles.topBarPhone : {}) }}>
         <div>
           <div style={styles.heading}>
             {viewMode === "dashboard"
@@ -393,7 +395,7 @@ export default function SermonPage() {
           </div>
         </div>
 
-        <div style={styles.topActions}>
+        <div style={{ ...styles.topActions, ...(isPhone ? styles.topActionsPhone : {}) }}>
           {viewMode !== "dashboard" ? (
             <button
               style={styles.secondaryAction}
@@ -459,7 +461,7 @@ export default function SermonPage() {
 
       {viewMode === "dashboard" ? (
         <div style={styles.dashboardLayout}>
-          <div style={styles.dashboardHero}>
+          <div style={{ ...styles.dashboardHero, ...(isPhone ? styles.dashboardHeroPhone : {}) }}>
             <div>
               <div style={styles.dashboardTitle}>Your Sermon Dashboard</div>
               <div style={styles.dashboardText}>
@@ -468,7 +470,7 @@ export default function SermonPage() {
               </div>
             </div>
 
-            <div style={styles.dashboardActions}>
+            <div style={{ ...styles.dashboardActions, ...(isPhone ? styles.dashboardActionsPhone : {}) }}>
               <button style={styles.primaryAction} onClick={handleNewSermon}>
                 Start New Sermon
               </button>
@@ -491,7 +493,7 @@ export default function SermonPage() {
                 No sermons yet. Start your first sermon in Sermon Builder.
               </div>
             ) : (
-              <div style={styles.sermonGrid}>
+              <div style={{ ...styles.sermonGrid, ...(isPhone ? styles.sermonGridPhone : {}) }}>
                 {sermonLibrary.map((sermon) => (
                   <div
                     key={`${sermon.isDraft ? "draft" : "saved"}-${sermon.id || sermon.archiveId}`}
@@ -554,7 +556,7 @@ export default function SermonPage() {
 
       {viewMode === "builder" ? (
         <>
-          <div style={styles.setupGrid}>
+          <div style={{ ...styles.setupGrid, ...(isPhone ? styles.setupGridPhone : {}) }}>
             <div style={styles.setupCard}>
               <label style={styles.label}>Sermon Title</label>
               <input
@@ -590,7 +592,7 @@ export default function SermonPage() {
             </div>
           </div>
 
-          <div style={styles.builderLayout}>
+          <div style={{ ...styles.builderLayout, ...(isPhone ? styles.builderLayoutPhone : {}) }}>
             <div style={styles.sidebar}>
               <div style={styles.sidebarCard}>
                 <div style={styles.sidebarTitle}>Add Scripture</div>
@@ -888,7 +890,7 @@ export default function SermonPage() {
       ) : null}
 
       {viewMode === "live" ? (
-        <div style={styles.liveLayout}>
+        <div style={{ ...styles.liveLayout, ...(isPhone ? styles.liveLayoutPhone : {}) }}>
           <div style={styles.liveSidebar}>
             <div style={styles.sidebarCard}>
               <div style={styles.sidebarTitle}>Live Sermon Flow</div>
@@ -991,6 +993,10 @@ const styles = {
     gap: 16,
     justifyContent: "space-between",
   },
+  topBarPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
 
   heading: {
     color: "#0f172a",
@@ -1010,6 +1016,10 @@ const styles = {
     flexWrap: "wrap",
     gap: 10,
     justifyContent: "flex-end",
+  },
+  topActionsPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
   },
 
   primaryAction: {
@@ -1059,6 +1069,10 @@ const styles = {
     justifyContent: "space-between",
     padding: 20,
   },
+  dashboardHeroPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
 
   dashboardTitle: {
     color: "#0f172a",
@@ -1079,6 +1093,9 @@ const styles = {
     flexWrap: "wrap",
     gap: 10,
   },
+  dashboardActionsPhone: {
+    flexDirection: "column",
+  },
 
   librarySection: {
     display: "flex",
@@ -1096,6 +1113,9 @@ const styles = {
     display: "grid",
     gap: 14,
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  },
+  sermonGridPhone: {
+    gridTemplateColumns: "1fr",
   },
 
   sermonCard: {
@@ -1165,6 +1185,9 @@ const styles = {
     gap: 12,
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   },
+  setupGridPhone: {
+    gridTemplateColumns: "1fr",
+  },
 
   setupCard: {
     background: "#ffffff",
@@ -1182,11 +1205,17 @@ const styles = {
     gap: 14,
     gridTemplateColumns: "330px minmax(0, 1fr)",
   },
+  builderLayoutPhone: {
+    gridTemplateColumns: "1fr",
+  },
 
   liveLayout: {
     display: "grid",
     gap: 14,
     gridTemplateColumns: "280px minmax(0, 1fr)",
+  },
+  liveLayoutPhone: {
+    gridTemplateColumns: "1fr",
   },
 
   liveSidebar: {

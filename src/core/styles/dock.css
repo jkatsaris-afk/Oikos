@@ -233,3 +233,71 @@
 .overflow-item {
   height: 72px;
 }
+
+@media (max-width: 720px) {
+  .nav-wrap {
+    box-sizing: border-box;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 10px;
+    right: 10px;
+    height: 68px;
+    max-width: calc(100vw - 20px);
+    padding: 6px;
+    border-radius: 24px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.18);
+  }
+
+  .nav-item2 {
+    height: 52px;
+    margin: 0;
+    border-radius: 18px;
+    gap: 3px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .nav-item2.active {
+    height: 56px;
+    border-radius: 20px;
+    transform: translateY(-8px);
+  }
+
+  .nav-item2.active::after {
+    bottom: 3px;
+    height: 4px;
+    width: 44%;
+  }
+
+  .nav-item2 span {
+    font-size: 10px;
+    max-width: 100%;
+    padding: 0 2px;
+  }
+
+  .nav-item2 svg {
+    height: 20px;
+    width: 20px;
+  }
+
+  .overflow-panel {
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    left: 10px;
+    right: 10px;
+    height: min(420px, 58vh);
+    max-height: min(420px, 58vh);
+    border-radius: 24px;
+    padding: 12px;
+  }
+
+  .overflow-header {
+    font-size: 18px;
+    border-radius: 16px;
+    margin-bottom: 10px;
+  }
+
+  .overflow-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+}

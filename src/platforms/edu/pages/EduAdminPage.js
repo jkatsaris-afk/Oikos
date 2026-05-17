@@ -25,6 +25,7 @@ import {
 
 import { useAuth } from "../../../auth/useAuth";
 import GlobalLoadingPage from "../../../core/components/GlobalLoadingPage";
+import useResponsive from "../../../core/hooks/useResponsive";
 import {
   activateOrganizationMember,
   removeOrganizationMember,
@@ -253,6 +254,7 @@ function formatSeen(value = "") {
 
 export default function EduAdminPage() {
   const { user } = useAuth();
+  const { isPhone } = useResponsive();
   const [workspace, setWorkspace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
@@ -1626,9 +1628,9 @@ export default function EduAdminPage() {
   );
 
   const navItems = [
-    { id: "summary", label: "Overview", icon: LayoutDashboard },
-    { id: "apps", label: "Student App Store", icon: AppWindow },
-    { id: "testing", label: "Testing Apps", icon: FlaskConical },
+    { id: "summary", label: "Overview", shortLabel: "Home", icon: LayoutDashboard },
+    { id: "apps", label: "Student App Store", shortLabel: "Apps", icon: AppWindow },
+    { id: "testing", label: "Testing Apps", shortLabel: "Tests", icon: FlaskConical },
     { id: "admins", label: "Admins", icon: UserPlus },
     { id: "teachers", label: "Teachers", icon: GraduationCap },
     { id: "students", label: "Students", icon: Users },
@@ -1638,8 +1640,8 @@ export default function EduAdminPage() {
   const loginBackgroundPreview = loginBackgroundUsesDevice ? backgroundDraft : loginBackgroundDraft;
 
   return (
-    <main style={styles.page}>
-      <section style={styles.header}>
+    <main style={{ ...styles.page, ...(isPhone ? styles.pagePhone : {}) }}>
+      <section style={{ ...styles.header, ...(isPhone ? styles.headerPhone : {}) }}>
         <div>
           <div style={styles.eyebrow}>Edu Admin</div>
           <h1 style={styles.title}>{workspace.account.name || "School"} Student Devices</h1>
@@ -1650,29 +1652,45 @@ export default function EduAdminPage() {
       </section>
 
       <div style={styles.workspaceShell}>
-        <aside style={styles.sideNav}>
-          <div style={styles.sideNavTitle}>Manage</div>
+        <aside
+          aria-label="Edu admin sections"
+          style={{
+            ...styles.sideNav,
+            ...(isPhone
+              ? { ...styles.sideNavPhone, gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }
+              : {}),
+          }}
+        >
+          <div style={{ ...styles.sideNavTitle, ...(isPhone ? styles.sideNavTitlePhone : {}) }}>
+            Manage
+          </div>
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = activeSection === item.id;
             return (
               <button
                 key={item.id}
-                style={{ ...styles.navButton, ...(active ? styles.navButtonActive : {}) }}
+                style={{
+                  ...styles.navButton,
+                  ...(isPhone ? styles.navButtonPhone : {}),
+                  ...(active ? styles.navButtonActive : {}),
+                }}
                 type="button"
                 onClick={() => {
                   setActiveSection(item.id);
                   if (item.id === "devices") setDevicePane("overview");
                 }}
               >
-                <Icon size={17} />
-                <span>{item.label}</span>
+                <Icon size={isPhone && navItems.length > 5 ? 16 : 17} />
+                <span style={isPhone ? styles.navLabelPhone : null}>
+                  {isPhone ? item.shortLabel || item.label : item.label}
+                </span>
               </button>
             );
           })}
         </aside>
 
-        <section style={styles.contentPane}>
+        <section style={{ ...styles.contentPane, ...(isPhone ? styles.contentPanePhone : {}) }}>
           {error ? <div style={styles.error}>{error}</div> : null}
           {notice ? <div style={styles.notice}>{notice}</div> : null}
 
@@ -2818,6 +2836,9 @@ const styles = {
     maxWidth: "none",
     padding: "10px 0 28px",
   },
+  pagePhone: {
+    padding: "4px 0 calc(94px + env(safe-area-inset-bottom))",
+  },
   header: {
     alignItems: "center",
     display: "flex",
@@ -2825,6 +2846,11 @@ const styles = {
     justifyContent: "space-between",
     margin: "0 0 18px 268px",
     paddingRight: 20,
+  },
+  headerPhone: {
+    alignItems: "flex-start",
+    margin: "0 0 14px",
+    padding: "0 2px",
   },
   eyebrow: {
     color: "#e86a1f",
@@ -2864,12 +2890,31 @@ const styles = {
     width: 224,
     zIndex: 90,
   },
+  sideNavPhone: {
+    alignItems: "stretch",
+    boxSizing: "border-box",
+    borderRadius: 24,
+    bottom: "max(10px, env(safe-area-inset-bottom))",
+    display: "grid",
+    gap: 4,
+    left: 10,
+    maxWidth: "calc(100vw - 20px)",
+    overflow: "hidden",
+    padding: 6,
+    right: 10,
+    top: "auto",
+    width: "auto",
+    zIndex: 160,
+  },
   sideNavTitle: {
     color: "#64748b",
     fontSize: 12,
     fontWeight: 900,
     padding: "8px 12px 4px",
     textTransform: "uppercase",
+  },
+  sideNavTitlePhone: {
+    display: "none",
   },
   navButton: {
     alignItems: "center",
@@ -2888,6 +2933,26 @@ const styles = {
     textAlign: "left",
     width: "100%",
   },
+  navButtonPhone: {
+    borderRadius: 18,
+    flexDirection: "column",
+    fontSize: 9,
+    gap: 2,
+    justifyContent: "center",
+    minHeight: 54,
+    minWidth: 0,
+    overflow: "hidden",
+    padding: "5px 2px",
+    textAlign: "center",
+  },
+  navLabelPhone: {
+    display: "block",
+    lineHeight: 1,
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
   navButtonActive: {
     background: "var(--color-primary)",
     borderColor: "var(--color-primary)",
@@ -2898,6 +2963,10 @@ const styles = {
     marginLeft: 268,
     minWidth: 0,
     paddingRight: 20,
+  },
+  contentPanePhone: {
+    marginLeft: 0,
+    paddingRight: 0,
   },
   summaryTile: {
     alignItems: "center",

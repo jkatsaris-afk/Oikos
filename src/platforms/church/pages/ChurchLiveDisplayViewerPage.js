@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { PlayCircle, Radio } from "lucide-react";
-
 import GlobalLoadingPage from "../../../core/components/GlobalLoadingPage";
 import {
   loadPublicChurchLiveDisplay,
@@ -109,7 +107,7 @@ export default function ChurchLiveDisplayViewerPage() {
 
     const interval = window.setInterval(
       loadDisplay,
-      displayData?.display?.state === "live" ? 350 : 15000
+      displayData?.display?.state === "live" ? 180 : 5000
     );
 
     return () => {
@@ -183,21 +181,14 @@ export default function ChurchLiveDisplayViewerPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.statusWrap}>
-        <div style={styles.statusPill}>
-          {isLive ? <PlayCircle size={16} /> : <Radio size={16} />}
-          {isLive ? "Live Service" : "Pre-Service Loop"}
-        </div>
-      </div>
-
       <div style={styles.viewport}>
         <AnimatePresence mode="wait">
           <motion.div
             key={`${displayData.display.state}-${activeIndex}-${item?.id || "empty"}`}
-            initial={{ opacity: 0, y: 18, scale: 0.992 }}
+            initial={{ opacity: 0, scale: 0.998 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -18, scale: 1.008 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
+            exit={{ opacity: 0, scale: 1.002 }}
+            transition={{ duration: isLive ? 0.14 : 0.36, ease: "easeOut" }}
             style={styles.slideSurface}
           >
             {isLive ? (
@@ -253,7 +244,7 @@ export default function ChurchLiveDisplayViewerPage() {
                     />
                   ) : null
                 ) : null}
-                <div style={styles.title}>{item?.title || "Welcome To"}</div>
+                <div style={styles.loopTitle}>{item?.title || "Welcome To"}</div>
                 {shouldShowLoopSubtitle ? (
                   <div style={styles.subtitle}>{item.subtitle}</div>
                 ) : null}
@@ -267,6 +258,9 @@ export default function ChurchLiveDisplayViewerPage() {
           </motion.div>
         </AnimatePresence>
       </div>
+      {!isLive ? (
+        <div style={styles.loopBadge}>Pre-Service Loop</div>
+      ) : null}
     </div>
   );
 }
@@ -277,42 +271,21 @@ const styles = {
     color: "#0f172a",
     display: "flex",
     flexDirection: "column",
-    minHeight: "100vh",
+    height: "100dvh",
+    inset: 0,
     overflow: "hidden",
-    position: "relative",
-    width: "100%",
-  },
-  statusWrap: {
-    left: 24,
-    pointerEvents: "none",
     position: "fixed",
-    top: 24,
-    zIndex: 10,
-  },
-  statusPill: {
-    alignItems: "center",
-    background: "rgba(255,255,255,0.94)",
-    border: "1px solid #dbe4ea",
-    borderRadius: 999,
-    boxShadow: "0 10px 26px rgba(15, 23, 42, 0.08)",
-    color: "#0f172a",
-    display: "inline-flex",
-    fontSize: 12,
-    fontWeight: 900,
-    gap: 8,
-    letterSpacing: "0.08em",
-    padding: "10px 14px",
-    textTransform: "uppercase",
+    width: "100vw",
   },
   viewport: {
     alignItems: "center",
     background: "#ffffff",
     display: "flex",
     flex: 1,
+    height: "100%",
     justifyContent: "center",
-    minHeight: "100vh",
     overflow: "hidden",
-    padding: "0 5vw",
+    padding: 0,
     width: "100%",
   },
   slideSurface: {
@@ -321,9 +294,10 @@ const styles = {
     boxSizing: "border-box",
     display: "flex",
     flex: 1,
+    height: "100%",
     justifyContent: "center",
-    minHeight: "100vh",
-    padding: "8vh 5vw 6vh",
+    overflow: "hidden",
+    padding: "clamp(4px, 0.8vh, 14px) clamp(28px, 6vw, 92px) clamp(28px, 5vh, 72px)",
     width: "100%",
   },
   loopSlide: {
@@ -332,10 +306,12 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     margin: "0 auto",
     maxHeight: "100%",
-    maxWidth: "min(980px, 90vw)",
+    maxWidth: "min(1280px, 92vw)",
+    overflow: "hidden",
+    paddingTop: 0,
     textAlign: "center",
   },
   verseSlide: {
@@ -347,7 +323,8 @@ const styles = {
     justifyContent: "center",
     margin: "0 auto",
     maxHeight: "100%",
-    maxWidth: "min(1080px, 92vw)",
+    maxWidth: "min(1340px, 94vw)",
+    overflow: "hidden",
     textAlign: "center",
   },
   imageSlide: {
@@ -395,34 +372,47 @@ const styles = {
     textTransform: "uppercase",
   },
   title: {
-    fontSize: "clamp(32px, 5vw, 72px)",
-    fontWeight: 900,
-    lineHeight: 1.08,
-    marginTop: 12,
+    fontSize: "clamp(44px, min(7.4vw, 13vh), 132px)",
+    fontWeight: 400,
+    lineHeight: 0.98,
+    marginTop: 0,
+  },
+  loopTitle: {
+    borderBottom: "1px solid rgba(15, 23, 42, 0.16)",
+    boxSizing: "border-box",
+    color: "#222222",
+    fontSize: "clamp(52px, min(8.6vw, 13vh), 148px)",
+    fontWeight: 400,
+    lineHeight: 0.98,
+    marginTop: 0,
+    paddingBottom: "clamp(10px, 1.8vh, 24px)",
+    width: "100%",
   },
   subtitle: {
-    fontSize: "clamp(24px, 3.4vw, 52px)",
-    fontWeight: 800,
-    lineHeight: 1.08,
-    marginTop: 10,
+    fontSize: "clamp(28px, min(5vw, 8vh), 88px)",
+    fontWeight: 400,
+    lineHeight: 1,
+    marginTop: "clamp(16px, 2.8vh, 40px)",
   },
   body: {
-    fontSize: "clamp(18px, 2vw, 34px)",
-    lineHeight: 1.45,
-    marginTop: 28,
-    maxWidth: "100%",
+    fontSize: "clamp(22px, min(3.2vw, 5.8vh), 58px)",
+    fontWeight: 400,
+    lineHeight: 1.25,
+    marginTop: "clamp(18px, 3vh, 42px)",
+    maxWidth: "min(1120px, 92vw)",
     whiteSpace: "pre-line",
   },
   entryList: {
     display: "grid",
-    gap: "clamp(14px, 2vh, 24px)",
-    marginTop: 28,
+    gap: "clamp(12px, 1.6vh, 20px)",
+    marginTop: "clamp(18px, 3vh, 42px)",
     maxWidth: "min(1100px, 92vw)",
+    overflow: "hidden",
     width: "100%",
   },
   entryCard: {
-    borderTop: "1px solid #e2e8f0",
-    paddingTop: "clamp(14px, 2vh, 22px)",
+    borderTop: "none",
+    paddingTop: 0,
   },
   entryLabel: {
     color: "#64748b",
@@ -433,22 +423,23 @@ const styles = {
   },
   entryTitle: {
     color: "#0f172a",
-    fontSize: "clamp(22px, 2.4vw, 40px)",
-    fontWeight: 900,
-    lineHeight: 1.15,
+    fontSize: "clamp(22px, min(3vw, 5.2vh), 52px)",
+    fontWeight: 400,
+    lineHeight: 1.22,
     marginTop: 8,
   },
   entryMeta: {
     color: "#475569",
-    fontSize: "clamp(15px, 1.5vw, 24px)",
-    fontWeight: 700,
+    fontSize: "clamp(16px, min(1.8vw, 3vh), 30px)",
+    fontWeight: 400,
     lineHeight: 1.3,
     marginTop: 8,
   },
   entryBody: {
     color: "#334155",
-    fontSize: "clamp(14px, 1.5vw, 24px)",
-    lineHeight: 1.45,
+    fontSize: "clamp(16px, min(1.8vw, 3vh), 30px)",
+    fontWeight: 400,
+    lineHeight: 1.4,
     marginTop: 10,
     whiteSpace: "pre-line",
   },
@@ -508,10 +499,26 @@ const styles = {
     verticalAlign: "top",
   },
   logo: {
-    height: "clamp(64px, 10vh, 112px)",
-    marginBottom: 18,
+    height: "clamp(110px, 18vh, 220px)",
+    marginBottom: "clamp(20px, 4vh, 46px)",
     objectFit: "contain",
-    width: "min(320px, 52vw)",
+    width: "min(460px, 58vw)",
+  },
+  loopBadge: {
+    background: "rgba(255,255,255,0.9)",
+    border: "1px solid #dbe4ea",
+    borderRadius: 999,
+    bottom: 20,
+    boxShadow: "0 10px 26px rgba(15, 23, 42, 0.08)",
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: 900,
+    letterSpacing: "0.08em",
+    padding: "10px 14px",
+    position: "fixed",
+    right: 20,
+    textTransform: "uppercase",
+    zIndex: 10,
   },
   emptyCard: {
     alignItems: "center",

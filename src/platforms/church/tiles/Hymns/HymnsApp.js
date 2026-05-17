@@ -4,7 +4,7 @@ import HymnsInfo from "./HymnsInfo";
 import HymnsPage from "./HymnsPage";
 import HymnsSettings from "./HymnsSettings";
 
-export default function HymnsApp({ onUninstall, showUninstall }) {
+export default function HymnsApp({ onUninstall, showHeader = true, showUninstall }) {
   return (
     <TilePageTemplate
       tileId="hymns"
@@ -13,6 +13,7 @@ export default function HymnsApp({ onUninstall, showUninstall }) {
       SettingsComponent={HymnsSettings}
       InfoComponent={HymnsInfo}
       onUninstall={onUninstall}
+      showHeader={showHeader}
       showUninstall={showUninstall}
     />
   );

@@ -4,7 +4,7 @@ import SermonPage from "./SermonPage";
 import SermonSettings from "./SermonSettings";
 import SermonInfo from "./SermonInfo";
 
-export default function SermonApp({ onUninstall, showUninstall }) {
+export default function SermonApp({ onUninstall, showHeader = true, showUninstall }) {
   return (
     <TilePageTemplate
       tileId="sermon"
@@ -13,6 +13,7 @@ export default function SermonApp({ onUninstall, showUninstall }) {
       SettingsComponent={SermonSettings}
       InfoComponent={SermonInfo}
       onUninstall={onUninstall}
+      showHeader={showHeader}
       showUninstall={showUninstall}
     />
   );

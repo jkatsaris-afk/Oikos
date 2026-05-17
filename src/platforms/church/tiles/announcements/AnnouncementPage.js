@@ -13,9 +13,11 @@ import {
   loadChurchLiveDisplay,
   refreshChurchPreServiceLoop,
 } from "../../services/liveDisplayService";
+import useResponsive from "../../../../core/hooks/useResponsive";
 
 export default function AnnouncementPage() {
   const { user } = useAuth();
+  const { isPhone } = useResponsive();
   const [announcements, setAnnouncements] = useState(getChurchAnnouncements());
   const [draftTitle, setDraftTitle] = useState("");
   const [draftBody, setDraftBody] = useState("");
@@ -147,9 +149,9 @@ export default function AnnouncementPage() {
 
       {announcements.map((item) => (
         <div key={item.id} style={styles.card}>
-          <div style={styles.cardHeader}>
+          <div style={{ ...styles.cardHeader, ...(isPhone ? styles.cardHeaderPhone : {}) }}>
             <p style={styles.title}>{item.title}</p>
-            <div style={styles.cardActions}>
+            <div style={{ ...styles.cardActions, ...(isPhone ? styles.cardActionsPhone : {}) }}>
               <button
                 type="button"
                 style={{
@@ -264,11 +266,18 @@ const styles = {
     gap: 12,
     justifyContent: "space-between",
   },
+  cardHeaderPhone: {
+    alignItems: "stretch",
+    flexDirection: "column",
+  },
   cardActions: {
     alignItems: "flex-end",
     display: "flex",
     flexDirection: "column",
     gap: 8,
+  },
+  cardActionsPhone: {
+    alignItems: "stretch",
   },
 
   title: {

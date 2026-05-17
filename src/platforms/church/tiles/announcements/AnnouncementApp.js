@@ -4,7 +4,7 @@ import AnnouncementPage from "./AnnouncementPage";
 import AnnouncementSettings from "./AnnouncementSettings";
 import AnnouncementInfo from "./AnnouncementInfo";
 
-export default function AnnouncementApp({ onUninstall, showUninstall }) {
+export default function AnnouncementApp({ onUninstall, showHeader = true, showUninstall }) {
   return (
     <TilePageTemplate
       tileId="announcements"
@@ -13,6 +13,7 @@ export default function AnnouncementApp({ onUninstall, showUninstall }) {
       SettingsComponent={AnnouncementSettings}
       InfoComponent={AnnouncementInfo}
       onUninstall={onUninstall}
+      showHeader={showHeader}
       showUninstall={showUninstall}
     />
   );

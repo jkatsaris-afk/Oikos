@@ -148,6 +148,7 @@ const StudentDevicePage = load("./platforms/edu/pages/StudentDevicePage");
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
 const SportsDashboard = load("./platforms/sports/pages/SportsDashboardPage");
 const FarmDashboard = load("./platforms/farm/pages/FarmDashboardPage");
+const ChurchControllers = load("./platforms/church/tiles/Remote/RemoteApp");
 
 // =========================
 // MODE WRAPPER
@@ -253,6 +254,22 @@ function AppRoutes() {
         <Route path="/modes" element={<MasterModePage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+    );
+  }
+
+  if (path.startsWith("/church/controllers")) {
+    return (
+      <RequireAuth>
+        <TilePreferencesProvider>
+          <ModeWrapper>
+            <Routes>
+              <Route path="/church/controllers" element={<Navigate to="/church/controllers/main" replace />} />
+              <Route path="/church/controllers/:controller" element={<ChurchControllers standalone />} />
+              <Route path="*" element={<Navigate to="/church/controllers/main" replace />} />
+            </Routes>
+          </ModeWrapper>
+        </TilePreferencesProvider>
+      </RequireAuth>
     );
   }
 

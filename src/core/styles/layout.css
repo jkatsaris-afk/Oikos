@@ -13,6 +13,12 @@
   padding: 82px 20px 124px;
 }
 
+@media (max-width: 720px) {
+  .content-area {
+    padding: 82px 12px calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
 /* ========================= */
 /* TEMPLATE PAGE */
 /* ========================= */

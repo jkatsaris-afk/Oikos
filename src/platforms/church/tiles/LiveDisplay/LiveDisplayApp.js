@@ -4,7 +4,7 @@ import LiveDisplayInfo from "./LiveDisplayInfo";
 import LiveDisplayPage from "./LiveDisplayPage";
 import LiveDisplaySettings from "./LiveDisplaySettings";
 
-export default function LiveDisplayApp({ onUninstall, showUninstall }) {
+export default function LiveDisplayApp({ onUninstall, showHeader = true, showUninstall }) {
   return (
     <TilePageTemplate
       tileId="live-display"
@@ -13,6 +13,7 @@ export default function LiveDisplayApp({ onUninstall, showUninstall }) {
       SettingsComponent={LiveDisplaySettings}
       InfoComponent={LiveDisplayInfo}
       onUninstall={onUninstall}
+      showHeader={showHeader}
       showUninstall={showUninstall}
     />
   );
