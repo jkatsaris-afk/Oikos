@@ -553,7 +553,7 @@ const styles = {
     justifyContent: "space-between",
   },
   eyebrow: {
-    color: "#446B8A",
+    color: "var(--color-primary-dark)",
     fontSize: 12,
     fontWeight: 900,
     letterSpacing: "0.08em",
@@ -585,7 +585,7 @@ const styles = {
     padding: "8px 10px",
   },
   tabButtonActive: {
-    background: "#446B8A",
+    background: "var(--color-primary)",
     color: "#fff",
   },
   statusGrid: {
@@ -814,7 +814,7 @@ const styles = {
   },
   secondaryButton: {
     alignItems: "center",
-    background: "#446B8A",
+    background: "var(--color-primary)",
     border: "none",
     borderRadius: 14,
     color: "#fff",
@@ -866,7 +866,7 @@ const styles = {
     borderColor: "#7ea0c2",
   },
   slideNumber: {
-    color: "#446B8A",
+    color: "var(--color-primary-dark)",
     fontSize: 12,
     fontWeight: 900,
   },
@@ -922,7 +922,7 @@ const styles = {
     textAlign: "left",
   },
   hymnNumber: {
-    color: "#446B8A",
+    color: "var(--color-primary-dark)",
     fontSize: 12,
     fontWeight: 900,
     minWidth: 54,

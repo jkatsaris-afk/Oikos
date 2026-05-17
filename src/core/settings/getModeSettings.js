@@ -2,11 +2,8 @@ import DisplaySettings from "./DisplaySettings";
 import OrganizationAccessPanel from "./OrganizationAccessPanel";
 import ProfileSettingsPanel from "./ProfileSettingsPanel";
 import SettingsLayout from "./SettingsLayout";
-import TileSettingsPanel from "./TileSettingsPanel";
-import WidgetSettingsPanel from "./WidgetSettingsPanel";
-import CampusIntegrationsSettingsPanel from "../../platforms/campus/settings/CampusIntegrationsSettingsPanel";
 
-function buildPlatformSettings(title, integrationsComponent = null) {
+function buildPlatformSettings() {
   return (
     <SettingsLayout
       sections={[
@@ -14,21 +11,6 @@ function buildPlatformSettings(title, integrationsComponent = null) {
           key: "organization",
           label: "Organization",
           component: <OrganizationAccessPanel />,
-        },
-        {
-          key: "integrations",
-          label: "Integrations",
-          component: integrationsComponent || <div>{title} integrations coming next.</div>,
-        },
-        {
-          key: "tiles",
-          label: "Tile Apps",
-          component: <TileSettingsPanel />,
-        },
-        {
-          key: "widgets",
-          label: "Widgets",
-          component: <WidgetSettingsPanel />,
         },
         {
           key: "profile",
@@ -74,22 +56,22 @@ export function getModeSettings(mode) {
       return buildSimpleOrganizationSettings();
 
     case "church":
-      return buildPlatformSettings("Church");
+      return buildPlatformSettings();
 
     case "admin":
-      return buildPlatformSettings("Admin");
+      return buildPlatformSettings();
 
     case "campus":
-      return buildPlatformSettings("Campus", <CampusIntegrationsSettingsPanel />);
+      return buildPlatformSettings();
 
     case "pages":
-      return buildPlatformSettings("Pages");
+      return buildPlatformSettings();
 
     case "sports":
-      return buildPlatformSettings("Sports");
+      return buildPlatformSettings();
 
     case "farm":
-      return buildPlatformSettings("Farm");
+      return buildPlatformSettings();
 
     default:
       return <div>No settings available</div>;

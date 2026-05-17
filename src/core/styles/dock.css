@@ -51,7 +51,7 @@
   background: rgba(255,255,255,0.85);
   backdrop-filter: blur(6px);
 
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid transparent;
 
   min-width: 0; /* 🔥 ADDED: allows text to shrink properly */
 }
@@ -70,16 +70,14 @@
   height: 72px;
   border-radius: 20px;
 
-  box-shadow:
-    0 10px 25px rgba(0,0,0,0.18),
-    0 4px 10px rgba(0,0,0,0.08);
+  box-shadow: none;
 
-  border: 1px solid rgba(0,0,0,0.08);
+  border: 1px solid transparent;
 }
 
 /* ACTIVE BAR */
 .nav-item2.active::after {
-  content: "";
+  content: none;
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
@@ -264,9 +262,7 @@
   }
 
   .nav-item2.active::after {
-    bottom: 3px;
-    height: 4px;
-    width: 44%;
+    content: none;
   }
 
   .nav-item2 span {

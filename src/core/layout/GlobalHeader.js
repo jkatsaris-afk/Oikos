@@ -10,6 +10,7 @@ import oikosEduLogo from "../../assets/logos/Oikos_EDU_logo.png";
 /* 🔥 ADD THESE */
 import SettingsModal from "../settings/SettingsModal";
 import { getModeSettings } from "../settings/getModeSettings";
+import useResponsive from "../hooks/useResponsive";
 
 /* =========================
    GLOBAL HEADER
@@ -18,6 +19,7 @@ import { getModeSettings } from "../settings/getModeSettings";
 export default function GlobalHeader() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isPhone } = useResponsive();
   const hostname = window.location.hostname;
 
   const [time, setTime] = useState("");
@@ -90,32 +92,32 @@ export default function GlobalHeader() {
 
   return (
     <>
-      <div style={styles.header}>
+      <div style={{ ...styles.header, ...(isPhone ? styles.headerPhone : {}) }}>
 
         {/* =========================
             LEFT SIDE (LOGO)
         ========================= */}
-        <div style={styles.left}>
+        <div style={{ ...styles.left, ...(isPhone ? styles.leftPhone : {}) }}>
           <img
             src={headerLogo}
             alt={headerLogoAlt}
-            style={styles.logo}
+            style={{ ...styles.logo, ...(isPhone ? styles.logoPhone : {}) }}
           />
         </div>
 
         {/* =========================
             RIGHT SIDE (ALL CONTROLS)
         ========================= */}
-        <div style={styles.right}>
+        <div style={{ ...styles.right, ...(isPhone ? styles.rightPhone : {}) }}>
 
           {/* DISPLAY / TV ONLY */}
           {isDisplayMode && (
             <>
-              <button style={styles.iconBtn}>
+              <button style={{ ...styles.iconBtn, ...(isPhone ? styles.iconBtnPhone : {}) }}>
                 <User size={20} />
               </button>
 
-              <button style={styles.iconBtn}>
+              <button style={{ ...styles.iconBtn, ...(isPhone ? styles.iconBtnPhone : {}) }}>
                 <Moon size={20} />
               </button>
             </>
@@ -124,7 +126,7 @@ export default function GlobalHeader() {
           {/* SETTINGS */}
           {!isEduTeacher ? (
             <button
-              style={styles.iconBtn}
+              style={{ ...styles.iconBtn, ...(isPhone ? styles.iconBtnPhone : {}) }}
               onClick={() => setOpenSettings(true)} // 🔥 ADDED
             >
               <Settings size={20} />
@@ -132,7 +134,7 @@ export default function GlobalHeader() {
           ) : null}
 
           <button
-            style={styles.iconBtn}
+            style={{ ...styles.iconBtn, ...(isPhone ? styles.iconBtnPhone : {}) }}
             onClick={handleLogout}
             aria-label="Log out"
             title="Log out"
@@ -141,7 +143,7 @@ export default function GlobalHeader() {
           </button>
 
           {/* CLOCK (FURTHEST RIGHT) */}
-          <div style={styles.clock}>
+          <div style={{ ...styles.clock, ...(isPhone ? styles.clockPhone : {}) }}>
             <div style={styles.time}>{time}</div>
             <div style={styles.date}>{date}</div>
           </div>
@@ -190,16 +192,34 @@ const styles = {
 
     zIndex: 200,
   },
+  headerPhone: {
+    borderRadius: 18,
+    height: 48,
+    left: 8,
+    padding: "0 8px 0 10px",
+    right: 8,
+    top: 8,
+  },
 
   left: {
     display: "flex",
     alignItems: "center",
+    minWidth: 0,
+  },
+  leftPhone: {
+    flex: "1 1 auto",
+    overflow: "hidden",
   },
 
   right: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
+    minWidth: 0,
+  },
+  rightPhone: {
+    flex: "0 0 auto",
+    gap: 5,
   },
 
   iconBtn: {
@@ -215,6 +235,12 @@ const styles = {
     padding: 0,
     width: "36px",
   },
+  iconBtnPhone: {
+    borderRadius: 12,
+    height: 34,
+    minWidth: 34,
+    width: 34,
+  },
 
   clock: {
     display: "flex",
@@ -226,6 +252,9 @@ const styles = {
     borderRadius: "16px",
     background: "rgba(255,255,255,0.58)",
     border: "1px solid rgba(15,23,42,0.06)",
+  },
+  clockPhone: {
+    display: "none",
   },
 
   time: {
@@ -241,6 +270,11 @@ const styles = {
 
   logo: {
     height: "30px",
+    maxWidth: "min(220px, 48vw)",
     objectFit: "contain",
+  },
+  logoPhone: {
+    height: 26,
+    maxWidth: "42vw",
   },
 };

@@ -4,7 +4,7 @@ const HymnsTileDesign = {
   id: "hymns",
   icon: Music,
   label: "Hymns",
-  background: "#4F7C74",
+  background: "#5F7D4D",
   color: "#ffffff",
 };
 

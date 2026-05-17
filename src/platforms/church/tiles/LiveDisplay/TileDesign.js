@@ -4,7 +4,7 @@ const LiveDisplayTileDesign = {
   id: "live-display",
   icon: MonitorSmartphone,
   label: "Live Display",
-  background: "#356f60",
+  background: "#5F7D4D",
   color: "#ffffff",
 };
 

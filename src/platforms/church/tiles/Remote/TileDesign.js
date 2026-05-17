@@ -4,7 +4,7 @@ const RemoteTileDesign = {
   id: "remote",
   icon: Smartphone,
   label: "Controllers",
-  background: "#446B8A",
+  background: "#5F7D4D",
   color: "#ffffff",
 };
 

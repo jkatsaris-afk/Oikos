@@ -1033,10 +1033,10 @@ const styles = {
   },
 
   secondaryAction: {
-    background: "#edf4ea",
-    border: "1px solid #b7cfab",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.18)",
     borderRadius: 12,
-    color: "#4b6b3a",
+    color: "var(--color-primary-dark)",
     cursor: "pointer",
     fontWeight: 700,
     padding: "12px 16px",
@@ -1046,7 +1046,7 @@ const styles = {
     background: "#eef6ea",
     border: "1px solid #cfe1c5",
     borderRadius: 14,
-    color: "#4b6b3a",
+    color: "var(--color-primary-dark)",
     fontSize: 13,
     fontWeight: 600,
     padding: "10px 14px",
@@ -1142,8 +1142,8 @@ const styles = {
   },
 
   draftBadge: {
-    background: "#edf4ea",
-    color: "#4b6b3a",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    color: "var(--color-primary-dark)",
   },
 
   savedBadge: {
@@ -1304,10 +1304,10 @@ const styles = {
   },
 
   secondaryWideButton: {
-    background: "#edf4ea",
-    border: "1px solid #b7cfab",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.18)",
     borderRadius: 12,
-    color: "#4b6b3a",
+    color: "var(--color-primary-dark)",
     cursor: "pointer",
     fontWeight: 700,
     padding: "12px 14px",
@@ -1456,7 +1456,7 @@ const styles = {
   },
 
   previewCard: {
-    background: "linear-gradient(135deg, #5F7D4D, #7F9F6C)",
+    background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))",
     borderRadius: 18,
     color: "#fff",
     display: "flex",
@@ -1505,7 +1505,7 @@ const styles = {
   },
 
   slideReference: {
-    color: "#4b6b3a",
+    color: "var(--color-primary-dark)",
     fontSize: 13,
     fontWeight: 700,
   },
@@ -1563,7 +1563,7 @@ const styles = {
 
   liveTitleCard: {
     alignItems: "center",
-    background: "linear-gradient(135deg, #5F7D4D, #7F9F6C)",
+    background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))",
     borderRadius: 20,
     color: "#fff",
     display: "flex",
@@ -1605,7 +1605,7 @@ const styles = {
   },
 
   liveSlideReference: {
-    color: "#4b6b3a",
+    color: "var(--color-primary-dark)",
     fontSize: 14,
     fontWeight: 800,
     marginBottom: 10,

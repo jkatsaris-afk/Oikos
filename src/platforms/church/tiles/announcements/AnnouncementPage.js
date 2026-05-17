@@ -230,7 +230,7 @@ const styles = {
   addButton: {
     alignItems: "center",
     alignSelf: "flex-start",
-    background: "#6b8f58",
+    background: "var(--color-primary)",
     border: "none",
     borderRadius: 12,
     color: "#ffffff",

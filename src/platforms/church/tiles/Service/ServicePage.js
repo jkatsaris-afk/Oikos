@@ -384,10 +384,10 @@ const styles = {
     marginTop: 4,
   },
   refreshButton: {
-    background: "#edf4ea",
-    border: "1px solid #b7cfab",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.18)",
     borderRadius: 12,
-    color: "#4b6b3a",
+    color: "var(--color-primary-dark)",
     cursor: "pointer",
     fontWeight: 700,
     padding: "12px 16px",

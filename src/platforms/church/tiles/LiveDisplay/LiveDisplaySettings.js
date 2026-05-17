@@ -40,7 +40,7 @@ export default function LiveDisplaySettings() {
       />
       <button
         style={{
-          background: "#356f60",
+          background: "var(--color-primary)",
           border: "none",
           borderRadius: 10,
           color: "#fff",

@@ -23,6 +23,7 @@ import ResetPasswordPage from "./core/pages/ResetPasswordPage";
 import JoinPage from "./core/pages/JoinPage";
 import MasterModePage from "./core/pages/MasterModePage";
 import GlobalLoadingPage from "./core/components/GlobalLoadingPage";
+import DynamicInstallMetadata from "./core/pwa/DynamicInstallMetadata";
 import { TilePreferencesProvider } from "./core/tiles/TilePreferencesProvider";
 import ChurchLiveDisplayViewerPage from "./platforms/church/pages/ChurchLiveDisplayViewerPage";
 
@@ -137,6 +138,7 @@ const DisplayEduDashboard = load("./platforms/display/modes/edu/pages/DisplayEdu
 const DisplayNightstandDashboard = load("./platforms/display/modes/nightstand/pages/DisplayNightstandDashboardPage");
 
 const ChurchDashboard = load("./platforms/church/pages/ChurchDashboardPage");
+const ChurchMeetingMinutesPadPage = load("./platforms/church/pages/ChurchMeetingMinutesPadPage");
 const AdminDashboard = load("./platforms/admin/pages/AdminDashboardPage");
 const CampusDashboard = load("./platforms/campus/pages/CampusDashboardPage");
 const TeacherPortalApp = load("./platforms/campus/portals/teacher/TeacherPortalApp");
@@ -273,6 +275,21 @@ function AppRoutes() {
     );
   }
 
+  if (path.startsWith("/church/management/minutes-pad")) {
+    return (
+      <RequireAuth>
+        <TilePreferencesProvider>
+          <ModeWrapper>
+            <Routes>
+              <Route path="/church/management/minutes-pad" element={<ChurchMeetingMinutesPadPage />} />
+              <Route path="*" element={<Navigate to="/church/management/minutes-pad" replace />} />
+            </Routes>
+          </ModeWrapper>
+        </TilePreferencesProvider>
+      </RequireAuth>
+    );
+  }
+
   return (
     <RequireAuth>
       <TilePreferencesProvider>
@@ -317,6 +334,7 @@ function AppShell() {
         />
       }
     >
+      <DynamicInstallMetadata />
       <RouteErrorBoundary resetKey={location.pathname}>
         <AppRoutes />
       </RouteErrorBoundary>

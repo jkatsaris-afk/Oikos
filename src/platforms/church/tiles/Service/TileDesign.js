@@ -4,7 +4,7 @@ const ServiceTileDesign = {
   id: "service",
   icon: Presentation,
   label: "Service",
-  background: "#6C8F57",
+  background: "#5F7D4D",
   color: "#ffffff",
 };
 

@@ -26,14 +26,10 @@ export default function PanelLoadingState({
 const styles = {
   panel: {
     alignItems: "center",
-    background: "rgba(255,255,255,0.72)",
-    border: "1px solid rgba(255,255,255,0.56)",
-    borderRadius: 22,
-    boxShadow: "0 16px 42px rgba(15,23,42,0.10)",
     boxSizing: "border-box",
     display: "grid",
-    minHeight: 280,
-    padding: 24,
+    minHeight: 320,
+    padding: 20,
     width: "100%",
   },
   content: {

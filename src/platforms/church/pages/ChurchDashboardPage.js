@@ -1,13 +1,17 @@
-import React, { useMemo, useState } from "react";
-import { Home } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Building2, Home, LogOut, UserPlus } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
+import { supabase } from "../../../auth/supabaseClient";
+import { useAuth } from "../../../auth/useAuth";
+import { fetchOrganizationAccess } from "../../../core/settings/organizationAccessService";
 import { getDefaultAvailableTileIds } from "../../../core/tiles/tileCatalog";
 import { getTileDesign } from "../../../core/tiles/tileDesign";
 import { tileRegistry } from "../../../core/tiles/tileRegistry";
 import { DockNavigationProvider } from "../../../core/layout/DockNavigationContext";
 import useResponsive from "../../../core/hooks/useResponsive";
-import DashboardWidgets from "../../../core/widgets/DashboardWidgets";
+import ChurchManagementPage from "./ChurchManagementPage";
+import ChurchOverviewPage from "./ChurchOverviewPage";
 
 const CHURCH_NAV_LABELS = {
   announcements: "News",
@@ -21,11 +25,18 @@ const CHURCH_NAV_LABELS = {
 
 export default function ChurchDashboardPage() {
   const { isPhone } = useResponsive();
+  const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [churchAccount, setChurchAccount] = useState(null);
+  const [sideNavNotice, setSideNavNotice] = useState("");
   const [activeSection, setActiveSection] = useState(() => {
     const section = new URLSearchParams(location.search).get("section");
-    return section && getDefaultAvailableTileIds("church").includes(section) ? section : "overview";
+    return section && (section === "management" || getDefaultAvailableTileIds("church").includes(section))
+      ? section
+      : "overview";
   });
+  const [managementInitialSection, setManagementInitialSection] = useState("attendance");
 
   const navItems = useMemo(() => {
     const overview = {
@@ -34,6 +45,14 @@ export default function ChurchDashboardPage() {
       shortLabel: "Home",
       icon: Home,
       background: "var(--color-primary)",
+    };
+    const management = {
+      id: "management",
+      label: "Church Management",
+      shortLabel: "Manage",
+      icon: Building2,
+      background: "var(--color-primary)",
+      page: ChurchManagementPage,
     };
 
     const appItems = getDefaultAvailableTileIds("church")
@@ -54,13 +73,62 @@ export default function ChurchDashboardPage() {
       })
       .filter(Boolean);
 
-    return [overview, ...appItems];
+    return [overview, management, ...appItems];
   }, []);
 
   const activeItem = navItems.find((item) => item.id === activeSection) || navItems[0];
   const ActivePage = activeItem?.page || null;
-  const openChurchSection = (sectionId) => {
+  const churchName = churchAccount?.name || "Church";
+  const headerTitle =
+    activeSection === "overview"
+      ? `${churchName} Overview`
+      : activeItem?.label || "Overview";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadChurchAccount() {
+      if (!user?.id) {
+        setChurchAccount(null);
+        return;
+      }
+
+      const access = await fetchOrganizationAccess(user?.id, "church").catch(() => null);
+      if (isMounted) {
+        setChurchAccount(access?.account || null);
+      }
+    }
+
+    loadChurchAccount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  const openChurchSection = (sectionId, managementSection = "") => {
+    if (sectionId === "management" && managementSection) {
+      setManagementInitialSection(managementSection);
+    }
     setActiveSection(sectionId === "home" ? "overview" : sectionId);
+  };
+  const handleInviteUser = async () => {
+    const inviteCode = churchAccount?.invite_code || churchAccount?.inviteCode || "";
+    const inviteUrl = inviteCode
+      ? `${window.location.origin}/join?inviteCode=${encodeURIComponent(inviteCode)}`
+      : `${window.location.origin}/join`;
+
+    try {
+      await window.navigator.clipboard.writeText(inviteUrl);
+      setSideNavNotice("Invite link copied.");
+    } catch (error) {
+      console.error("Church invite link copy error:", error);
+      setSideNavNotice(inviteCode || "Open Settings to create an invite code.");
+    }
+  };
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login", { replace: true, state: { from: location.pathname } });
   };
 
   return (
@@ -68,7 +136,7 @@ export default function ChurchDashboardPage() {
       <section style={{ ...styles.header, ...(isPhone ? styles.headerPhone : {}) }}>
         <div>
           <div style={styles.eyebrow}>Oikos Church</div>
-          <h1 style={styles.title}>{activeItem?.label || "Overview"}</h1>
+          <h1 style={styles.title}>{headerTitle}</h1>
         </div>
       </section>
 
@@ -80,56 +148,80 @@ export default function ChurchDashboardPage() {
             ...(isPhone
               ? {
                   ...styles.sideNavPhone,
-                  gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))`,
+                  gridTemplateColumns: `repeat(${navItems.length + 2}, minmax(0, 1fr))`,
                 }
               : {}),
           }}
         >
           <div style={{ ...styles.sideNavTitle, ...(isPhone ? styles.sideNavTitlePhone : {}) }}>
-            Church
+            {churchName}
           </div>
 
-          {navItems.map((item) => {
-            const Icon = item.icon || Home;
-            const active = activeSection === item.id;
+          <div style={{ ...styles.navMain, ...(isPhone ? styles.navMainPhone : {}) }}>
+            {navItems.map((item) => {
+              const Icon = item.icon || Home;
+              const active = activeSection === item.id;
 
-            return (
-              <button
-                key={item.id}
-                style={{
-                  ...styles.navButton,
-                  ...(isPhone ? styles.navButtonPhone : {}),
-                  ...(active
-                    ? {
-                        ...styles.navButtonActive,
-                        background: item.background || "var(--color-primary)",
-                        borderColor: item.background || "var(--color-primary)",
-                      }
-                    : {}),
-                }}
-                type="button"
-                onClick={() => setActiveSection(item.id)}
-              >
-                <Icon size={isPhone && navItems.length > 6 ? 15 : 17} />
-                <span style={isPhone ? styles.navLabelPhone : null}>
-                  {isPhone ? item.shortLabel || item.label : item.label}
-                </span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={item.id}
+                  style={{
+                    ...styles.navButton,
+                    ...(isPhone ? styles.navButtonPhone : {}),
+                    ...(active
+                      ? {
+                          ...styles.navButtonActive,
+                          background: "var(--color-primary)",
+                          borderColor: "transparent",
+                        }
+                      : {}),
+                  }}
+                  type="button"
+                  onClick={() => setActiveSection(item.id)}
+                >
+                  <Icon size={isPhone && navItems.length > 6 ? 15 : 17} />
+                  <span style={isPhone ? styles.navLabelPhone : null}>
+                    {isPhone ? item.shortLabel || item.label : item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ ...styles.sideNavFooter, ...(isPhone ? styles.sideNavFooterPhone : {}) }}>
+            {sideNavNotice && !isPhone ? <div style={styles.sideNavNotice}>{sideNavNotice}</div> : null}
+            <button
+              type="button"
+              style={{ ...styles.footerButton, ...(isPhone ? styles.footerButtonPhone : {}) }}
+              onClick={handleInviteUser}
+            >
+              <UserPlus size={isPhone ? 15 : 16} />
+              <span style={isPhone ? styles.navLabelPhone : null}>Invite</span>
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.footerButton, ...styles.logoutButton, ...(isPhone ? styles.footerButtonPhone : {}) }}
+              onClick={handleLogout}
+            >
+              <LogOut size={isPhone ? 15 : 16} />
+              <span style={isPhone ? styles.navLabelPhone : null}>Logout</span>
+            </button>
+          </div>
         </aside>
 
         <DockNavigationProvider value={{ activeTile: activeSection, openTile: openChurchSection }}>
           <section style={{ ...styles.contentPane, ...(isPhone ? styles.contentPanePhone : {}) }}>
             {activeSection === "overview" ? (
               <div style={styles.overview}>
-                <DashboardWidgets />
+                <ChurchOverviewPage churchName={churchName} onOpenSection={openChurchSection} />
               </div>
             ) : ActivePage ? (
               React.createElement(ActivePage, {
+                churchName,
                 showHeader: false,
                 showUninstall: false,
                 onUninstall: undefined,
+                initialSection: activeSection === "management" ? managementInitialSection : undefined,
               })
             ) : null}
           </section>
@@ -165,7 +257,7 @@ const styles = {
     padding: "0 2px",
   },
   eyebrow: {
-    color: "#356f60",
+    color: "var(--color-primary-dark)",
     fontSize: 12,
     fontWeight: 800,
     letterSpacing: 0,
@@ -207,6 +299,7 @@ const styles = {
     bottom: "max(10px, env(safe-area-inset-bottom))",
     display: "grid",
     gap: 4,
+    gridAutoRows: "minmax(54px, auto)",
     left: 10,
     maxWidth: "calc(100vw - 20px)",
     overflow: "hidden",
@@ -217,19 +310,19 @@ const styles = {
     zIndex: 160,
   },
   sideNavTitle: {
-    color: "#64748b",
-    fontSize: 12,
+    color: "var(--color-primary-dark)",
+    fontSize: 13,
     fontWeight: 900,
+    lineHeight: 1.2,
     padding: "8px 12px 4px",
-    textTransform: "uppercase",
   },
   sideNavTitlePhone: {
     display: "none",
   },
   navButton: {
     alignItems: "center",
-    background: "rgba(var(--color-primary-rgb),0.08)",
-    border: "1px solid rgba(var(--color-primary-rgb),0.10)",
+    background: "rgba(var(--color-primary-rgb),0.09)",
+    border: "1px solid transparent",
     borderRadius: 999,
     color: "var(--color-primary-dark)",
     cursor: "pointer",
@@ -239,9 +332,21 @@ const styles = {
     fontWeight: 850,
     gap: 9,
     minHeight: 42,
+    outline: "none",
     padding: "0 13px",
     textAlign: "left",
     width: "100%",
+  },
+  navMain: {
+    display: "flex",
+    flex: 1,
+    flexDirection: "column",
+    gap: 8,
+    minHeight: 0,
+    overflow: "auto",
+  },
+  navMainPhone: {
+    display: "contents",
   },
   navButtonPhone: {
     borderRadius: 18,
@@ -257,7 +362,59 @@ const styles = {
   },
   navButtonActive: {
     color: "#fff",
-    boxShadow: "0 10px 22px rgba(15,23,42,0.18)",
+    boxShadow: "none",
+  },
+  sideNavFooter: {
+    borderTop: "1px solid rgba(var(--color-primary-rgb),0.14)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginTop: "auto",
+    paddingTop: 10,
+  },
+  sideNavFooterPhone: {
+    display: "contents",
+  },
+  sideNavNotice: {
+    color: "var(--color-primary-dark)",
+    fontSize: 11,
+    fontWeight: 800,
+    lineHeight: 1.35,
+    padding: "0 10px",
+  },
+  footerButton: {
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.12)",
+    border: "1px solid transparent",
+    borderRadius: 999,
+    color: "var(--color-primary-dark)",
+    cursor: "pointer",
+    display: "flex",
+    font: "inherit",
+    fontSize: 13,
+    fontWeight: 850,
+    gap: 9,
+    minHeight: 42,
+    padding: "0 13px",
+    textAlign: "left",
+    width: "100%",
+  },
+  footerButtonPhone: {
+    borderRadius: 18,
+    flexDirection: "column",
+    fontSize: 9,
+    gap: 2,
+    justifyContent: "center",
+    minHeight: 54,
+    minWidth: 0,
+    overflow: "hidden",
+    padding: "5px 2px",
+    textAlign: "center",
+  },
+  logoutButton: {
+    background: "rgba(15,23,42,0.05)",
+    border: "1px solid transparent",
+    color: "#334155",
   },
   navLabelPhone: {
     display: "block",
@@ -277,6 +434,6 @@ const styles = {
     paddingRight: 0,
   },
   overview: {
-    padding: 20,
+    padding: 0,
   },
 };

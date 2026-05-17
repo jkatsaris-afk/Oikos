@@ -568,16 +568,16 @@ const styles = {
   },
   pageTitle: {
     color: "#0f172a",
-    fontSize: "clamp(44px, 5vw, 78px)",
-    fontWeight: 950,
-    lineHeight: 0.96,
+    fontSize: "clamp(22px, 2.2vw, 34px)",
+    fontWeight: 850,
+    lineHeight: 1.08,
     margin: 0,
   },
   pageMeta: {
     color: "#64748b",
     fontSize: 14,
-    fontWeight: 750,
-    marginTop: 12,
+    fontWeight: 700,
+    marginTop: 6,
   },
   topRow: {
     alignItems: "center",
@@ -704,7 +704,7 @@ const styles = {
   },
   primaryButton: {
     alignItems: "center",
-    background: "#356f60",
+    background: "var(--color-primary)",
     border: "none",
     borderRadius: 12,
     color: "#ffffff",
@@ -783,7 +783,7 @@ const styles = {
     flexDirection: "column",
   },
   loopTone: {
-    color: "#356f60",
+    color: "var(--color-primary-dark)",
     fontSize: 11,
     fontWeight: 900,
     letterSpacing: "0.08em",
@@ -886,7 +886,7 @@ const styles = {
   },
   screenCount: {
     alignItems: "center",
-    color: "#356f60",
+    color: "var(--color-primary-dark)",
     display: "inline-flex",
     fontSize: 13,
     fontWeight: 800,

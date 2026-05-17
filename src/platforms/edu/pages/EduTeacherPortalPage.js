@@ -910,9 +910,9 @@ const styles = {
   },
   navButtonActive: {
     background: "var(--color-primary)",
-    borderColor: "var(--color-primary)",
+    borderColor: "transparent",
     color: "#fff",
-    boxShadow: "0 10px 22px rgba(var(--color-primary-rgb),0.22)",
+    boxShadow: "none",
   },
   contentPane: {
     marginLeft: 268,

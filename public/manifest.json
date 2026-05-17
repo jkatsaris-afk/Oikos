@@ -1,6 +1,6 @@
 {
-  "short_name": "Oikos Edu",
-  "name": "Oikos Edu Student Device",
+  "short_name": "Oikos",
+  "name": "Oikos OS",
   "icons": [
     {
       "src": "oikos-edu-icon.svg",
@@ -14,11 +14,11 @@
       "sizes": "16x16 32x32 48x48"
     }
   ],
-  "start_url": "/studentdevice",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "landscape-primary",
-  "theme_color": "#2563eb",
+  "orientation": "any",
+  "theme_color": "#0f172a",
   "background_color": "#0f172a",
   "shortcuts": [
     {

@@ -4,7 +4,7 @@ const EventsTileDesign = {
   id: "events",
   icon: CalendarDays,
   label: "Events",
-  background: "#5C8B72",
+  background: "#5F7D4D",
   color: "#ffffff",
 };
 

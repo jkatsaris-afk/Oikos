@@ -1,5 +1,23 @@
-const CACHE_NAME = "oikos-edu-student-device-v1";
-const APP_SHELL = ["/", "/studentdevice", "/manifest.json", "/oikos-edu-icon.svg"];
+const CACHE_NAME = "oikos-os-v2";
+const APP_SHELL = [
+  "/",
+  "/manifest.json",
+  "/oikos-edu-icon.svg",
+  "/app-icons/oikos-default-icon.svg",
+  "/app-icons/church-main-icon.svg",
+  "/app-icons/church-main-icon.png",
+  "/app-icons/church-controller-icon.svg",
+  "/app-icons/church-controller-icon.png",
+  "/app-icons/church-live-display-icon.svg",
+  "/app-icons/church-live-display-icon.png",
+  "/app-icons/sports-falcon-icon.svg",
+  "/app-icons/campus-icon.svg",
+  "/app-icons/admin-icon.svg",
+  "/app-icons/business-icon.svg",
+  "/app-icons/farm-icon.svg",
+  "/app-icons/pages-icon.svg",
+  "/app-icons/nightstand-icon.svg",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -30,7 +48,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/studentdevice").then((cached) => cached || caches.match("/"))));
+    event.respondWith(fetch(request).catch(() => caches.match("/")));
     return;
   }
 

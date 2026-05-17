@@ -532,7 +532,7 @@ const styles = {
     flexDirection: "column",
   },
   songNumber: {
-    color: "#4f7c74",
+    color: "var(--color-primary-dark)",
     fontSize: 12,
     fontWeight: 900,
     letterSpacing: "0.08em",
@@ -609,7 +609,7 @@ const styles = {
     flexDirection: "column",
   },
   smallActionButton: {
-    background: "#4f7c74",
+    background: "var(--color-primary)",
     border: "none",
     borderRadius: 10,
     color: "#ffffff",
@@ -630,7 +630,7 @@ const styles = {
   },
   addButton: {
     alignItems: "center",
-    background: "#4f7c74",
+    background: "var(--color-primary)",
     border: "none",
     borderRadius: 12,
     color: "#ffffff",

@@ -11,3 +11,19 @@
     opacity: 1;
   }
 }
+
+button:focus,
+button:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible,
+.nav-item2:focus,
+.nav-item2:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+button,
+[role="button"],
+.nav-item2 {
+  -webkit-tap-highlight-color: transparent;
+}

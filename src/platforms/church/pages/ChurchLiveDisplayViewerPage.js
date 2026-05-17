@@ -175,6 +175,7 @@ export default function ChurchLiveDisplayViewerPage() {
 
   const item = contentItems[activeIndex];
   const isLive = displayData.display.state === "live";
+  const isWelcomeSlide = !isLive && (item?.id === "welcome-slide" || item?.type === "welcome");
   const shouldShowLoopSubtitle =
     item?.subtitle &&
     !["announcements-slide", "events-slide"].includes(item?.id);
@@ -234,7 +235,7 @@ export default function ChurchLiveDisplayViewerPage() {
                 </div>
               )
             ) : (
-              <div style={styles.loopSlide}>
+              <div style={{ ...styles.loopSlide, ...(isWelcomeSlide ? styles.loopSlideWelcome : {}) }}>
                 {item?.showLogo ? (
                   item?.logoUrl || displayData.display.organizationLogoUrl ? (
                     <img
@@ -244,12 +245,14 @@ export default function ChurchLiveDisplayViewerPage() {
                     />
                   ) : null
                 ) : null}
-                <div style={styles.loopTitle}>{item?.title || "Welcome To"}</div>
+                <div style={{ ...styles.loopTitle, ...(isWelcomeSlide ? styles.loopTitleWelcome : {}) }}>
+                  {item?.title || "Welcome To"}
+                </div>
                 {shouldShowLoopSubtitle ? (
                   <div style={styles.subtitle}>{item.subtitle}</div>
                 ) : null}
                 {renderLoopEntries(item) || (
-                  <div style={styles.body}>
+                  <div style={{ ...styles.body, ...(isWelcomeSlide ? styles.bodyWelcome : {}) }}>
                     {item?.body || ""}
                   </div>
                 )}
@@ -313,6 +316,9 @@ const styles = {
     overflow: "hidden",
     paddingTop: 0,
     textAlign: "center",
+  },
+  loopSlideWelcome: {
+    justifyContent: "flex-start",
   },
   verseSlide: {
     alignItems: "center",
@@ -388,6 +394,10 @@ const styles = {
     paddingBottom: "clamp(10px, 1.8vh, 24px)",
     width: "100%",
   },
+  loopTitleWelcome: {
+    borderBottom: "none",
+    paddingBottom: 0,
+  },
   subtitle: {
     fontSize: "clamp(28px, min(5vw, 8vh), 88px)",
     fontWeight: 400,
@@ -401,6 +411,13 @@ const styles = {
     marginTop: "clamp(18px, 3vh, 42px)",
     maxWidth: "min(1120px, 92vw)",
     whiteSpace: "pre-line",
+  },
+  bodyWelcome: {
+    color: "#475569",
+    fontSize: "clamp(16px, min(2vw, 3.2vh), 34px)",
+    fontWeight: 400,
+    lineHeight: 1.35,
+    marginTop: "auto",
   },
   entryList: {
     display: "grid",
