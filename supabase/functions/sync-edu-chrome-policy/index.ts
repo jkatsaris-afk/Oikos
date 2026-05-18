@@ -13,7 +13,22 @@ const DIRECTORY_URL = "https://admin.googleapis.com/admin/directory/v1";
 const DEFAULT_EXTENSION_UPDATE_URL = "https://clients2.google.com/service/update2/crx";
 const GOOGLE_SIGN_IN_ALLOWED_HOSTS = [
   "accounts.google.com",
+  "accounts.gstatic.com",
+  "calendar.google.com",
+  "classroom.google.com",
+  "clients1.google.com",
+  "clients2.google.com",
+  "clients3.google.com",
+  "clients4.google.com",
+  "clients5.google.com",
+  "clients6.google.com",
+  "content.googleapis.com",
+  "docs.google.com",
+  "drive.google.com",
+  "google.com",
   "myaccount.google.com",
+  "mail.google.com",
+  "ogs.google.com",
   "oauth2.googleapis.com",
   "apis.google.com",
   "ssl.gstatic.com",
@@ -283,12 +298,24 @@ Deno.serve(async (req) => {
       throw appsError;
     }
 
+    const { data: systemApps, error: systemAppsError } = await adminClient
+      .from("edu_student_device_system_apps")
+      .select("url")
+      .eq("is_globally_enabled", true);
+
+    if (systemAppsError) {
+      throw systemAppsError;
+    }
+
     const accessToken = await createGoogleAccessToken(googleAdminEmail);
     const targetResource = await resolveOrgUnitResource(customerId, orgUnitPath, accessToken);
     const appId = `chrome:${extensionId}`;
     const managedConfiguration = buildManagedConfiguration(
       settings,
-      (apps || []).map((app: { url?: string }) => app.url || ""),
+      [
+        ...(apps || []).map((app: { url?: string }) => app.url || ""),
+        ...(systemApps || []).map((app: { url?: string }) => app.url || ""),
+      ],
     );
 
     const requests: Array<Record<string, unknown>> = [

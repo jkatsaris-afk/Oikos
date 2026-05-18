@@ -1,4 +1,6 @@
 const HOST_MODE_MAP = {
+  "oikosedu.com": "edu",
+  "www.oikosedu.com": "edu",
   "oikoschurch.app": "church",
   "www.oikoschurch.app": "church",
   "oikoscampus.app": "campus",
@@ -7,6 +9,11 @@ const HOST_MODE_MAP = {
   "www.oikossports.app": "sports",
   "oikosadmin.app": "admin",
   "www.oikosadmin.app": "admin",
+};
+
+const HOST_DEFAULT_PATH_MAP = {
+  "oikosedu.com": "/edu/sales",
+  "www.oikosedu.com": "/edu/sales",
 };
 
 const MODE_PATH_MAP = {
@@ -35,7 +42,10 @@ export function getDefaultPathForMode(mode = "home") {
 }
 
 export function getDefaultPathForHostname(hostname = "") {
-  const forcedMode = getForcedModeForHostname(hostname);
+  const normalizedHost = normalizeHostname(hostname);
+  if (HOST_DEFAULT_PATH_MAP[normalizedHost]) return HOST_DEFAULT_PATH_MAP[normalizedHost];
+
+  const forcedMode = getForcedModeForHostname(normalizedHost);
   return getDefaultPathForMode(forcedMode || "home");
 }
 

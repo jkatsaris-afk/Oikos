@@ -4,12 +4,14 @@ import {
   AppWindow,
   ArrowLeft,
   Bell,
+  Check,
   Download,
   ExternalLink,
   FlaskConical,
   Globe2,
   GraduationCap,
   LayoutDashboard,
+  LogOut,
   Mail,
   Monitor,
   Pencil,
@@ -24,6 +26,7 @@ import {
   Upload,
 } from "lucide-react";
 
+import { supabase } from "../../../auth/supabaseClient";
 import { useAuth } from "../../../auth/useAuth";
 import GlobalLoadingPage from "../../../core/components/GlobalLoadingPage";
 import useResponsive from "../../../core/hooks/useResponsive";
@@ -47,13 +50,16 @@ import {
   saveEduDeviceApp,
   saveEduDeviceDockTiles,
   saveEduDeviceSecuritySettings,
+  saveEduExtrasSettings,
+  saveEduHallPassSettings,
+  saveEduNotificationTemplates,
   saveEduDeviceStudent,
   saveEduTeacher,
   saveEduTeacherStudents,
   saveEduTestingApps,
-  sendEduAdminScreenNotification,
   sendEduTeacherPasswordReset,
   syncEduChromeGuardPolicy,
+  updateEduHallPassRequest,
   uploadEduDeviceAppLogo,
   uploadEduDeviceBackgroundImage,
 } from "../services/studentDeviceService";
@@ -76,11 +82,26 @@ const EMPTY_STUDENT = {
   isActive: true,
 };
 
-const EMPTY_NOTIFICATION = {
-  targetType: "all",
-  studentId: "",
+const EMPTY_NOTIFICATION_TEMPLATE = {
+  id: "",
+  name: "",
   title: "",
   message: "",
+  isActive: true,
+};
+
+const EMPTY_EXTRAS_SETTINGS = {
+  notificationsEnabled: false,
+  hallPassEnabled: false,
+};
+
+const EMPTY_HALL_PASS_SETTINGS = {
+  enabled: false,
+  destinations: ["Restroom", "Nurse", "Office", "Library"],
+  requireReason: false,
+  allowStudentCancel: true,
+  campusEnabled: false,
+  campusLaunchUrl: "",
 };
 
 function normalizeHexColor(value = "") {
@@ -103,6 +124,13 @@ function getInitials(name = "A") {
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
     .join("") || "A";
+}
+
+function createLocalId(prefix = "item") {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function getIconTone(name = "") {
@@ -240,7 +268,22 @@ const EMPTY_CHROME_EXTENSION = {
 
 const GOOGLE_SIGN_IN_ALLOWED_HOSTS = [
   "accounts.google.com",
+  "accounts.gstatic.com",
+  "calendar.google.com",
+  "classroom.google.com",
+  "clients1.google.com",
+  "clients2.google.com",
+  "clients3.google.com",
+  "clients4.google.com",
+  "clients5.google.com",
+  "clients6.google.com",
+  "content.googleapis.com",
+  "docs.google.com",
+  "drive.google.com",
+  "google.com",
   "myaccount.google.com",
+  "mail.google.com",
+  "ogs.google.com",
   "oauth2.googleapis.com",
   "apis.google.com",
   "ssl.gstatic.com",
@@ -440,6 +483,18 @@ function formatSeen(value = "") {
   return `${Math.round(minutes / 60)}h ago`;
 }
 
+function getHoursSince(value = "") {
+  if (!value) return Infinity;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return Infinity;
+  return Math.max(0, (Date.now() - date.getTime()) / 3600000);
+}
+
+function formatPercent(numerator = 0, denominator = 0) {
+  if (!denominator) return "0%";
+  return `${Math.round((numerator / denominator) * 100)}%`;
+}
+
 export default function EduAdminPage() {
   const { user } = useAuth();
   const { isPhone } = useResponsive();
@@ -456,6 +511,9 @@ export default function EduAdminPage() {
   const [deviceSecurityDraft, setDeviceSecurityDraft] = useState(EMPTY_DEVICE_SECURITY);
   const [dockDraft, setDockDraft] = useState([]);
   const [chromeDraft, setChromeDraft] = useState(EMPTY_CHROME_EXTENSION);
+  const [hallPassDraft, setHallPassDraft] = useState(EMPTY_HALL_PASS_SETTINGS);
+  const [hallPassLocationDraft, setHallPassLocationDraft] = useState("");
+  const [selectedHallPassLocation, setSelectedHallPassLocation] = useState("");
   const [allowedHostDraft, setAllowedHostDraft] = useState("");
   const [showChromeConfigForm, setShowChromeConfigForm] = useState(false);
   const [showChromeSetupGuide, setShowChromeSetupGuide] = useState(false);
@@ -475,7 +533,8 @@ export default function EduAdminPage() {
   const [devicePane, setDevicePane] = useState("overview");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [deviceNameDraft, setDeviceNameDraft] = useState("");
-  const [notificationDraft, setNotificationDraft] = useState(EMPTY_NOTIFICATION);
+  const [extrasDraft, setExtrasDraft] = useState(EMPTY_EXTRAS_SETTINGS);
+  const [notificationTemplateDraft, setNotificationTemplateDraft] = useState(EMPTY_NOTIFICATION_TEMPLATE);
   const baseStudentDeviceUrl = `${getOrigin()}/studentdevice`;
   const studentDeviceUrl = workspace?.account?.deviceCode
     ? `${baseStudentDeviceUrl}/${workspace.account.deviceCode}`
@@ -583,6 +642,18 @@ export default function EduAdminPage() {
       ...(workspace.account.chromeExtension || {}),
       oikosHomeUrl: workspace.account.chromeExtension?.oikosHomeUrl || studentDeviceUrl,
     });
+    setHallPassDraft({
+      ...EMPTY_HALL_PASS_SETTINGS,
+      ...(workspace.account.hallPassSettings || {}),
+      destinations: Array.isArray(workspace.account.hallPassSettings?.destinations)
+        ? workspace.account.hallPassSettings.destinations
+        : EMPTY_HALL_PASS_SETTINGS.destinations,
+    });
+    setExtrasDraft({
+      ...EMPTY_EXTRAS_SETTINGS,
+      ...(workspace.account.extrasSettings || {}),
+      hallPassEnabled: workspace.account.hallPassSettings?.enabled === true,
+    });
   }, [
     workspace?.account?.id,
     workspace?.account?.deviceBackground?.imageUrl,
@@ -593,6 +664,8 @@ export default function EduAdminPage() {
     workspace?.account?.deviceDockAppIds,
     workspace?.account?.idleLogoutMinutes,
     workspace?.account?.chromeExtension,
+    workspace?.account?.hallPassSettings,
+    workspace?.account?.extrasSettings,
     studentDeviceUrl,
   ]);
 
@@ -601,6 +674,21 @@ export default function EduAdminPage() {
   const loggedInDeviceCount = devices.filter((device) => device.studentId).length;
   const offlineDeviceCount = Math.max(0, devices.length - onlineDeviceCount);
   const selectedDevice = devices.find((device) => device.id === selectedDeviceId) || null;
+  const students = workspace?.students || [];
+  const teachers = workspace?.teachers || [];
+  const activeStudentCount = students.filter((student) => student.isActive !== false).length;
+  const inactiveStudentCount = Math.max(0, students.length - activeStudentCount);
+  const activeTeacherCount = teachers.filter((teacher) => teacher.isActive !== false).length;
+  const inactiveTeacherCount = Math.max(0, teachers.length - activeTeacherCount);
+  const recentlySeenDeviceCount = devices.filter((device) => getHoursSince(device.lastSeenAt) <= 24).length;
+  const idleDeviceCount = Math.max(0, devices.length - recentlySeenDeviceCount);
+  const activeNowDeviceCount = devices.filter((device) => device.activeAppId || device.activeUrl).length;
+  const lowBatteryDeviceCount = devices.filter((device) => {
+    const battery = device.deviceInfo?.battery || {};
+    return Number.isFinite(battery.percent) && battery.percent <= 20;
+  }).length;
+  const chargingDeviceCount = devices.filter((device) => device.deviceInfo?.battery?.charging === true).length;
+  const telemetryNetworkOfflineCount = devices.filter((device) => device.deviceInfo?.network?.online === false).length;
 
   useEffect(() => {
     if (!selectedDevice) return;
@@ -630,6 +718,30 @@ export default function EduAdminPage() {
     [dockApps]
   );
   const appInstallAnalytics = workspace?.appInstallAnalytics || [];
+  const assignedStudentIds = useMemo(
+    () => new Set((workspace?.teacherStudents || []).map((item) => item.studentId).filter(Boolean)),
+    [workspace?.teacherStudents]
+  );
+  const assignedStudentCount = students.filter((student) => assignedStudentIds.has(student.id)).length;
+  const unassignedStudentCount = Math.max(0, students.length - assignedStudentCount);
+  const activeOrgAppCount = (workspace?.apps || []).filter((app) => app.isActive !== false).length;
+  const activeSystemAppCount = systemApps.filter((app) => app.isActive !== false).length;
+  const enabledTestingAppCount = (workspace?.account?.testingApps || []).filter((app) => app.isActive === true).length;
+  const hallPassRequests = workspace?.hallPassRequests || [];
+  const openHallPassCount = hallPassRequests.filter((request) => ["requested", "approved"].includes(request.status)).length;
+  const extrasSettings = workspace?.account?.extrasSettings || EMPTY_EXTRAS_SETTINGS;
+  const notificationsFeatureEnabled = extrasSettings.notificationsEnabled === true;
+  const hallPassFeatureEnabled = workspace?.account?.hallPassSettings?.enabled === true || extrasSettings.hallPassEnabled === true;
+  const notificationTemplates = workspace?.account?.notificationTemplates || [];
+  const activeNotificationTemplateCount = notificationTemplates.filter((template) => template.isActive !== false).length;
+  const hallPassLocations = Array.isArray(hallPassDraft.destinations) ? hallPassDraft.destinations : [];
+  const currentHallPassLocation = hallPassLocations.includes(selectedHallPassLocation)
+    ? selectedHallPassLocation
+    : hallPassLocations[0] || "";
+  const topInstalledApp = appInstallAnalytics[0] || null;
+  const chromeGuardReady = hasChromePolicyTarget(chromeDraft);
+  const idleLogoutMinutes = Number(workspace?.account?.idleLogoutMinutes || 0);
+  const idleLogoutLabel = idleLogoutMinutes > 0 ? `${idleLogoutMinutes} min` : "Off";
 
   const approvedChromeHosts = useMemo(
     () => getChromeSettingsWithAppHosts(chromeDraft).allowedHosts,
@@ -705,13 +817,6 @@ export default function EduAdminPage() {
       setSelectedTeacherId(workspace.teachers[0].id);
     }
   }, [selectedTeacherId, workspace?.teachers]);
-
-  useEffect(() => {
-    setNotificationDraft((current) => ({
-      ...current,
-      studentId: current.studentId || workspace?.students?.[0]?.id || "",
-    }));
-  }, [workspace?.students]);
 
   if (loading && !workspace) {
     return (
@@ -1077,24 +1182,101 @@ export default function EduAdminPage() {
     }
   }
 
-  async function handleSendNotification(event) {
+  async function handleSaveExtrasSettings(event) {
     event.preventDefault();
-    setSaving("notification");
+    setSaving("extras");
     setError("");
     setNotice("");
     try {
-      const result = await sendEduAdminScreenNotification({
-        accountId: workspace.account.id,
-        ...notificationDraft,
-      });
-      setNotificationDraft((current) => ({
+      const nextAccount = await saveEduExtrasSettings(workspace.account, extrasDraft);
+      setWorkspace((current) => ({
         ...current,
-        title: "",
-        message: "",
+        account: {
+          ...current.account,
+          ...nextAccount,
+        },
       }));
-      setNotice(`Notification sent to ${result?.sentCount || 0} student${result?.sentCount === 1 ? "" : "s"}.`);
-    } catch (notificationError) {
-      setError(notificationError?.message || "Could not send notification.");
+      setHallPassDraft((current) => ({
+        ...current,
+        enabled: nextAccount.hallPassSettings?.enabled === true,
+      }));
+      if (activeSection === "notifications" && nextAccount.extrasSettings?.notificationsEnabled !== true) {
+        setActiveSection("extras");
+      }
+      if (activeSection === "hall-pass" && nextAccount.hallPassSettings?.enabled !== true) {
+        setActiveSection("extras");
+      }
+      setNotice("Extras updated.");
+    } catch (saveError) {
+      setError(saveError?.message || "Could not save extras.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleSaveNotificationTemplate(event) {
+    event.preventDefault();
+    const cleanTemplate = {
+      ...notificationTemplateDraft,
+      name: notificationTemplateDraft.name.trim(),
+      title: notificationTemplateDraft.title.trim(),
+      message: notificationTemplateDraft.message.trim(),
+      id: notificationTemplateDraft.id || createLocalId("notification"),
+      isActive: notificationTemplateDraft.isActive !== false,
+    };
+
+    if (!cleanTemplate.name || !cleanTemplate.title || !cleanTemplate.message) {
+      setError("Template name, title, and message are required.");
+      return;
+    }
+
+    setSaving("notification-template");
+    setError("");
+    setNotice("");
+    try {
+      const existingTemplates = workspace.account.notificationTemplates || [];
+      const nextTemplates = cleanTemplate.id
+        ? existingTemplates.some((template) => template.id === cleanTemplate.id)
+          ? existingTemplates.map((template) => (template.id === cleanTemplate.id ? cleanTemplate : template))
+          : [...existingTemplates, cleanTemplate]
+        : [...existingTemplates, cleanTemplate];
+      const nextAccount = await saveEduNotificationTemplates(workspace.account, nextTemplates);
+      setWorkspace((current) => ({
+        ...current,
+        account: {
+          ...current.account,
+          ...nextAccount,
+        },
+      }));
+      setNotificationTemplateDraft(EMPTY_NOTIFICATION_TEMPLATE);
+      setNotice("Notification template saved.");
+    } catch (saveError) {
+      setError(saveError?.message || "Could not save notification template.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleDeleteNotificationTemplate(templateId) {
+    setSaving(`notification-template:${templateId}`);
+    setError("");
+    setNotice("");
+    try {
+      const nextTemplates = (workspace.account.notificationTemplates || []).filter((template) => template.id !== templateId);
+      const nextAccount = await saveEduNotificationTemplates(workspace.account, nextTemplates);
+      setWorkspace((current) => ({
+        ...current,
+        account: {
+          ...current.account,
+          ...nextAccount,
+        },
+      }));
+      if (notificationTemplateDraft.id === templateId) {
+        setNotificationTemplateDraft(EMPTY_NOTIFICATION_TEMPLATE);
+      }
+      setNotice("Notification template removed.");
+    } catch (saveError) {
+      setError(saveError?.message || "Could not remove notification template.");
     } finally {
       setSaving("");
     }
@@ -1259,6 +1441,81 @@ export default function EduAdminPage() {
       setNotice("Student session security updated.");
     } catch (saveError) {
       setError(saveError?.message || "Could not save student session security.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleSaveHallPassSettings(event) {
+    event.preventDefault();
+    setSaving("hall-pass-settings");
+    setError("");
+    setNotice("");
+    try {
+      const nextAccount = await saveEduHallPassSettings(workspace.account, hallPassDraft);
+      setWorkspace((current) => ({
+        ...current,
+        account: {
+          ...current.account,
+          ...nextAccount,
+        },
+      }));
+      setNotice("Hall pass settings updated.");
+    } catch (saveError) {
+      setError(saveError?.message || "Could not save hall pass settings.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  function handleAddHallPassLocation() {
+    const cleanLocation = hallPassLocationDraft.trim();
+    if (!cleanLocation) return;
+
+    setHallPassDraft((current) => {
+      const existingLocations = Array.isArray(current.destinations) ? current.destinations : [];
+      const hasLocation = existingLocations.some((location) => location.toLowerCase() === cleanLocation.toLowerCase());
+      return {
+        ...current,
+        destinations: hasLocation ? existingLocations : [...existingLocations, cleanLocation],
+      };
+    });
+    setSelectedHallPassLocation(cleanLocation);
+    setHallPassLocationDraft("");
+  }
+
+  function handleRemoveHallPassLocation(locationToRemove) {
+    setHallPassDraft((current) => ({
+      ...current,
+      destinations: (current.destinations || []).filter((location) => location !== locationToRemove),
+    }));
+    setSelectedHallPassLocation((current) => (current === locationToRemove ? "" : current));
+  }
+
+  async function handleLogout() {
+    setError("");
+    try {
+      await supabase.auth.signOut();
+    } catch (logoutError) {
+      setError(logoutError?.message || "Could not log out.");
+    }
+  }
+
+  async function handleUpdateHallPassRequest(requestId, status) {
+    setSaving(`hall-pass:${requestId}`);
+    setError("");
+    setNotice("");
+    try {
+      const updated = await updateEduHallPassRequest(requestId, status);
+      setWorkspace((current) => ({
+        ...current,
+        hallPassRequests: (current.hallPassRequests || []).map((request) =>
+          request.id === requestId ? { ...request, ...updated } : request
+        ),
+      }));
+      setNotice(`Hall pass ${status}.`);
+    } catch (saveError) {
+      setError(saveError?.message || "Could not update hall pass request.");
     } finally {
       setSaving("");
     }
@@ -1807,8 +2064,10 @@ export default function EduAdminPage() {
     { id: "admins", label: "Admins", icon: UserPlus },
     { id: "teachers", label: "Teachers", icon: GraduationCap },
     { id: "students", label: "Students", icon: Users },
-    { id: "notifications", label: "Notifications", shortLabel: "Alerts", icon: Bell },
     { id: "devices", label: "Devices", icon: Monitor },
+    ...(notificationsFeatureEnabled ? [{ id: "notifications", label: "Notifications", shortLabel: "Alerts", icon: Bell }] : []),
+    ...(hallPassFeatureEnabled ? [{ id: "hall-pass", label: "Hall Pass", shortLabel: "Pass", icon: Check }] : []),
+    { id: "extras", label: "Extras", icon: Settings },
   ];
   const loginBackgroundUsesDevice = loginBackgroundDraft.useDeviceBackground !== false;
   const loginBackgroundPreview = loginBackgroundUsesDevice ? backgroundDraft : loginBackgroundDraft;
@@ -1925,37 +2184,49 @@ export default function EduAdminPage() {
           style={{
             ...styles.sideNav,
             ...(isPhone
-              ? { ...styles.sideNavPhone, gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }
+              ? { ...styles.sideNavPhone, gridTemplateColumns: `repeat(${navItems.length + 1}, minmax(0, 1fr))` }
               : {}),
           }}
         >
           <div style={{ ...styles.sideNavTitle, ...(isPhone ? styles.sideNavTitlePhone : {}) }}>
             Manage
           </div>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = activeSection === item.id;
-            return (
-              <button
-                key={item.id}
-                style={{
-                  ...styles.navButton,
-                  ...(isPhone ? styles.navButtonPhone : {}),
-                  ...(active ? styles.navButtonActive : {}),
-                }}
-                type="button"
-                onClick={() => {
-                  setActiveSection(item.id);
-                  if (item.id === "devices") setDevicePane("overview");
-                }}
-              >
-                <Icon size={isPhone && navItems.length > 5 ? 16 : 17} />
-                <span style={isPhone ? styles.navLabelPhone : null}>
-                  {isPhone ? item.shortLabel || item.label : item.label}
-                </span>
-              </button>
-            );
-          })}
+          <div style={{ ...styles.navMain, ...(isPhone ? styles.navMainPhone : {}) }}>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  style={{
+                    ...styles.navButton,
+                    ...(isPhone ? styles.navButtonPhone : {}),
+                    ...(active ? styles.navButtonActive : {}),
+                  }}
+                  type="button"
+                  onClick={() => {
+                    setActiveSection(item.id);
+                    if (item.id === "devices") setDevicePane("overview");
+                  }}
+                >
+                  <Icon size={isPhone && navItems.length > 5 ? 16 : 17} />
+                  <span style={isPhone ? styles.navLabelPhone : null}>
+                    {isPhone ? item.shortLabel || item.label : item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ ...styles.sideNavFooter, ...(isPhone ? styles.sideNavFooterPhone : {}) }}>
+            <button
+              style={{ ...styles.logoutButton, ...(isPhone ? styles.navButtonPhone : {}) }}
+              type="button"
+              onClick={handleLogout}
+            >
+              <LogOut size={isPhone ? 16 : 17} />
+              <span style={isPhone ? styles.navLabelPhone : null}>Logout</span>
+            </button>
+          </div>
         </aside>
 
         <section style={{ ...styles.contentPane, ...(isPhone ? styles.contentPanePhone : {}) }}>
@@ -1963,43 +2234,96 @@ export default function EduAdminPage() {
           {notice ? <div style={styles.notice}>{notice}</div> : null}
 
           {activeSection === "summary" ? (
-            <section style={styles.summaryGrid}>
-              <div style={styles.summaryTile}>
-                <Globe2 size={20} />
-                <span style={styles.summaryLabel}>School Code</span>
-                <strong style={styles.summaryValue}>
-                  {workspace.account.deviceCode || workspace.account.edu_device_code || "Not set"}
-                </strong>
-                {!workspace.account.deviceCode && !workspace.account.edu_device_code ? (
-                  <button style={styles.smallButton} onClick={handleEnsureCode} disabled={saving === "code"}>
-                    Create
-                  </button>
-                ) : null}
-              </div>
-              <div style={styles.summaryTile}>
-                <ExternalLink size={20} />
-                <span style={styles.summaryLabel}>Student Link</span>
-                <a style={styles.summaryLink} href={studentDeviceUrl} target="_blank" rel="noreferrer">
-                  {studentDeviceUrl}
-                </a>
-              </div>
-              <div style={styles.summaryTile}>
-                <Monitor size={20} />
-                <span style={styles.summaryLabel}>Devices</span>
-                <strong style={styles.summaryValue}>{devices.length}</strong>
-              </div>
-              <div style={styles.summaryTile}>
-                <GraduationCap size={20} />
-                <span style={styles.summaryLabel}>Teacher Portal</span>
-                <a style={styles.summaryLink} href={teacherPortalUrl} target="_blank" rel="noreferrer">
-                  {teacherPortalUrl}
-                </a>
-              </div>
-              <div style={styles.summaryTile}>
-                <Activity size={20} />
-                <span style={styles.summaryLabel}>Online</span>
-                <strong style={styles.summaryValue}>{onlineDeviceCount}</strong>
-              </div>
+            <section style={styles.overviewStack}>
+              <section style={styles.summaryGrid}>
+                <div style={styles.summaryTile}>
+                  <Globe2 size={20} />
+                  <span style={styles.summaryLabel}>School Code</span>
+                  <strong style={styles.summaryValue}>
+                    {workspace.account.deviceCode || workspace.account.edu_device_code || "Not set"}
+                  </strong>
+                  {!workspace.account.deviceCode && !workspace.account.edu_device_code ? (
+                    <button style={styles.smallButton} onClick={handleEnsureCode} disabled={saving === "code"}>
+                      Create
+                    </button>
+                  ) : null}
+                </div>
+                <div style={styles.summaryTile}>
+                  <ExternalLink size={20} />
+                  <span style={styles.summaryLabel}>Student Link</span>
+                  <a style={styles.summaryLink} href={studentDeviceUrl} target="_blank" rel="noreferrer">
+                    {studentDeviceUrl}
+                  </a>
+                </div>
+                <div style={styles.summaryTile}>
+                  <Monitor size={20} />
+                  <span style={styles.summaryLabel}>Devices</span>
+                  <strong style={styles.summaryValue}>{devices.length}</strong>
+                  <span style={styles.summaryHint}>{recentlySeenDeviceCount} seen in 24h</span>
+                </div>
+                <div style={styles.summaryTile}>
+                  <GraduationCap size={20} />
+                  <span style={styles.summaryLabel}>Teacher Portal</span>
+                  <a style={styles.summaryLink} href={teacherPortalUrl} target="_blank" rel="noreferrer">
+                    {teacherPortalUrl}
+                  </a>
+                </div>
+                <div style={styles.summaryTile}>
+                  <Activity size={20} />
+                  <span style={styles.summaryLabel}>Online</span>
+                  <strong style={styles.summaryValue}>{onlineDeviceCount}</strong>
+                  <span style={styles.summaryHint}>{formatPercent(onlineDeviceCount, devices.length)} of devices</span>
+                </div>
+                <div style={styles.summaryTile}>
+                  <Users size={20} />
+                  <span style={styles.summaryLabel}>Students</span>
+                  <strong style={styles.summaryValue}>{activeStudentCount}</strong>
+                  <span style={styles.summaryHint}>{inactiveStudentCount} inactive</span>
+                </div>
+                <div style={styles.summaryTile}>
+                  <UserPlus size={20} />
+                  <span style={styles.summaryLabel}>Admins</span>
+                  <strong style={styles.summaryValue}>{workspace.members?.length || 0}</strong>
+                  <span style={styles.summaryHint}>{workspace.isOwner ? "Owner access" : "Member access"}</span>
+                </div>
+                <div style={styles.summaryTile}>
+                  <AppWindow size={20} />
+                  <span style={styles.summaryLabel}>Active Apps</span>
+                  <strong style={styles.summaryValue}>{activeOrgAppCount + activeSystemAppCount}</strong>
+                  <span style={styles.summaryHint}>{activeOrgAppCount} school, {activeSystemAppCount} system</span>
+                </div>
+              </section>
+
+              <section style={styles.panel}>
+                <div style={styles.panelHeader}>
+                  <div>
+                    <h2 style={styles.panelTitle}>At a Glance</h2>
+                    <div style={styles.rowSub}>Fast read on setup, classroom coverage, device health, and filtering.</div>
+                  </div>
+                </div>
+                <div style={styles.overviewStatGrid}>
+                  {[
+                    ["Teacher Accounts", activeTeacherCount, `${inactiveTeacherCount} inactive`],
+                    ["Assigned Students", assignedStudentCount, `${unassignedStudentCount} unassigned`],
+                    ["Logged In Devices", loggedInDeviceCount, `${activeNowDeviceCount} running an app or site`],
+                    ["Offline Devices", offlineDeviceCount, `${idleDeviceCount} not seen in 24h`],
+                    ["Low Battery", lowBatteryDeviceCount, `${chargingDeviceCount} charging`],
+                    ["Network Reports Offline", telemetryNetworkOfflineCount, "from latest device telemetry"],
+                    ["Testing Apps Enabled", enabledTestingAppCount, `${(workspace.account.testingApps || []).length} available`],
+                    ["Notifications", notificationsFeatureEnabled ? "Enabled" : "Off", `${activeNotificationTemplateCount} active templates`],
+                    ["Hall Pass", hallPassFeatureEnabled ? "Enabled" : "Off", `${openHallPassCount} open requests`],
+                    ["Chrome Guard", chromeGuardReady ? "Ready" : "Setup needed", chromeDraft.blockUnknownHosts !== false ? "Unknown sites blocked" : "Unknown sites allowed"],
+                    ["Idle Logout", idleLogoutLabel, "student inactivity timer"],
+                    ["Top Installed App", topInstalledApp ? topInstalledApp.appName : "None yet", topInstalledApp ? `${topInstalledApp.installCount} desktops` : "no saved installs"],
+                  ].map(([label, value, detail]) => (
+                    <div key={label} style={styles.overviewStatCard}>
+                      <span style={styles.summaryLabel}>{label}</span>
+                      <strong style={styles.overviewStatValue}>{value}</strong>
+                      <span style={styles.summaryHint}>{detail}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </section>
           ) : null}
 
@@ -2589,78 +2913,321 @@ export default function EduAdminPage() {
             </section>
           ) : null}
 
-          {activeSection === "notifications" ? (
+          {activeSection === "extras" ? (
             <section style={styles.panel}>
               <div style={styles.panelHeader}>
                 <div>
-                  <h2 style={styles.panelTitle}>Screen Notifications</h2>
-                  <div style={styles.rowSub}>Send pop-up messages to enrolled student devices.</div>
+                  <h2 style={styles.panelTitle}>Extras</h2>
+                  <div style={styles.rowSub}>Turn on optional student-device tools for admins and teachers.</div>
                 </div>
               </div>
-              <form style={styles.detailStack} onSubmit={handleSendNotification}>
+              <form style={styles.overviewStack} onSubmit={handleSaveExtrasSettings}>
+                {[
+                  ["notificationsEnabled", "Notifications", "Allow approved message templates to be sent to student devices."],
+                  ["hallPassEnabled", "Hall Pass", "Allow students to request location passes from their device dock."],
+                ].map(([key, title, description]) => {
+                  const enabled = extrasDraft[key] === true;
+                  return (
+                    <div key={key} style={styles.backgroundToggleRow}>
+                      <span style={styles.backgroundToggleText}>
+                        <strong>{title}</strong>
+                        <small>{description}</small>
+                      </span>
+                      <button
+                        style={{
+                          ...styles.toggleSwitch,
+                          ...(enabled ? styles.toggleSwitchOn : {}),
+                        }}
+                        type="button"
+                        aria-pressed={enabled}
+                        onClick={() => setExtrasDraft((current) => ({ ...current, [key]: current[key] !== true }))}
+                      >
+                        <span style={styles.toggleKnob} />
+                      </button>
+                    </div>
+                  );
+                })}
+                <div style={styles.actionGroup}>
+                  <button
+                    style={styles.primaryButton}
+                    type="submit"
+                    disabled={saving === "extras"}
+                  >
+                    <Save size={16} />
+                    {saving === "extras" ? "Saving..." : "Save Extras"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          ) : null}
+
+          {activeSection === "notifications" ? (
+            <section style={styles.overviewStack}>
+              <form style={styles.panel} onSubmit={handleSaveNotificationTemplate}>
+                <div style={styles.panelHeader}>
+                  <div>
+                    <h2 style={styles.panelTitle}>Notification Templates</h2>
+                    <div style={styles.rowSub}>Create the messages teachers can send to student devices.</div>
+                  </div>
+                  <button
+                    style={styles.primaryButton}
+                    type="submit"
+                    disabled={
+                      saving === "notification-template" ||
+                      !notificationTemplateDraft.name.trim() ||
+                      !notificationTemplateDraft.title.trim() ||
+                      !notificationTemplateDraft.message.trim()
+                    }
+                  >
+                    <Save size={16} />
+                    {saving === "notification-template" ? "Saving..." : "Save Template"}
+                  </button>
+                </div>
                 <div style={styles.formGrid}>
                   <label style={styles.label}>
-                    Send To
-                    <select
-                      style={styles.input}
-                      value={notificationDraft.targetType}
-                      onChange={(event) => setNotificationDraft((current) => ({ ...current, targetType: event.target.value }))}
-                    >
-                      <option value="all">All active students</option>
-                      <option value="student">One student</option>
-                    </select>
-                  </label>
-                  {notificationDraft.targetType === "student" ? (
-                    <label style={styles.label}>
-                      Student
-                      <select
-                        style={styles.input}
-                        value={notificationDraft.studentId}
-                        onChange={(event) => setNotificationDraft((current) => ({ ...current, studentId: event.target.value }))}
-                      >
-                        {(workspace.students || []).map((student) => (
-                          <option key={student.id} value={student.id}>
-                            {student.displayName}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : (
-                    <div style={styles.detailItem}>
-                      <span>Recipients</span>
-                      <strong>{(workspace.students || []).filter((student) => student.isActive !== false).length} active students</strong>
-                    </div>
-                  )}
-                  <label style={styles.label}>
-                    Title
+                    Template Name
                     <input
                       style={styles.input}
-                      value={notificationDraft.title}
-                      onChange={(event) => setNotificationDraft((current) => ({ ...current, title: event.target.value }))}
-                      placeholder="School message"
+                      value={notificationTemplateDraft.name}
+                      onChange={(event) => setNotificationTemplateDraft((current) => ({ ...current, name: event.target.value }))}
+                      placeholder="Return to class"
                     />
                   </label>
+                  <label style={styles.label}>
+                    Device Title
+                    <input
+                      style={styles.input}
+                      value={notificationTemplateDraft.title}
+                      onChange={(event) => setNotificationTemplateDraft((current) => ({ ...current, title: event.target.value }))}
+                      placeholder="Classroom Message"
+                    />
+                  </label>
+                  <div style={styles.backgroundToggleRow}>
+                    <span style={styles.backgroundToggleText}>
+                      <strong>Active for Teachers</strong>
+                      <small>Inactive templates stay saved but are hidden from teacher sending.</small>
+                    </span>
+                    <button
+                      style={{
+                        ...styles.toggleSwitch,
+                        ...(notificationTemplateDraft.isActive !== false ? styles.toggleSwitchOn : {}),
+                      }}
+                      type="button"
+                      aria-pressed={notificationTemplateDraft.isActive !== false}
+                      onClick={() =>
+                        setNotificationTemplateDraft((current) => ({
+                          ...current,
+                          isActive: current.isActive === false,
+                        }))
+                      }
+                    >
+                      <span style={styles.toggleKnob} />
+                    </button>
+                  </div>
                 </div>
                 <label style={styles.label}>
                   Message
                   <textarea
                     style={styles.textarea}
-                    value={notificationDraft.message}
-                    onChange={(event) => setNotificationDraft((current) => ({ ...current, message: event.target.value }))}
-                    placeholder="Please pause and look at the board."
+                    value={notificationTemplateDraft.message}
+                    onChange={(event) => setNotificationTemplateDraft((current) => ({ ...current, message: event.target.value }))}
+                    placeholder="Please return to the lesson page."
                   />
                 </label>
-                <div style={styles.actionGroup}>
-                  <button
-                    style={styles.primaryButton}
-                    type="submit"
-                    disabled={saving === "notification" || !notificationDraft.message.trim()}
-                  >
-                    <Bell size={16} />
-                    {saving === "notification" ? "Sending..." : "Send Notification"}
+                {notificationTemplateDraft.id ? (
+                  <div style={styles.actionGroup}>
+                    <button
+                      style={styles.secondaryButton}
+                      type="button"
+                      onClick={() => setNotificationTemplateDraft(EMPTY_NOTIFICATION_TEMPLATE)}
+                    >
+                      Cancel Edit
+                    </button>
+                  </div>
+                ) : null}
+              </form>
+
+              <section style={styles.panel}>
+                <div style={styles.panelHeader}>
+                  <div>
+                    <h2 style={styles.panelTitle}>Saved Templates</h2>
+                    <div style={styles.rowSub}>{activeNotificationTemplateCount} active templates available to teachers.</div>
+                  </div>
+                </div>
+                <div style={styles.list}>
+                  {notificationTemplates.map((template) => (
+                    <div key={template.id} style={styles.hallPassRow}>
+                      <span style={{ ...styles.hallPassAvatar, background: template.isActive === false ? "#64748b" : "#2563eb" }}>
+                        <Bell size={17} />
+                      </span>
+                      <div>
+                        <strong>{template.name}</strong>
+                        <div style={styles.rowSub}>
+                          {template.title} · {template.isActive === false ? "Inactive" : "Active"}
+                        </div>
+                        <div style={styles.rowSub}>{template.message}</div>
+                      </div>
+                      <div style={styles.actionGroup}>
+                        <button
+                          style={styles.smallButton}
+                          type="button"
+                          onClick={() => setNotificationTemplateDraft(template)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          style={styles.smallButton}
+                          type="button"
+                          disabled={saving === `notification-template:${template.id}`}
+                          onClick={() => handleDeleteNotificationTemplate(template.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {notificationTemplates.length === 0 ? <div style={styles.emptyState}>No notification templates yet.</div> : null}
+                </div>
+              </section>
+            </section>
+          ) : null}
+
+          {activeSection === "hall-pass" ? (
+            <section style={styles.overviewStack}>
+              <form style={styles.panel} onSubmit={handleSaveHallPassSettings}>
+                <div style={styles.panelHeader}>
+                  <div>
+                    <h2 style={styles.panelTitle}>Hall Pass Settings</h2>
+                    <div style={styles.rowSub}>Control the student dock button, location list, and teacher approvals.</div>
+                  </div>
+                  <button style={styles.primaryButton} disabled={saving === "hall-pass-settings"} type="submit">
+                    <Save size={16} />
+                    {saving === "hall-pass-settings" ? "Saving..." : "Save Settings"}
                   </button>
                 </div>
+                <div style={styles.overviewStack}>
+                  {[
+                    ["requireReason", "Require student note", "Students must add context before sending a request."],
+                    ["allowStudentCancel", "Allow student cancel", "Students can cancel a request before it is resolved."],
+                  ].map(([key, title, description]) => {
+                    const enabled = key === "allowStudentCancel" ? hallPassDraft.allowStudentCancel !== false : hallPassDraft[key] === true;
+                    return (
+                      <div key={key} style={styles.backgroundToggleRow}>
+                        <span style={styles.backgroundToggleText}>
+                          <strong>{title}</strong>
+                          <small>{description}</small>
+                        </span>
+                        <button
+                          style={{
+                            ...styles.toggleSwitch,
+                            ...(enabled ? styles.toggleSwitchOn : {}),
+                          }}
+                          type="button"
+                          aria-pressed={enabled}
+                          onClick={() =>
+                            setHallPassDraft((current) => ({
+                              ...current,
+                              [key]: key === "allowStudentCancel" ? current.allowStudentCancel === false : current[key] !== true,
+                            }))
+                          }
+                        >
+                          <span style={styles.toggleKnob} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <label style={styles.label}>
+                    Location Dropdown
+                    <select
+                      style={styles.input}
+                      value={currentHallPassLocation}
+                      onChange={(event) => setSelectedHallPassLocation(event.target.value)}
+                      disabled={!hallPassLocations.length}
+                    >
+                      {hallPassLocations.map((location) => (
+                        <option key={location} value={location}>{location}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div style={styles.hallPassLocationEditor}>
+                    <input
+                      style={styles.input}
+                      value={hallPassLocationDraft}
+                      onChange={(event) => setHallPassLocationDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          handleAddHallPassLocation();
+                        }
+                      }}
+                      placeholder="Add a location"
+                    />
+                    <button style={styles.secondaryButton} type="button" onClick={handleAddHallPassLocation}>
+                      <Plus size={16} />
+                      Add Location
+                    </button>
+                  </div>
+                  <div style={styles.hallPassLocationList}>
+                    {hallPassLocations.map((location) => (
+                      <span key={location} style={styles.hallPassLocationChip}>
+                        {location}
+                        <button
+                          style={styles.hallPassLocationRemove}
+                          type="button"
+                          onClick={() => handleRemoveHallPassLocation(location)}
+                          title={`Remove ${location}`}
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    ))}
+                    {!hallPassLocations.length ? <span style={styles.rowSub}>Add at least one location for the student dropdown.</span> : null}
+                  </div>
+                </div>
               </form>
+
+              <section style={styles.panel}>
+                <div style={styles.panelHeader}>
+                  <div>
+                    <h2 style={styles.panelTitle}>Hall Pass Requests</h2>
+                    <div style={styles.rowSub}>{openHallPassCount} open requests across this school.</div>
+                  </div>
+                </div>
+                <div style={styles.list}>
+                  {hallPassRequests.map((request) => (
+                    <div key={request.id} style={styles.hallPassRow}>
+                      <span style={{ ...styles.hallPassAvatar, background: request.status === "approved" ? "#16a34a" : request.status === "denied" ? "#dc2626" : "#2563eb" }}>
+                        {getInitials(request.studentName || "Student")}
+                      </span>
+                      <div>
+                        <strong>{request.studentName || "Student"}</strong>
+                        <div style={styles.rowSub}>
+                          Location: {request.destination} · {request.status} · {request.teacherName || "Unassigned"}
+                        </div>
+                        {request.note ? <div style={styles.rowSub}>{request.note}</div> : null}
+                      </div>
+                      <div style={styles.actionGroup}>
+                        {request.status === "requested" ? (
+                          <>
+                            <button style={styles.smallButton} type="button" disabled={saving === `hall-pass:${request.id}`} onClick={() => handleUpdateHallPassRequest(request.id, "approved")}>
+                              Approve
+                            </button>
+                            <button style={styles.smallButton} type="button" disabled={saving === `hall-pass:${request.id}`} onClick={() => handleUpdateHallPassRequest(request.id, "denied")}>
+                              Deny
+                            </button>
+                          </>
+                        ) : null}
+                        {request.status === "approved" ? (
+                          <button style={styles.smallButton} type="button" disabled={saving === `hall-pass:${request.id}`} onClick={() => handleUpdateHallPassRequest(request.id, "returned")}>
+                            Mark Returned
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                  {hallPassRequests.length === 0 ? <div style={styles.emptyState}>No hall pass requests yet.</div> : null}
+                </div>
+              </section>
             </section>
           ) : null}
 
@@ -3439,6 +4006,10 @@ const styles = {
     lineHeight: 1.1,
     margin: "4px 0 0",
   },
+  overviewStack: {
+    display: "grid",
+    gap: 16,
+  },
   summaryGrid: {
     display: "grid",
     gap: 12,
@@ -3490,6 +4061,44 @@ const styles = {
   },
   sideNavTitlePhone: {
     display: "none",
+  },
+  navMain: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  navMainPhone: {
+    display: "contents",
+  },
+  sideNavFooter: {
+    borderTop: "1px solid rgba(var(--color-primary-rgb),0.14)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginTop: "auto",
+    paddingTop: 10,
+  },
+  sideNavFooterPhone: {
+    display: "contents",
+  },
+  logoutButton: {
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.08)",
+    borderColor: "rgba(var(--color-primary-rgb),0.10)",
+    borderRadius: 999,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--color-primary-dark)",
+    cursor: "pointer",
+    display: "flex",
+    font: "inherit",
+    fontSize: 13,
+    fontWeight: 850,
+    gap: 9,
+    minHeight: 42,
+    padding: "0 13px",
+    textAlign: "left",
+    width: "100%",
   },
   navButton: {
     alignItems: "center",
@@ -3560,7 +4169,31 @@ const styles = {
   },
   summaryLabel: { color: "#64748b", fontSize: 13 },
   summaryValue: { fontSize: 24 },
+  summaryHint: {
+    color: "#64748b",
+    fontSize: 12,
+    lineHeight: 1.35,
+  },
   summaryLink: { color: "#2563eb", fontSize: 13, overflowWrap: "anywhere" },
+  overviewStatGrid: {
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+  },
+  overviewStatCard: {
+    background: "rgba(248,250,252,0.72)",
+    border: "1px solid rgba(148,163,184,0.22)",
+    borderRadius: 16,
+    display: "grid",
+    gap: 5,
+    minHeight: 94,
+    padding: 14,
+  },
+  overviewStatValue: {
+    fontSize: 22,
+    lineHeight: 1.15,
+    overflowWrap: "anywhere",
+  },
   grid: {
     display: "grid",
     gap: 16,
@@ -3759,6 +4392,64 @@ const styles = {
     gridTemplateColumns: "minmax(0, 1fr) auto",
     minWidth: 0,
     padding: 10,
+  },
+  hallPassRow: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 16,
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "42px minmax(0, 1fr) auto",
+    minWidth: 0,
+    padding: 10,
+  },
+  hallPassAvatar: {
+    alignItems: "center",
+    borderRadius: 14,
+    color: "#fff",
+    display: "inline-flex",
+    fontSize: 12,
+    fontWeight: 900,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  hallPassLocationEditor: {
+    alignItems: "center",
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+  },
+  hallPassLocationList: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  hallPassLocationChip: {
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.14)",
+    borderRadius: 999,
+    color: "var(--color-primary-dark)",
+    display: "inline-flex",
+    fontSize: 13,
+    fontWeight: 900,
+    gap: 7,
+    padding: "7px 9px 7px 12px",
+  },
+  hallPassLocationRemove: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.66)",
+    border: 0,
+    borderRadius: 999,
+    color: "inherit",
+    cursor: "pointer",
+    display: "inline-flex",
+    height: 22,
+    justifyContent: "center",
+    padding: 0,
+    width: 22,
   },
   testingAppRow: {
     alignItems: "center",

@@ -3,6 +3,7 @@ import {
   Activity,
   AppWindow,
   Bell,
+  Check,
   GraduationCap,
   LayoutDashboard,
   Monitor,
@@ -27,6 +28,7 @@ import {
   saveEduTeacherDeviceApp,
   saveEduTeacherClassGroup,
   sendEduTeacherScreenNotification,
+  updateEduHallPassRequest,
   updateEduTeacherStudentPin,
 } from "../services/studentDeviceService";
 
@@ -51,8 +53,7 @@ const EMPTY_NOTIFICATION = {
   targetType: "student",
   studentId: "",
   groupId: "",
-  title: "",
-  message: "",
+  templateId: "",
 };
 
 function formatSeen(value = "") {
@@ -83,6 +84,10 @@ function getIconTone(name = "") {
 
 function normalizePin(value = "") {
   return String(value || "").replace(/\D/g, "").slice(0, 4);
+}
+
+function isEnabledFlag(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
 }
 
 export default function EduTeacherPortalPage() {
@@ -125,6 +130,18 @@ export default function EduTeacherPortalPage() {
   const devices = workspace?.devices || [];
   const groups = workspace?.groups || [];
   const groupStudents = workspace?.groupStudents || [];
+  const hallPassRequests = workspace?.hallPassRequests || [];
+  const openHallPassCount = hallPassRequests.filter((request) => ["requested", "approved"].includes(request.status)).length;
+  const extrasSettings = workspace?.account?.extrasSettings || {};
+  const notificationTemplates = useMemo(
+    () => (workspace?.account?.notificationTemplates || []).filter((template) => template.isActive !== false),
+    [workspace?.account?.notificationTemplates]
+  );
+  const notificationsFeatureEnabled = isEnabledFlag(extrasSettings.notificationsEnabled);
+  const hallPassFeatureEnabled =
+    isEnabledFlag(workspace?.account?.hallPassSettings?.enabled) || isEnabledFlag(extrasSettings.hallPassEnabled);
+  const selectedNotificationTemplate =
+    notificationTemplates.find((template) => template.id === notificationDraft.templateId) || notificationTemplates[0] || null;
 
   const assignedStudentIds = useMemo(() => new Set(students.map((student) => student.id)), [students]);
 
@@ -182,8 +199,14 @@ export default function EduTeacherPortalPage() {
       ...current,
       studentId: current.studentId || students[0]?.id || "",
       groupId: current.groupId || groups[0]?.id || "",
+      templateId: current.templateId || notificationTemplates[0]?.id || "",
     }));
-  }, [groups, students]);
+  }, [groups, notificationTemplates, students]);
+
+  useEffect(() => {
+    if (activeSection === "notifications" && !notificationsFeatureEnabled) setActiveSection("summary");
+    if (activeSection === "hall-pass" && !hallPassFeatureEnabled) setActiveSection("summary");
+  }, [activeSection, hallPassFeatureEnabled, notificationsFeatureEnabled]);
 
   async function handleSetPin(event) {
     event.preventDefault();
@@ -351,19 +374,46 @@ export default function EduTeacherPortalPage() {
 
   async function handleSendNotification(event) {
     event.preventDefault();
+    if (!selectedNotificationTemplate) {
+      setError("Choose a notification template.");
+      return;
+    }
     setSaving("notification");
     setError("");
     setNotice("");
     try {
-      const result = await sendEduTeacherScreenNotification(notificationDraft);
+      const result = await sendEduTeacherScreenNotification({
+        ...notificationDraft,
+        title: selectedNotificationTemplate.title,
+        message: selectedNotificationTemplate.message,
+      });
       setNotificationDraft((current) => ({
         ...current,
-        title: "",
-        message: "",
+        templateId: current.templateId,
       }));
       setNotice(`Notification sent to ${result?.sentCount || 0} student${result?.sentCount === 1 ? "" : "s"}.`);
     } catch (notificationError) {
       setError(notificationError?.message || "Could not send notification.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleUpdateHallPassRequest(requestId, status) {
+    setSaving(`hall-pass:${requestId}`);
+    setError("");
+    setNotice("");
+    try {
+      const updated = await updateEduHallPassRequest(requestId, status);
+      setWorkspace((current) => ({
+        ...current,
+        hallPassRequests: (current.hallPassRequests || []).map((request) =>
+          request.id === requestId ? { ...request, ...updated } : request
+        ),
+      }));
+      setNotice(`Hall pass ${status}.`);
+    } catch (passError) {
+      setError(passError?.message || "Could not update hall pass request.");
     } finally {
       setSaving("");
     }
@@ -452,8 +502,9 @@ export default function EduTeacherPortalPage() {
     { id: "apps", label: "Student App Store", shortLabel: "Apps", icon: AppWindow },
     { id: "students", label: "Students", icon: Users },
     { id: "groups", label: "Class Groups", shortLabel: "Groups", icon: GraduationCap },
-    { id: "notifications", label: "Notifications", shortLabel: "Alerts", icon: Bell },
     { id: "devices", label: "Devices", icon: Monitor },
+    ...(notificationsFeatureEnabled ? [{ id: "notifications", label: "Notifications", shortLabel: "Alerts", icon: Bell }] : []),
+    ...(hallPassFeatureEnabled ? [{ id: "hall-pass", label: "Hall Pass", shortLabel: "Pass", icon: Check }] : []),
   ];
 
   return (
@@ -537,6 +588,11 @@ export default function EduTeacherPortalPage() {
                 <Activity size={20} />
                 <span style={styles.summaryLabel}>Online</span>
                 <strong style={styles.summaryValue}>{devices.filter((device) => device.isOnline).length}</strong>
+              </div>
+              <div style={styles.summaryTile}>
+                <Check size={20} />
+                <span style={styles.summaryLabel}>Hall Pass</span>
+                <strong style={styles.summaryValue}>{openHallPassCount}</strong>
               </div>
             </section>
           ) : null}
@@ -832,11 +888,25 @@ export default function EduTeacherPortalPage() {
               <div style={styles.panelHeader}>
                 <div>
                   <h2 style={styles.panelTitle}>Screen Notifications</h2>
-                  <div style={styles.rowSub}>Send a pop-up message to a student or one of your class groups.</div>
+                  <div style={styles.rowSub}>Choose an approved message and send it to a student or class group.</div>
                 </div>
               </div>
               <form style={styles.detailStack} onSubmit={handleSendNotification}>
                 <div style={styles.formGrid}>
+                  <label style={styles.label}>
+                    Message Template
+                    <select
+                      style={styles.input}
+                      value={notificationDraft.templateId}
+                      onChange={(event) => setNotificationDraft((current) => ({ ...current, templateId: event.target.value }))}
+                    >
+                      {notificationTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label style={styles.label}>
                     Send To
                     <select
@@ -879,36 +949,72 @@ export default function EduTeacherPortalPage() {
                       </select>
                     </label>
                   )}
-                  <label style={styles.label}>
-                    Title
-                    <input
-                      style={styles.input}
-                      value={notificationDraft.title}
-                      onChange={(event) => setNotificationDraft((current) => ({ ...current, title: event.target.value }))}
-                      placeholder="Classroom message"
-                    />
-                  </label>
                 </div>
-                <label style={styles.label}>
-                  Message
-                  <textarea
-                    style={styles.textarea}
-                    value={notificationDraft.message}
-                    onChange={(event) => setNotificationDraft((current) => ({ ...current, message: event.target.value }))}
-                    placeholder="Please return to the lesson page."
-                  />
-                </label>
+                {selectedNotificationTemplate ? (
+                  <div style={styles.detailItem}>
+                    <span>{selectedNotificationTemplate.title}</span>
+                    <strong>{selectedNotificationTemplate.message}</strong>
+                  </div>
+                ) : (
+                  <div style={styles.muted}>No notification templates are available yet.</div>
+                )}
                 <div style={styles.actionGroup}>
                   <button
                     style={styles.primaryButton}
                     type="submit"
-                    disabled={saving === "notification" || !notificationDraft.message.trim()}
+                    disabled={saving === "notification" || !selectedNotificationTemplate}
                   >
                     <Bell size={16} />
                     {saving === "notification" ? "Sending..." : "Send Notification"}
                   </button>
                 </div>
               </form>
+            </section>
+          ) : null}
+
+          {activeSection === "hall-pass" ? (
+            <section style={styles.panel}>
+              <div style={styles.panelHeader}>
+                <div>
+                  <h2 style={styles.panelTitle}>Hall Pass Requests</h2>
+                  <div style={styles.rowSub}>{openHallPassCount} open requests from assigned students.</div>
+                </div>
+              </div>
+              <div style={styles.list}>
+                {hallPassRequests.map((request) => (
+                  <div key={request.id} style={styles.hallPassRow}>
+                    <span style={{ ...styles.studentAppIcon, background: request.status === "approved" ? "#16a34a" : request.status === "denied" ? "#dc2626" : "#2563eb" }}>
+                      {getInitials(request.studentName || "Student")}
+                    </span>
+                    <span style={styles.rowMain}>
+                      <strong>{request.studentName || "Student"}</strong>
+                      <span style={styles.rowSub}>
+                        Location: {request.destination} · {request.status}
+                      </span>
+                      {request.note ? <span style={styles.rowSub}>{request.note}</span> : null}
+                    </span>
+                    <span style={styles.rowSub}>{formatSeen(request.createdAt)}</span>
+                    <span style={styles.actionGroup}>
+                      {request.status === "requested" ? (
+                        <>
+                          <button style={styles.smallButton} type="button" disabled={saving === `hall-pass:${request.id}`} onClick={() => handleUpdateHallPassRequest(request.id, "approved")}>
+                            Approve
+                          </button>
+                          <button style={styles.smallButton} type="button" disabled={saving === `hall-pass:${request.id}`} onClick={() => handleUpdateHallPassRequest(request.id, "denied")}>
+                            Deny
+                          </button>
+                        </>
+                      ) : null}
+                      {request.status === "approved" ? (
+                        <button style={styles.smallButton} type="button" disabled={saving === `hall-pass:${request.id}`} onClick={() => handleUpdateHallPassRequest(request.id, "returned")}>
+                          Returned
+                        </button>
+                      ) : null}
+                    </span>
+                  </div>
+                ))}
+                {hallPassRequests.length === 0 ? <div style={styles.muted}>No hall pass requests yet.</div> : null}
+              </div>
             </section>
           ) : null}
 
@@ -1422,6 +1528,28 @@ const styles = {
     gap: 10,
     gridTemplateColumns: "12px minmax(0, 1fr) auto",
     padding: 10,
+  },
+  hallPassRow: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 16,
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "42px minmax(0, 1fr) auto auto",
+    padding: 10,
+  },
+  smallButton: {
+    background: "rgba(37,99,235,0.10)",
+    border: "1px solid rgba(37,99,235,0.16)",
+    borderRadius: 12,
+    color: "#1d4ed8",
+    cursor: "pointer",
+    font: "inherit",
+    fontSize: 12,
+    fontWeight: 900,
+    minHeight: 32,
+    padding: "0 10px",
   },
   avatar: {
     alignItems: "center",

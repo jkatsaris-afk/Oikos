@@ -14,6 +14,7 @@ const DEVICES_TABLE = "edu_student_devices";
 const TEACHERS_TABLE = "edu_teachers";
 const TEACHER_STUDENTS_TABLE = "edu_teacher_students";
 const TESTING_CATALOG_TABLE = "edu_testing_app_catalog";
+const HALL_PASS_REQUESTS_TABLE = "edu_hall_pass_requests";
 const ACCOUNTS_TABLE = "accounts";
 const ORGANIZATION_BUCKET = "organization-assets";
 const EDU_MODE = "edu";
@@ -40,6 +41,18 @@ const DEFAULT_CHROME_EXTENSION = {
   allowedHosts: [],
   blockUnknownHosts: true,
   overlayEnabled: true,
+};
+const DEFAULT_HALL_PASS_SETTINGS = {
+  enabled: false,
+  destinations: ["Restroom", "Nurse", "Office", "Library"],
+  requireReason: false,
+  allowStudentCancel: true,
+  campusEnabled: false,
+  campusLaunchUrl: "",
+};
+const DEFAULT_EXTRAS_SETTINGS = {
+  notificationsEnabled: false,
+  hallPassEnabled: false,
 };
 const DEFAULT_TESTING_APPS = [
   {
@@ -76,6 +89,10 @@ const DEFAULT_TESTING_APPS = [
     sortOrder: 2,
   },
 ];
+
+function isEnabledFlag(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
+}
 
 function getCachedEduAccount() {
   if (typeof window === "undefined") return null;
@@ -141,6 +158,32 @@ function normalizeTestingAppSettings(settings = []) {
     : [];
 }
 
+function normalizeNotificationTemplate(template = {}, index = 0) {
+  const id = String(template.id || template.name || `notification-${index + 1}`)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return {
+    id: id || `notification-${index + 1}`,
+    name: String(template.name || template.title || "").trim(),
+    title: String(template.title || "").trim(),
+    message: String(template.message || "").trim(),
+    isActive: template.isActive !== false && template.is_active !== false,
+    sortOrder: Number(template.sortOrder ?? template.sort_order ?? index),
+  };
+}
+
+function normalizeNotificationTemplates(templates = []) {
+  return Array.isArray(templates)
+    ? templates
+        .map(normalizeNotificationTemplate)
+        .filter((template) => template.name && template.title && template.message)
+        .sort((first, second) => first.sortOrder - second.sortOrder || first.name.localeCompare(second.name))
+    : [];
+}
+
 function mergeDefaultTestingApps(apps = [], settings = []) {
   const normalizedApps = normalizeTestingApps(
     Array.isArray(apps) && apps.length > 0 ? apps : DEFAULT_TESTING_APPS
@@ -190,6 +233,23 @@ function normalizeEduAccount(row = {}) {
     integrations?.eduStudentDevice?.testingAppSettings ||
     integrations?.eduStudentDevice?.testingApps ||
     [];
+  const hallPassSettings = {
+    ...DEFAULT_HALL_PASS_SETTINGS,
+    ...(integrations?.eduStudentDevice?.hallPass || row.hallPassSettings || {}),
+  };
+  const extrasSource = integrations?.eduStudentDevice?.extras || row.extrasSettings || {};
+  const extrasSettings = {
+    ...DEFAULT_EXTRAS_SETTINGS,
+    ...extrasSource,
+    notificationsEnabled: isEnabledFlag(extrasSource.notificationsEnabled),
+    hallPassEnabled:
+      extrasSource.hallPassEnabled !== undefined
+        ? isEnabledFlag(extrasSource.hallPassEnabled)
+        : isEnabledFlag(hallPassSettings.enabled),
+  };
+  const notificationTemplates = normalizeNotificationTemplates(
+    integrations?.eduStudentDevice?.notificationTemplates || row.notificationTemplates || []
+  );
 
   return row?.id
     ? {
@@ -222,9 +282,37 @@ function normalizeEduAccount(row = {}) {
             : [],
         },
         testingApps: mergeDefaultTestingApps(testingApps, testingAppSettings),
+        hallPassSettings: {
+          ...hallPassSettings,
+          enabled: extrasSettings.hallPassEnabled === true,
+          destinations: Array.isArray(hallPassSettings.destinations)
+            ? hallPassSettings.destinations.map((destination) => String(destination || "").trim()).filter(Boolean)
+            : DEFAULT_HALL_PASS_SETTINGS.destinations,
+        },
+        extrasSettings,
+        notificationTemplates,
         deviceCode: row.edu_device_code || row.deviceCode || "",
       }
     : null;
+}
+
+function normalizeHallPassRequest(row = {}) {
+  return {
+    id: row.id || "",
+    accountId: row.account_id || row.accountId || "",
+    studentId: row.student_id || row.studentId || "",
+    studentName: row.student_name || row.studentName || "",
+    teacherId: row.teacher_id || row.teacherId || "",
+    teacherName: row.teacher_name || row.teacherName || "",
+    destination: row.destination || "",
+    note: row.note || "",
+    status: row.status || "requested",
+    campusSyncStatus: row.campus_sync_status || row.campusSyncStatus || "",
+    campusSyncPayload: row.campus_sync_payload || row.campusSyncPayload || {},
+    createdAt: row.created_at || row.createdAt || "",
+    updatedAt: row.updated_at || row.updatedAt || "",
+    resolvedAt: row.resolved_at || row.resolvedAt || "",
+  };
 }
 
 function normalizeStudent(row = {}) {
@@ -474,6 +562,7 @@ export async function loadEduStudentDeviceAdmin(userId) {
     devicesResult,
     teachersResult,
     teacherStudentsResult,
+    hallPassRequestsResult,
     testingCatalogResult,
   ] =
     await Promise.all([
@@ -523,6 +612,12 @@ export async function loadEduStudentDeviceAdmin(userId) {
         .from(TEACHER_STUDENTS_TABLE)
         .select("teacher_id, student_id"),
       supabase
+        .from(HALL_PASS_REQUESTS_TABLE)
+        .select("*, student:edu_student_device_students(display_name), teacher:edu_teachers(display_name)")
+        .eq("account_id", account.id)
+        .order("created_at", { ascending: false })
+        .limit(80),
+      supabase
         .from(TESTING_CATALOG_TABLE)
         .select("id, name, type, launch_url, launch_mode, logo_url, description, sort_order")
         .eq("is_globally_enabled", true)
@@ -539,6 +634,9 @@ export async function loadEduStudentDeviceAdmin(userId) {
   if (devicesResult.error) throw devicesResult.error;
   if (teachersResult.error) throw teachersResult.error;
   if (teacherStudentsResult.error) throw teacherStudentsResult.error;
+  if (hallPassRequestsResult.error) {
+    console.warn("EDU hall pass requests unavailable. Run the latest SQL migration to enable hall passes.", hallPassRequestsResult.error);
+  }
   if (testingCatalogResult.error) {
     console.warn("EDU testing app catalog unavailable, using built-in defaults:", testingCatalogResult.error);
   }
@@ -580,6 +678,13 @@ export async function loadEduStudentDeviceAdmin(userId) {
     teacherStudents: (teacherStudentsResult.data || [])
       .map(normalizeTeacherStudent)
       .filter((item) => teacherIds.has(item.teacherId)),
+    hallPassRequests: hallPassRequestsResult.error
+      ? []
+      : (hallPassRequestsResult.data || []).map((row) => normalizeHallPassRequest({
+          ...row,
+          student_name: row.student?.display_name,
+          teacher_name: row.teacher?.display_name,
+        })),
     members: organizationAccess?.account?.id === account.id ? organizationAccess.members || [] : [],
     isOwner: organizationAccess?.account?.id === account.id ? organizationAccess.isOwner === true : false,
     membership: organizationAccess?.account?.id === account.id ? organizationAccess.membership || null : null,
@@ -819,6 +924,106 @@ export async function saveEduTestingApps(account, testingApps = []) {
   return normalizeEduAccount(nextAccount);
 }
 
+export async function saveEduHallPassSettings(account, settings = {}) {
+  if (!account?.id) {
+    throw new Error("Missing organization account.");
+  }
+
+  const integrations = account.integrations || {};
+  const eduStudentDevice = integrations.eduStudentDevice || {};
+  const destinations = Array.isArray(settings.destinations)
+    ? settings.destinations.map((destination) => String(destination || "").trim()).filter(Boolean)
+    : DEFAULT_HALL_PASS_SETTINGS.destinations;
+
+  const nextAccount = await updateOrganizationSettings(account.id, {
+    integrations: {
+      ...integrations,
+      eduStudentDevice: {
+        ...eduStudentDevice,
+        hallPass: {
+          enabled: settings.enabled === true,
+          destinations: destinations.length ? destinations.slice(0, 20) : DEFAULT_HALL_PASS_SETTINGS.destinations,
+          requireReason: settings.requireReason === true,
+          allowStudentCancel: settings.allowStudentCancel !== false,
+          campusEnabled: settings.campusEnabled === true,
+          campusLaunchUrl: String(settings.campusLaunchUrl || "").trim(),
+        },
+      },
+    },
+  });
+
+  return normalizeEduAccount(nextAccount);
+}
+
+export async function saveEduExtrasSettings(account, settings = {}) {
+  if (!account?.id) {
+    throw new Error("Missing organization account.");
+  }
+
+  const integrations = account.integrations || {};
+  const eduStudentDevice = integrations.eduStudentDevice || {};
+  const currentHallPass = {
+    ...DEFAULT_HALL_PASS_SETTINGS,
+    ...(eduStudentDevice.hallPass || account.hallPassSettings || {}),
+  };
+  const extras = {
+    notificationsEnabled: settings.notificationsEnabled === true,
+    hallPassEnabled: settings.hallPassEnabled === true,
+  };
+
+  const nextAccount = await updateOrganizationSettings(account.id, {
+    integrations: {
+      ...integrations,
+      eduStudentDevice: {
+        ...eduStudentDevice,
+        extras,
+        hallPass: {
+          ...currentHallPass,
+          enabled: extras.hallPassEnabled,
+        },
+      },
+    },
+  });
+
+  return normalizeEduAccount(nextAccount);
+}
+
+export async function saveEduNotificationTemplates(account, templates = []) {
+  if (!account?.id) {
+    throw new Error("Missing organization account.");
+  }
+
+  const integrations = account.integrations || {};
+  const eduStudentDevice = integrations.eduStudentDevice || {};
+  const notificationTemplates = normalizeNotificationTemplates(templates).map((template, index) => ({
+    ...template,
+    sortOrder: index,
+  }));
+
+  const nextAccount = await updateOrganizationSettings(account.id, {
+    integrations: {
+      ...integrations,
+      eduStudentDevice: {
+        ...eduStudentDevice,
+        notificationTemplates,
+      },
+    },
+  });
+
+  return normalizeEduAccount(nextAccount);
+}
+
+export async function updateEduHallPassRequest(requestId, status, note = "") {
+  const { data, error } = await supabase.rpc("edu_update_hall_pass_request", {
+    p_request_id: requestId,
+    p_status: status,
+    p_note: note,
+  });
+
+  if (error) throw error;
+  return normalizeHallPassRequest(data || {});
+}
+
 export async function syncEduChromeGuardPolicy(accountId) {
   if (!accountId) {
     throw new Error("Missing Edu organization.");
@@ -985,13 +1190,14 @@ export async function loadEduTeacherPortalWorkspace() {
   });
 
   return {
-    account: data?.account || null,
+    account: normalizeEduAccount(data?.account || {}),
     teacher: data?.teacher || null,
     apps: (data?.apps || []).map(normalizeApp),
     students: data?.students || [],
     availableStudents: data?.availableStudents || [],
     groups: (data?.groups || []).map(normalizeTeacherGroup),
     groupStudents: (data?.groupStudents || []).map(normalizeTeacherGroupStudent),
+    hallPassRequests: (data?.hallPassRequests || []).map(normalizeHallPassRequest),
     devices,
   };
 }
@@ -1135,14 +1341,26 @@ export async function loadEduStudentDeviceCatalog(sessionToken) {
 }
 
 export async function saveEduStudentDeviceDesktop(sessionToken, installedAppIds, themeColor) {
-  const { data, error } = await supabase.rpc("edu_student_device_save_desktop", {
+  const desktopLayout = Array.isArray(installedAppIds) ? installedAppIds : [];
+  const { data, error } = await supabase.rpc("edu_student_device_save_desktop_layout", {
     p_session_token: sessionToken,
-    p_installed_app_ids: installedAppIds,
+    p_desktop_layout: desktopLayout,
     p_theme_color: themeColor,
   });
 
-  if (error) throw error;
-  return data;
+  if (!error) return data;
+
+  const hasGroups = desktopLayout.some((item) => item && typeof item === "object");
+  if (hasGroups) throw error;
+
+  const fallback = await supabase.rpc("edu_student_device_save_desktop", {
+    p_session_token: sessionToken,
+    p_installed_app_ids: desktopLayout.filter(Boolean),
+    p_theme_color: themeColor,
+  });
+
+  if (fallback.error) throw fallback.error;
+  return fallback.data;
 }
 
 export async function changeEduStudentDevicePin(sessionToken, currentPin, nextPin) {
@@ -1175,6 +1393,17 @@ export async function sendEduStudentDeviceHeartbeat({
 
   if (error) throw error;
   return data;
+}
+
+export async function createEduStudentHallPassRequest(sessionToken, request = {}) {
+  const { data, error } = await supabase.rpc("edu_student_device_create_hall_pass_request", {
+    p_session_token: sessionToken,
+    p_destination: request.destination || "",
+    p_note: request.note || "",
+  });
+
+  if (error) throw error;
+  return normalizeHallPassRequest(data || {});
 }
 
 export async function loadEduStudentDeviceNotifications(sessionToken) {

@@ -5,6 +5,8 @@ import {
   BatteryCharging,
   Check,
   FlaskConical,
+  Folder,
+  FolderPlus,
   Home,
   Info,
   KeyRound,
@@ -20,11 +22,13 @@ import {
 } from "lucide-react";
 
 import oikosEduLogo from "../../../assets/logos/Oikos_EDU_logo.png";
+import defaultEduDeviceBackground from "../../../assets/backgrounds/Oikos-EDU-Default-Background.svg";
 import TestingHubPopup from "../testing/TestingHubPopup";
 import {
   clearStudentDeviceEnrollment,
   clearStudentDeviceSession,
   changeEduStudentDevicePin,
+  createEduStudentHallPassRequest,
   dismissEduStudentDeviceNotification,
   enrollEduStudentDevice,
   getStudentDeviceEnrollment,
@@ -42,9 +46,19 @@ const DESKTOP_SLOT_COUNT = 48;
 const DESKTOP_SLOT_WIDTH = 112;
 const DESKTOP_SLOT_HEIGHT = 130;
 const DESKTOP_SLOT_GAP = 18;
+const DESKTOP_GRID_PADDING_X = 20;
+const DESKTOP_GRID_PADDING_Y = 56;
+const CREATE_GROUP_SLOT_INDEX = 0;
+const DESKTOP_DRAG_MIME_TYPE = "application/x-oikos-desktop-item";
+const GROUP_DRAG_MIME_TYPE = "application/x-oikos-group-source";
 const SCREEN_CLOSE_LOGOUT_DRIFT_MS = 45000;
 const SCREEN_CLOSE_HIDDEN_LOGOUT_MS = 30000;
 const SCREEN_CLOSE_CHECK_MS = 10000;
+const DEFAULT_DEVICE_BACKGROUND_COLOR = "#f8f9fb";
+const DEFAULT_DEVICE_BACKGROUND = {
+  imageUrl: defaultEduDeviceBackground,
+  color: DEFAULT_DEVICE_BACKGROUND_COLOR,
+};
 const SETTINGS_TABS = [
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "pin", label: "PIN", icon: KeyRound },
@@ -99,19 +113,91 @@ function pickStudentTheme(studentColor = "", accountColor = "") {
 
 function normalizeDesktopLayout(appIds = []) {
   if (!Array.isArray(appIds)) return [];
-  return appIds.map((appId) => appId || null);
+  return appIds.map((item, index) => {
+    if (!item) return null;
+    if (typeof item === "string") return item || null;
+    if (typeof item === "object" && item.type === "group") {
+      return {
+        type: "group",
+        id: String(item.id || `group-${Date.now()}-${index}`).trim(),
+        name: String(item.name || "Group").trim() || "Group",
+        appIds: Array.from(new Set(Array.isArray(item.appIds) ? item.appIds.filter(Boolean) : [])),
+        color: String(item.color || "#ffffff").trim() || "#ffffff",
+      };
+    }
+    return null;
+  });
 }
 
 function getDesktopAppIds(appIds = []) {
-  return normalizeDesktopLayout(appIds).filter(Boolean);
+  return normalizeDesktopLayout(appIds).flatMap((item) => {
+    if (!item) return [];
+    if (typeof item === "string") return [item];
+    if (item.type === "group") return item.appIds || [];
+    return [];
+  });
+}
+
+function getDesktopItemKey(item) {
+  if (!item) return "";
+  return typeof item === "string" ? item : item.id || "";
+}
+
+function isDesktopGroup(item) {
+  return Boolean(item && typeof item === "object" && item.type === "group");
+}
+
+function getDesktopSlotLayoutIndex(slotIndex) {
+  return slotIndex - 1;
+}
+
+function chunkItems(items = [], size = DESKTOP_SLOT_COUNT) {
+  const safeSize = Math.max(1, size);
+  const chunks = [];
+  for (let index = 0; index < items.length; index += safeSize) {
+    chunks.push(items.slice(index, index + safeSize));
+  }
+  return chunks.length ? chunks : [[]];
+}
+
+function normalizeDeviceBackground(background = {}) {
+  return {
+    imageUrl: String(background?.imageUrl || "").trim(),
+    color: String(background?.color || "").trim(),
+  };
+}
+
+function isCustomDeviceBackground(background = {}) {
+  const cleanBackground = normalizeDeviceBackground(background);
+  return Boolean(cleanBackground.imageUrl)
+    || Boolean(
+      cleanBackground.color
+        && cleanBackground.color.toLowerCase() !== DEFAULT_DEVICE_BACKGROUND_COLOR
+    );
+}
+
+function withDefaultDeviceBackground(background = {}) {
+  const cleanBackground = normalizeDeviceBackground(background);
+  if (cleanBackground.imageUrl) {
+    return {
+      imageUrl: cleanBackground.imageUrl,
+      color: cleanBackground.color || DEFAULT_DEVICE_BACKGROUND.color,
+    };
+  }
+  if (
+    cleanBackground.color
+    && cleanBackground.color.toLowerCase() !== DEFAULT_DEVICE_BACKGROUND_COLOR
+  ) {
+    return {
+      imageUrl: "",
+      color: cleanBackground.color,
+    };
+  }
+  return DEFAULT_DEVICE_BACKGROUND;
 }
 
 function getDeviceBackground(account = {}) {
-  const background = account?.deviceBackground || {};
-  return {
-    imageUrl: String(background.imageUrl || "").trim(),
-    color: String(background.color || "#f8f9fb").trim() || "#f8f9fb",
-  };
+  return withDefaultDeviceBackground(account?.deviceBackground || {});
 }
 
 function hasBackgroundImage(background = {}) {
@@ -119,14 +205,13 @@ function hasBackgroundImage(background = {}) {
 }
 
 function mergeDeviceBackground(primary = {}, fallback = {}) {
-  const cleanPrimary = getDeviceBackground({ deviceBackground: primary });
-  const cleanFallback = getDeviceBackground({ deviceBackground: fallback });
-  if (hasBackgroundImage(cleanPrimary)) return cleanPrimary;
-  if (hasBackgroundImage(cleanFallback)) return cleanFallback;
-  return {
-    ...cleanFallback,
-    ...cleanPrimary,
-  };
+  const cleanPrimary = normalizeDeviceBackground(primary);
+  const cleanFallback = normalizeDeviceBackground(fallback);
+  if (hasBackgroundImage(cleanPrimary)) return withDefaultDeviceBackground(cleanPrimary);
+  if (hasBackgroundImage(cleanFallback)) return withDefaultDeviceBackground(cleanFallback);
+  if (isCustomDeviceBackground(cleanPrimary)) return withDefaultDeviceBackground(cleanPrimary);
+  if (isCustomDeviceBackground(cleanFallback)) return withDefaultDeviceBackground(cleanFallback);
+  return DEFAULT_DEVICE_BACKGROUND;
 }
 
 function mergeLoginBackground(primary = {}, fallback = {}, deviceBackground = {}) {
@@ -136,7 +221,8 @@ function mergeLoginBackground(primary = {}, fallback = {}, deviceBackground = {}
   if (!primaryUsesDevice && hasBackgroundImage(primary)) {
     return {
       imageUrl: String(primary.imageUrl || "").trim(),
-      color: String(primary.color || deviceBackground.color || "#f8f9fb").trim() || "#f8f9fb",
+      color: String(primary.color || deviceBackground.color || DEFAULT_DEVICE_BACKGROUND.color).trim()
+        || DEFAULT_DEVICE_BACKGROUND.color,
       useDeviceBackground: false,
     };
   }
@@ -144,14 +230,15 @@ function mergeLoginBackground(primary = {}, fallback = {}, deviceBackground = {}
   if (!fallbackUsesDevice && hasBackgroundImage(fallback)) {
     return {
       imageUrl: String(fallback.imageUrl || "").trim(),
-      color: String(fallback.color || deviceBackground.color || "#f8f9fb").trim() || "#f8f9fb",
+      color: String(fallback.color || deviceBackground.color || DEFAULT_DEVICE_BACKGROUND.color).trim()
+        || DEFAULT_DEVICE_BACKGROUND.color,
       useDeviceBackground: false,
     };
   }
 
   return {
     imageUrl: "",
-    color: deviceBackground.color || "#f8f9fb",
+    color: deviceBackground.color || DEFAULT_DEVICE_BACKGROUND.color,
     useDeviceBackground: true,
   };
 }
@@ -214,7 +301,8 @@ function getLoginBackground(account = {}) {
 
   return {
     imageUrl: String(background.imageUrl || "").trim(),
-    color: String(background.color || deviceBackground.color || "#f8f9fb").trim() || "#f8f9fb",
+    color: String(background.color || deviceBackground.color || DEFAULT_DEVICE_BACKGROUND.color).trim()
+      || DEFAULT_DEVICE_BACKGROUND.color,
   };
 }
 
@@ -222,7 +310,7 @@ function getBackgroundStyle(background = {}) {
   return {
     backgroundAttachment: "fixed",
     backgroundClip: "border-box",
-    backgroundColor: background.color || "#f8f9fb",
+    backgroundColor: background.color || DEFAULT_DEVICE_BACKGROUND.color,
     backgroundImage: background.imageUrl ? `url(${background.imageUrl})` : "none",
     backgroundOrigin: "border-box",
     backgroundPosition: "center",
@@ -247,9 +335,27 @@ function isGoogleAppUrl(url = "") {
   }
 }
 
+function getGoogleLoginService(url = "") {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "mail.google.com") return "mail";
+    if (host === "classroom.google.com") return "classroom";
+    if (host === "drive.google.com") return "wise";
+    if (host === "calendar.google.com") return "cl";
+    if (host === "docs.google.com") return "writely";
+  } catch (_error) {
+    return "";
+  }
+  return "";
+}
+
 function getStudentAppLaunchUrl(url = "") {
   if (!isGoogleAppUrl(url)) return url;
-  return `https://accounts.google.com/Logout?continue=${encodeURIComponent(url)}`;
+  const service = getGoogleLoginService(url);
+  const accountChooserUrl = new URL("https://accounts.google.com/AccountChooser");
+  accountChooserUrl.searchParams.set("continue", url);
+  if (service) accountChooserUrl.searchParams.set("service", service);
+  return `https://accounts.google.com/Logout?continue=${encodeURIComponent(accountChooserUrl.toString())}`;
 }
 
 function getInitials(name = "A") {
@@ -506,11 +612,11 @@ function isMissingEnrollmentError(error) {
 
 function getAdaptiveDesktopSlotCount() {
   if (typeof window === "undefined") return DESKTOP_SLOT_COUNT;
-  const usableWidth = Math.max(320, window.innerWidth - 40);
-  const usableHeight = Math.max(260, window.innerHeight - 206);
+  const usableWidth = Math.max(280, window.innerWidth - 40 - DESKTOP_GRID_PADDING_X);
+  const usableHeight = Math.max(220, window.innerHeight - 206 - DESKTOP_GRID_PADDING_Y);
   const columns = Math.max(1, Math.floor((usableWidth + DESKTOP_SLOT_GAP) / (DESKTOP_SLOT_WIDTH + DESKTOP_SLOT_GAP)));
   const rows = Math.max(1, Math.floor((usableHeight + DESKTOP_SLOT_GAP) / (DESKTOP_SLOT_HEIGHT + DESKTOP_SLOT_GAP)));
-  return Math.max(DESKTOP_SLOT_COUNT, columns * rows);
+  return Math.max(1, columns * rows);
 }
 
 export default function StudentDevicePage() {
@@ -537,10 +643,16 @@ export default function StudentDevicePage() {
   const [publicIpAddress, setPublicIpAddress] = useState("");
   const [draggedAppId, setDraggedAppId] = useState("");
   const [dragOverAppId, setDragOverAppId] = useState("");
+  const [dragOverGroupAppId, setDragOverGroupAppId] = useState("");
   const [selectedMoveAppId, setSelectedMoveAppId] = useState("");
+  const [activeGroupId, setActiveGroupId] = useState("");
+  const [groupDraft, setGroupDraft] = useState(null);
+  const [hallPassDraft, setHallPassDraft] = useState({ destination: "", note: "" });
   const [storeQuery, setStoreQuery] = useState("");
   const [desktopSlotCount, setDesktopSlotCount] = useState(getAdaptiveDesktopSlotCount);
   const movePressTimerRef = useRef(null);
+  const draggedItemRef = useRef("");
+  const draggedGroupIdRef = useRef("");
   const moveSelectionJustSetRef = useRef(false);
   const screenCloseCheckAtRef = useRef(Date.now());
   const screenHiddenAtRef = useRef(0);
@@ -743,15 +855,42 @@ export default function StudentDevicePage() {
     .filter((id) => !globalDockAppIdSet.has(id))
     .map((id) => appMap.get(id))
     .filter(Boolean);
+  const desktopGroups = useMemo(
+    () => normalizeDesktopLayout(installedAppIds).filter(isDesktopGroup),
+    [installedAppIds]
+  );
+  const activeGroup = desktopGroups.find((group) => group.id === activeGroupId) || null;
   const desktopSlots = useMemo(() => {
     const layout = normalizeDesktopLayout(installedAppIds);
     const slotCount = Math.max(DESKTOP_SLOT_COUNT, desktopSlotCount, layout.length + 1);
-    return Array.from({ length: slotCount }, (_, index) => ({
-      index,
-      appId: layout[index] || null,
-      app: layout[index] && !globalDockAppIdSet.has(layout[index]) ? appMap.get(layout[index]) || null : null,
-    }));
+    return Array.from({ length: slotCount }, (_, index) => {
+      const layoutIndex = getDesktopSlotLayoutIndex(index);
+      const item = layoutIndex >= 0 ? layout[layoutIndex] || null : null;
+      return {
+        index,
+        layoutIndex,
+        item,
+        itemKey: getDesktopItemKey(item),
+        appId: typeof item === "string" ? item : null,
+        app: typeof item === "string" && !globalDockAppIdSet.has(item)
+          ? appMap.get(item) || null
+          : null,
+        group: isDesktopGroup(item) ? item : null,
+        showCreateGroup: index === CREATE_GROUP_SLOT_INDEX,
+      };
+    });
   }, [appMap, desktopSlotCount, globalDockAppIdSet, installedAppIds]);
+  const selectedMoveItemLabel = useMemo(() => {
+    if (!selectedMoveAppId) return "this item";
+    const app = appMap.get(selectedMoveAppId);
+    if (app?.name) return app.name;
+    const group = desktopGroups.find((candidate) => candidate.id === selectedMoveAppId);
+    return group?.name || "this item";
+  }, [appMap, desktopGroups, selectedMoveAppId]);
+  const desktopPages = useMemo(
+    () => chunkItems(desktopSlots, desktopSlotCount),
+    [desktopSlotCount, desktopSlots]
+  );
   const appStoreApps = useMemo(() => {
     const cleanQuery = storeQuery.trim().toLowerCase();
     return apps.filter((app) => {
@@ -760,7 +899,16 @@ export default function StudentDevicePage() {
       return `${app.name || ""} ${app.description || ""} ${app.source || ""}`.toLowerCase().includes(cleanQuery);
     });
   }, [apps, globalDockAppIdSet, storeQuery]);
+  const groupPickerApps = useMemo(
+    () => apps.filter((app) => !globalDockAppIdSet.has(app.id)),
+    [apps, globalDockAppIdSet]
+  );
   const dockApps = globalDockAppIds.map((id) => appMap.get(id)).filter(Boolean).slice(0, 3);
+  const hallPassSettings = session?.account?.hallPassSettings || enrollment?.account?.hallPassSettings || {};
+  const hallPassEnabled = hallPassSettings.enabled === true;
+  const hallPassDestinations = Array.isArray(hallPassSettings.destinations) && hallPassSettings.destinations.length
+    ? hallPassSettings.destinations
+    : ["Restroom", "Nurse", "Office", "Library"];
   const batteryPercent = Number.isFinite(batteryInfo.level) ? Math.round(batteryInfo.level * 100) : null;
   const batteryIconColor = batteryInfo.supported && batteryInfo.charging
     ? "#16a34a"
@@ -818,16 +966,13 @@ export default function StudentDevicePage() {
     : batteryInfo.charging
       ? "Charging"
       : "On battery";
+  const batteryBarPercent = batteryPercent === null ? 0 : Math.max(0, Math.min(100, batteryPercent));
   const batteryInfoRows = [
     ["Battery API", batteryInfo.supported ? "Available" : "Unavailable"],
     ["Status", batteryStatusLabel],
-    ["Percent", batteryPercent === null ? "Not available" : `${batteryPercent}%`],
-    ["Raw Level", Number.isFinite(batteryInfo.level) ? batteryInfo.level.toFixed(3) : "Not available"],
     ["Charging", batteryInfo.supported ? (batteryInfo.charging ? "Yes" : "No") : "Not available"],
     ["Time to Full", batteryInfo.supported && batteryInfo.charging ? formatBatteryTime(batteryInfo.chargingTime) : "Not charging"],
-    ["Time to Full Seconds", batteryInfo.supported && Number.isFinite(batteryInfo.chargingTime) ? batteryInfo.chargingTime : "Unknown"],
     ["Time Remaining", batteryInfo.supported && !batteryInfo.charging ? formatBatteryTime(batteryInfo.dischargingTime) : "Not discharging"],
-    ["Time Remaining Seconds", batteryInfo.supported && Number.isFinite(batteryInfo.dischargingTime) ? batteryInfo.dischargingTime : "Unknown"],
   ];
   const activeScreenNotification = screenNotifications[0] || null;
   const currentDeviceTelemetry = useCallback(() => getDeviceTelemetry({
@@ -837,6 +982,12 @@ export default function StudentDevicePage() {
     localIpAddresses,
     publicIpAddress,
   }), [batteryInfo, batteryPercent, localIpAddresses, networkInfo, publicIpAddress]);
+
+  useEffect(() => {
+    if (activeGroupId && !desktopGroups.some((group) => group.id === activeGroupId)) {
+      setActiveGroupId("");
+    }
+  }, [activeGroupId, desktopGroups]);
 
   useEffect(() => {
     if (!session?.sessionToken) return undefined;
@@ -926,7 +1077,7 @@ export default function StudentDevicePage() {
       try {
         const catalog = await loadEduStudentDeviceCatalog(session.sessionToken);
         setApps(catalog?.apps || []);
-        setInstalledAppIds(normalizeDesktopLayout(catalog?.installedAppIds || []));
+        setInstalledAppIds(normalizeDesktopLayout(catalog?.desktopLayout || catalog?.installedAppIds || []));
         if (catalog?.account) {
           setSession((current) => {
             if (!current) return current;
@@ -1018,7 +1169,7 @@ export default function StudentDevicePage() {
       window.localStorage.setItem("oikos.edu.studentDevice.name", deviceName);
       setSession(nextSession);
       setApps(nextSession.apps || []);
-      setInstalledAppIds(normalizeDesktopLayout(nextSession.installedAppIds || []));
+      setInstalledAppIds(normalizeDesktopLayout(nextSession.desktopLayout || nextSession.installedAppIds || []));
       setThemeColor(pickStudentTheme(nextSession.student?.themeColor, nextSession.account?.brandColor));
       setActiveView("home");
     } catch (loginError) {
@@ -1162,12 +1313,124 @@ export default function StudentDevicePage() {
   }
 
   function removeApp(appId) {
-    const nextIds = normalizeDesktopLayout(installedAppIds).map((id) => (id === appId ? null : id));
+    const nextIds = normalizeDesktopLayout(installedAppIds).map((item) => {
+      if (item === appId) return null;
+      if (isDesktopGroup(item)) {
+        return {
+          ...item,
+          appIds: (item.appIds || []).filter((id) => id !== appId),
+        };
+      }
+      return item;
+    });
     setInstalledAppIds(nextIds);
     if (activeAppId === appId) {
       setActiveView("home");
       setActiveAppId("");
     }
+    persistDesktop(nextIds, themeColor);
+  }
+
+  function openGroupEditor(group = null, slotIndex = null) {
+    const layout = normalizeDesktopLayout(installedAppIds);
+    const groupSlotIndex = group
+      ? layout.findIndex((item) => isDesktopGroup(item) && item.id === group.id)
+      : -1;
+    setError("");
+    setGroupDraft({
+      id: group?.id || "",
+      name: group?.name || "New Group",
+      appIds: Array.isArray(group?.appIds) ? group.appIds : [],
+      color: group?.color || "#ffffff",
+      slotIndex: typeof slotIndex === "number" ? slotIndex : groupSlotIndex >= 0 ? groupSlotIndex : null,
+    });
+    setActiveGroupId("");
+  }
+
+  function closeGroupEditor() {
+    setGroupDraft(null);
+  }
+
+  function toggleGroupDraftApp(appId) {
+    setGroupDraft((current) => {
+      if (!current) return current;
+      const appIds = new Set(current.appIds || []);
+      if (appIds.has(appId)) {
+        appIds.delete(appId);
+      } else {
+        appIds.add(appId);
+      }
+      return {
+        ...current,
+        appIds: Array.from(appIds),
+      };
+    });
+  }
+
+  function saveGroupDraft() {
+    if (!groupDraft) return;
+    const selectedAppIds = Array.from(new Set((groupDraft.appIds || []).filter(Boolean)));
+    if (selectedAppIds.length === 0) {
+      setError("Choose at least one app for this group.");
+      return;
+    }
+
+    const groupId = groupDraft.id || `group-${Date.now()}`;
+    const nextGroup = {
+      type: "group",
+      id: groupId,
+      name: String(groupDraft.name || "Group").trim() || "Group",
+      appIds: selectedAppIds,
+      color: groupDraft.color || "#ffffff",
+    };
+    const selectedSet = new Set(selectedAppIds);
+    const nextIds = normalizeDesktopLayout(installedAppIds).map((item) => {
+      if (!item) return null;
+      if (item === groupId) return null;
+      if (typeof item === "string") return selectedSet.has(item) ? null : item;
+      if (isDesktopGroup(item)) {
+        if (item.id === groupId) return null;
+        return {
+          ...item,
+          appIds: (item.appIds || []).filter((id) => !selectedSet.has(id)),
+        };
+      }
+      return item;
+    });
+
+    const firstOpenIndex = nextIds.findIndex((item) => !item);
+    const targetIndex = typeof groupDraft.slotIndex === "number"
+      ? groupDraft.slotIndex
+      : firstOpenIndex >= 0
+        ? firstOpenIndex
+        : nextIds.length;
+    const slotIndex = targetIndex >= 0 ? targetIndex : nextIds.length;
+    while (nextIds.length <= slotIndex) {
+      nextIds.push(null);
+    }
+    nextIds[slotIndex] = nextGroup;
+    setInstalledAppIds(nextIds);
+    setGroupDraft(null);
+    setActiveGroupId(groupId);
+    setError("");
+    persistDesktop(nextIds, themeColor);
+  }
+
+  function deleteGroup(groupId) {
+    const group = desktopGroups.find((candidate) => candidate.id === groupId);
+    const nextIds = normalizeDesktopLayout(installedAppIds).map((item) => {
+      if (isDesktopGroup(item) && item.id === groupId) return null;
+      return item;
+    });
+    const openSlotIndex = nextIds.findIndex((item) => !item);
+    let insertIndex = openSlotIndex >= 0 ? openSlotIndex : nextIds.length;
+    (group?.appIds || []).forEach((appId) => {
+      while (nextIds.length <= insertIndex) nextIds.push(null);
+      nextIds[insertIndex] = appId;
+      insertIndex += 1;
+    });
+    setInstalledAppIds(nextIds);
+    setActiveGroupId("");
     persistDesktop(nextIds, themeColor);
   }
 
@@ -1200,6 +1463,35 @@ export default function StudentDevicePage() {
     window.location.assign(launchUrl);
   }
 
+  function openHallPass() {
+    setHallPassDraft((current) => ({
+      destination: current.destination || hallPassDestinations[0] || "Restroom",
+      note: current.note || "",
+    }));
+    setActiveView("hall-pass");
+  }
+
+  async function submitHallPassRequest(event) {
+    event.preventDefault();
+    if (!session?.sessionToken) return;
+    if (hallPassSettings.requireReason && !hallPassDraft.note.trim()) {
+      setError("Add a note before requesting a hall pass.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      await createEduStudentHallPassRequest(session.sessionToken, hallPassDraft);
+      setHallPassDraft({ destination: hallPassDestinations[0] || "Restroom", note: "" });
+      setActiveView("home");
+    } catch (passError) {
+      setError(passError?.message || "Could not send hall pass request.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function dismissScreenNotification(notificationId) {
     if (!session?.sessionToken || !notificationId) return;
     setScreenNotifications((current) => current.filter((notification) => notification.id !== notificationId));
@@ -1230,21 +1522,118 @@ export default function StudentDevicePage() {
   }
 
   function moveInstalledAppToSlot(sourceId, targetIndex) {
-    if (!sourceId || typeof targetIndex !== "number") return;
+    if (!sourceId || typeof targetIndex !== "number" || targetIndex < 0) return;
 
     const nextIds = normalizeDesktopLayout(installedAppIds);
     while (nextIds.length <= targetIndex) {
       nextIds.push(null);
     }
 
-    const sourceIndex = nextIds.indexOf(sourceId);
+    const sourceIndex = nextIds.findIndex((item) => getDesktopItemKey(item) === sourceId);
     if (sourceIndex < 0 || sourceIndex === targetIndex) return;
 
-    const targetAppId = nextIds[targetIndex] || null;
-    nextIds[targetIndex] = sourceId;
-    nextIds[sourceIndex] = targetAppId;
+    const sourceItem = nextIds[sourceIndex];
+    const targetItem = nextIds[targetIndex] || null;
+    nextIds[targetIndex] = sourceItem;
+    nextIds[sourceIndex] = targetItem;
     setInstalledAppIds(nextIds);
     persistDesktop(nextIds, themeColor);
+  }
+
+  function addDesktopAppToGroup(sourceId, targetGroupId) {
+    if (!sourceId || !targetGroupId || !appMap.has(sourceId)) return false;
+
+    let changed = false;
+    let foundTargetGroup = false;
+    const nextIds = normalizeDesktopLayout(installedAppIds).map((item) => {
+      if (!item) return null;
+      if (item === sourceId) {
+        changed = true;
+        return null;
+      }
+      if (!isDesktopGroup(item)) return item;
+
+      const appIds = (item.appIds || []).filter((appId) => appId !== sourceId);
+      if (item.id === targetGroupId) {
+        foundTargetGroup = true;
+        if (!item.appIds?.includes(sourceId)) changed = true;
+        return {
+          ...item,
+          appIds: [...appIds, sourceId],
+        };
+      }
+      if (appIds.length !== (item.appIds || []).length) changed = true;
+      return appIds.length ? { ...item, appIds } : null;
+    });
+
+    if (!foundTargetGroup) return false;
+    if (!changed) return true;
+    setInstalledAppIds(nextIds);
+    persistDesktop(nextIds, themeColor);
+    return true;
+  }
+
+  function reorderGroupApp(sourceId, targetId, groupId) {
+    if (!sourceId || !targetId || !groupId || sourceId === targetId) return false;
+
+    let changed = false;
+    const nextIds = normalizeDesktopLayout(installedAppIds).map((item) => {
+      if (!isDesktopGroup(item) || item.id !== groupId) return item;
+
+      const appIds = [...(item.appIds || [])];
+      const sourceIndex = appIds.indexOf(sourceId);
+      const targetIndex = appIds.indexOf(targetId);
+      if (sourceIndex < 0 || targetIndex < 0) return item;
+
+      const [sourceAppId] = appIds.splice(sourceIndex, 1);
+      appIds.splice(targetIndex, 0, sourceAppId);
+      changed = true;
+      return {
+        ...item,
+        appIds,
+      };
+    });
+
+    if (!changed) return false;
+    setInstalledAppIds(nextIds);
+    persistDesktop(nextIds, themeColor);
+    return true;
+  }
+
+  function moveGroupAppToDesktop(sourceId, groupId, targetIndex = null) {
+    if (!sourceId || !groupId || !appMap.has(sourceId)) return false;
+
+    let removedFromGroup = false;
+    const nextIds = normalizeDesktopLayout(installedAppIds).map((item) => {
+      if (!isDesktopGroup(item) || item.id !== groupId) return item;
+
+      const appIds = (item.appIds || []).filter((appId) => appId !== sourceId);
+      if (appIds.length === (item.appIds || []).length) return item;
+
+      removedFromGroup = true;
+      return appIds.length ? { ...item, appIds } : null;
+    });
+
+    if (!removedFromGroup) return false;
+
+    const preferredIndex = typeof targetIndex === "number" && targetIndex >= 0
+      ? targetIndex
+      : nextIds.findIndex((item) => !item);
+    const insertIndex = preferredIndex >= 0 ? preferredIndex : nextIds.length;
+    while (nextIds.length <= insertIndex) {
+      nextIds.push(null);
+    }
+
+    if (!nextIds[insertIndex]) {
+      nextIds[insertIndex] = sourceId;
+    } else {
+      nextIds.push(sourceId);
+    }
+
+    setInstalledAppIds(nextIds);
+    setActiveGroupId("");
+    persistDesktop(nextIds, themeColor);
+    return true;
   }
 
   function startMoveSelection(appId) {
@@ -1261,6 +1650,30 @@ export default function StudentDevicePage() {
       window.clearTimeout(movePressTimerRef.current);
       movePressTimerRef.current = null;
     }
+  }
+
+  function getDraggedDesktopItemId(event) {
+    return (
+      event?.dataTransfer?.getData(DESKTOP_DRAG_MIME_TYPE) ||
+      event?.dataTransfer?.getData("text/plain") ||
+      draggedItemRef.current ||
+      draggedAppId
+    );
+  }
+
+  function getDraggedGroupId(event) {
+    return (
+      event?.dataTransfer?.getData(GROUP_DRAG_MIME_TYPE) ||
+      draggedGroupIdRef.current
+    );
+  }
+
+  function clearDraggedDesktopItem() {
+    draggedItemRef.current = "";
+    draggedGroupIdRef.current = "";
+    setDraggedAppId("");
+    setDragOverAppId("");
+    setDragOverGroupAppId("");
   }
 
   function handleDesktopAppClick(appId, index) {
@@ -1457,6 +1870,21 @@ export default function StudentDevicePage() {
                   <strong>Battery</strong>
                   <span>{batteryStatusLabel}</span>
                 </div>
+                <div style={styles.batteryMenuMeter}>
+                  <div style={styles.batteryMenuMeterTop}>
+                    <span>{batteryPercent === null ? "Battery unavailable" : `${batteryPercent}%`}</span>
+                    <strong>{batteryInfo.charging ? "Plugged in" : "Using battery"}</strong>
+                  </div>
+                  <div style={styles.batteryMenuTrack} aria-hidden="true">
+                    <div
+                      style={{
+                        ...styles.batteryMenuFill,
+                        background: batteryIconColor,
+                        width: `${batteryBarPercent}%`,
+                      }}
+                    />
+                  </div>
+                </div>
                 <div style={styles.networkInfoList}>
                   {batteryInfoRows.map(([label, value]) => (
                     <div key={label} style={styles.networkInfoRow}>
@@ -1482,112 +1910,225 @@ export default function StudentDevicePage() {
 
       <section style={styles.windowArea}>
         {activeView === "home" ? (
-          <div
-            style={{
-              ...styles.desktopGrid,
-              gridTemplateColumns: `repeat(auto-fill, ${DESKTOP_SLOT_WIDTH}px)`,
-              gridAutoRows: DESKTOP_SLOT_HEIGHT,
-            }}
-          >
+          <div style={styles.desktopPager}>
             {selectedMoveAppId ? (
               <div style={styles.moveHint}>
-                Tap an open spot to place {appMap.get(selectedMoveAppId)?.name || "this app"}.
+                Tap an open spot to place {selectedMoveItemLabel}.
               </div>
             ) : null}
-            {desktopSlots.map(({ index, app, appId }) =>
-              app ? (
-                <button
-                  key={`${app.id}-${index}`}
-                  draggable
-                  style={{
-                    ...styles.tileButton,
-                    ...(dragOverAppId === String(index) && draggedAppId !== app.id ? styles.tileButtonDropTarget : null),
-                    ...(draggedAppId === app.id ? styles.tileButtonDragging : null),
-                    ...(selectedMoveAppId === app.id ? styles.tileButtonSelectedMove : null),
-                  }}
-                  onClick={() => handleDesktopAppClick(app.id, index)}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    startMoveSelection(app.id);
-                  }}
-                  onPointerDown={() => {
-                    clearMovePressTimer();
-                    movePressTimerRef.current = window.setTimeout(() => {
-                      startMoveSelection(app.id);
-                    }, 520);
-                  }}
-                  onPointerMove={clearMovePressTimer}
-                  onPointerCancel={clearMovePressTimer}
-                  onPointerUp={clearMovePressTimer}
-                  onDragStart={(event) => {
-                    clearMovePressTimer();
-                    setDraggedAppId(app.id);
-                    setSelectedMoveAppId("");
-                    event.dataTransfer.effectAllowed = "move";
-                    event.dataTransfer.setData("text/plain", app.id);
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
-                    setDragOverAppId(String(index));
-                  }}
-                  onDragLeave={() => setDragOverAppId("")}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    const sourceId = event.dataTransfer.getData("text/plain") || draggedAppId;
-                    moveInstalledAppToSlot(sourceId, index);
-                    setDraggedAppId("");
-                    setDragOverAppId("");
-                  }}
-                  onDragEnd={() => {
-                    setDraggedAppId("");
-                    setDragOverAppId("");
-                  }}
-                  type="button"
-                >
-                  <span
-                    style={{
-                      ...styles.tileIcon,
-                      background: app.logoUrl ? "transparent" : getIconTone(app.name)[0],
-                      boxShadow: app.logoUrl ? "none" : styles.tileIcon.boxShadow,
-                    }}
-                  >
-                    {app.logoUrl ? (
-                      <img src={app.logoUrl} alt="" style={styles.tileImage} />
-                    ) : (
-                      getInitials(app.name)
-                    )}
-                  </span>
-                  <span style={styles.tileLabel}>{app.name}</span>
-                </button>
-              ) : (
-                <div
-                  key={`slot-${index}-${appId || "empty"}`}
-                  style={{
-                    ...styles.desktopDropSlot,
-                    ...(draggedAppId || selectedMoveAppId ? styles.desktopDropSlotVisible : null),
-                    ...(dragOverAppId === String(index) ? styles.desktopDropSlotActive : null),
-                    ...(selectedMoveAppId ? styles.desktopSelectableSlot : null),
-                  }}
-                  onClick={() => handleDesktopSpotSelect(index)}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
-                    setDragOverAppId(String(index));
-                  }}
-                  onDragLeave={() => setDragOverAppId("")}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    const sourceId = event.dataTransfer.getData("text/plain") || draggedAppId;
-                    moveInstalledAppToSlot(sourceId, index);
-                    setDraggedAppId("");
-                    setDragOverAppId("");
-                  }}
-                >
-                  <span>{draggedAppId || selectedMoveAppId ? "Place here" : ""}</span>
+            {desktopPages.map((pageSlots, pageIndex) => (
+              <div
+                key={`page-${pageIndex}`}
+                style={{
+                  ...styles.desktopGrid,
+                  gridTemplateColumns: `repeat(auto-fill, ${DESKTOP_SLOT_WIDTH}px)`,
+                  gridAutoRows: DESKTOP_SLOT_HEIGHT,
+                }}
+              >
+                {pageSlots.map(({ index, layoutIndex, app, group, showCreateGroup }) => {
+                  const groupApps = group ? (group.appIds || []).map((id) => appMap.get(id)).filter(Boolean) : [];
+                  if (app) {
+                    return (
+                      <button
+                        key={`${app.id}-${index}`}
+                        draggable
+                        style={{
+                          ...styles.tileButton,
+                          ...(dragOverAppId === String(index) && draggedAppId !== app.id ? styles.tileButtonDropTarget : null),
+                          ...(draggedAppId === app.id ? styles.tileButtonDragging : null),
+                          ...(selectedMoveAppId === app.id ? styles.tileButtonSelectedMove : null),
+                        }}
+                        onClick={() => handleDesktopAppClick(app.id, layoutIndex)}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          startMoveSelection(app.id);
+                        }}
+                        onPointerDown={() => {
+                          clearMovePressTimer();
+                          movePressTimerRef.current = window.setTimeout(() => {
+                            startMoveSelection(app.id);
+                          }, 520);
+                        }}
+                        onPointerMove={clearMovePressTimer}
+                        onPointerCancel={clearMovePressTimer}
+                        onPointerUp={clearMovePressTimer}
+                        onDragStart={(event) => {
+                          clearMovePressTimer();
+                          draggedItemRef.current = app.id;
+                          setDraggedAppId(app.id);
+                          setSelectedMoveAppId("");
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData(DESKTOP_DRAG_MIME_TYPE, app.id);
+                          event.dataTransfer.setData("text/plain", app.id);
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                          setDragOverAppId(String(index));
+                        }}
+                        onDragLeave={() => setDragOverAppId("")}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const sourceId = getDraggedDesktopItemId(event);
+                          moveInstalledAppToSlot(sourceId, layoutIndex);
+                          clearDraggedDesktopItem();
+                        }}
+                        onDragEnd={clearDraggedDesktopItem}
+                        type="button"
+                      >
+                        <span
+                          style={{
+                            ...styles.tileIcon,
+                            background: app.logoUrl ? "transparent" : getIconTone(app.name)[0],
+                            boxShadow: app.logoUrl ? "none" : styles.tileIcon.boxShadow,
+                          }}
+                        >
+                          {app.logoUrl ? (
+                            <img src={app.logoUrl} alt="" style={styles.tileImage} />
+                          ) : (
+                            getInitials(app.name)
+                          )}
+                        </span>
+                        <span style={styles.tileLabel}>{app.name}</span>
+                      </button>
+                    );
+                  }
+                  if (group) {
+                    return (
+                      <button
+                        key={`${group.id}-${index}`}
+                        draggable
+                        style={{
+                          ...styles.tileButton,
+                          ...(dragOverAppId === String(index) && draggedAppId !== group.id ? styles.tileButtonDropTarget : null),
+                          ...(draggedAppId === group.id ? styles.tileButtonDragging : null),
+                          ...(selectedMoveAppId === group.id ? styles.tileButtonSelectedMove : null),
+                        }}
+                        onClick={() => {
+                          if (selectedMoveAppId) {
+                            if (!addDesktopAppToGroup(selectedMoveAppId, group.id)) {
+                              moveInstalledAppToSlot(selectedMoveAppId, layoutIndex);
+                            }
+                            setSelectedMoveAppId("");
+                            return;
+                          }
+                          setActiveGroupId(group.id);
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          startMoveSelection(group.id);
+                        }}
+                        onPointerDown={() => {
+                          clearMovePressTimer();
+                          movePressTimerRef.current = window.setTimeout(() => {
+                            startMoveSelection(group.id);
+                          }, 520);
+                        }}
+                        onPointerMove={clearMovePressTimer}
+                        onPointerCancel={clearMovePressTimer}
+                        onPointerUp={clearMovePressTimer}
+                        onDragStart={(event) => {
+                          clearMovePressTimer();
+                          draggedItemRef.current = group.id;
+                          setDraggedAppId(group.id);
+                          setSelectedMoveAppId("");
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData(DESKTOP_DRAG_MIME_TYPE, group.id);
+                          event.dataTransfer.setData("text/plain", group.id);
+                        }}
+                        onDragEnter={(event) => {
+                          event.preventDefault();
+                          setDragOverAppId(String(index));
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                          setDragOverAppId(String(index));
+                        }}
+                        onDragLeave={() => setDragOverAppId("")}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const sourceId = getDraggedDesktopItemId(event);
+                          if (!addDesktopAppToGroup(sourceId, group.id)) {
+                            moveInstalledAppToSlot(sourceId, layoutIndex);
+                          }
+                          clearDraggedDesktopItem();
+                        }}
+                        onDragEnd={clearDraggedDesktopItem}
+                        type="button"
+                      >
+                        <span style={styles.groupTileIcon}>
+                          <Folder size={46} />
+                          <span style={styles.groupPreviewGrid}>
+                            {groupApps.slice(0, 4).map((groupApp) => (
+                              <span
+                                key={groupApp.id}
+                                style={{ ...styles.groupPreviewIcon, background: groupApp.logoUrl ? "transparent" : getIconTone(groupApp.name)[0] }}
+                              >
+                                {groupApp.logoUrl ? <img src={groupApp.logoUrl} alt="" style={styles.tileImage} /> : getInitials(groupApp.name).slice(0, 1)}
+                              </span>
+                            ))}
+                          </span>
+                        </span>
+                        <span style={styles.tileLabel}>{group.name}</span>
+                      </button>
+                    );
+                  }
+                  if (showCreateGroup) {
+                    return (
+                      <button
+                        key={`create-group-${index}`}
+                        style={{
+                          ...styles.createGroupTile,
+                          ...(draggedAppId || selectedMoveAppId ? styles.createGroupTileLocked : null),
+                        }}
+                        type="button"
+                        onClick={() => {
+                          if (draggedAppId || selectedMoveAppId) return;
+                          openGroupEditor(null, null);
+                        }}
+                      >
+                        <span style={styles.createGroupIcon}>
+                          <FolderPlus size={34} />
+                        </span>
+                        <span style={styles.tileLabel}>Create Group</span>
+                      </button>
+                    );
+                  }
+                  return (
+                    <div
+                      key={`slot-${index}-empty`}
+                      style={{
+                        ...styles.desktopDropSlot,
+                        ...(draggedAppId || selectedMoveAppId ? styles.desktopDropSlotVisible : null),
+                        ...(dragOverAppId === String(index) ? styles.desktopDropSlotActive : null),
+                        ...(selectedMoveAppId ? styles.desktopSelectableSlot : null),
+                      }}
+                      onClick={() => handleDesktopSpotSelect(layoutIndex)}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                        setDragOverAppId(String(index));
+                      }}
+                      onDragLeave={() => setDragOverAppId("")}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const sourceId = getDraggedDesktopItemId(event);
+                        moveInstalledAppToSlot(sourceId, layoutIndex);
+                        clearDraggedDesktopItem();
+                      }}
+                    >
+                      <span>{draggedAppId || selectedMoveAppId ? "Place here" : ""}</span>
+                    </div>
+                  );
+                })}
+                {desktopPages.length > 1 ? (
+                  <div style={styles.pageIndicator}>
+                    Page {pageIndex + 1} of {desktopPages.length}
+                  </div>
+                ) : null}
                 </div>
-              )
-            )}
+            ))}
           </div>
         ) : null}
 
@@ -1831,8 +2372,220 @@ export default function StudentDevicePage() {
           </div>
         ) : null}
 
+        {activeGroup ? (
+          <div
+            style={styles.groupOverlay}
+            onClick={() => setActiveGroupId("")}
+            onDragOver={(event) => {
+              if (getDraggedGroupId(event) === activeGroup.id) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }
+            }}
+            onDrop={(event) => {
+              const sourceId = getDraggedDesktopItemId(event);
+              const sourceGroupId = getDraggedGroupId(event);
+              if (sourceGroupId === activeGroup.id && sourceId) {
+                event.preventDefault();
+                moveGroupAppToDesktop(sourceId, sourceGroupId);
+                clearDraggedDesktopItem();
+              }
+            }}
+          >
+            <section
+              style={styles.groupDialog}
+              aria-label={`${activeGroup.name} group`}
+              onClick={(event) => event.stopPropagation()}
+              onDragOver={(event) => {
+                if (getDraggedGroupId(event) === activeGroup.id) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }
+              }}
+              onDrop={(event) => {
+                if (getDraggedGroupId(event) === activeGroup.id) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  clearDraggedDesktopItem();
+                }
+              }}
+            >
+              <div style={styles.groupDialogHeader}>
+                <h2 style={styles.settingsTitle}>{activeGroup.name}</h2>
+              </div>
+              <div style={styles.groupAppGrid}>
+                {(activeGroup.appIds || []).map((appId) => {
+                  const app = appMap.get(appId);
+                  if (!app) return null;
+                  return (
+                    <button
+                      key={app.id}
+                      draggable
+                      style={{
+                        ...styles.groupAppButton,
+                        ...(dragOverGroupAppId === app.id && draggedAppId !== app.id ? styles.groupAppButtonDropTarget : null),
+                        ...(draggedAppId === app.id && draggedGroupIdRef.current === activeGroup.id ? styles.groupAppButtonDragging : null),
+                      }}
+                      type="button"
+                      onClick={() => {
+                        setActiveGroupId("");
+                        openApp(app.id);
+                      }}
+                      onDragStart={(event) => {
+                        draggedItemRef.current = app.id;
+                        draggedGroupIdRef.current = activeGroup.id;
+                        setDraggedAppId(app.id);
+                        setDragOverGroupAppId("");
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData(DESKTOP_DRAG_MIME_TYPE, app.id);
+                        event.dataTransfer.setData(GROUP_DRAG_MIME_TYPE, activeGroup.id);
+                        event.dataTransfer.setData("text/plain", app.id);
+                      }}
+                      onDragEnter={(event) => {
+                        if (getDraggedGroupId(event) === activeGroup.id) {
+                          event.preventDefault();
+                          setDragOverGroupAppId(app.id);
+                        }
+                      }}
+                      onDragOver={(event) => {
+                        if (getDraggedGroupId(event) === activeGroup.id) {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                          setDragOverGroupAppId(app.id);
+                        }
+                      }}
+                      onDragLeave={() => setDragOverGroupAppId("")}
+                      onDrop={(event) => {
+                        const sourceId = getDraggedDesktopItemId(event);
+                        const sourceGroupId = getDraggedGroupId(event);
+                        if (sourceGroupId === activeGroup.id && sourceId) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          reorderGroupApp(sourceId, app.id, activeGroup.id);
+                          clearDraggedDesktopItem();
+                        }
+                      }}
+                      onDragEnd={clearDraggedDesktopItem}
+                    >
+                      <span
+                        style={{
+                          ...styles.tileIcon,
+                          background: app.logoUrl ? "transparent" : getIconTone(app.name)[0],
+                          boxShadow: app.logoUrl ? "none" : styles.tileIcon.boxShadow,
+                        }}
+                      >
+                        {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.tileImage} /> : getInitials(app.name)}
+                      </span>
+                      <span style={styles.tileLabel}>{app.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={styles.groupActions}>
+                <button style={styles.pinButton} type="button" onClick={() => openGroupEditor(activeGroup)}>
+                  Add Apps
+                </button>
+                <button style={styles.removeButton} type="button" onClick={() => deleteGroup(activeGroup.id)}>
+                  Ungroup
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {groupDraft ? (
+          <div style={styles.settingsOverlay}>
+            <section style={styles.groupDialog} aria-label="Create app group">
+              <div style={styles.settingsHeader}>
+                <h2 style={styles.settingsTitle}>{groupDraft.id ? "Edit Group" : "Create Group"}</h2>
+                <button style={styles.settingsCloseButton} onClick={closeGroupEditor} type="button" title="Close">
+                  <X size={20} />
+                </button>
+              </div>
+              <label style={{ ...styles.label, padding: "0 18px" }}>
+                Group Name
+                <input
+                  style={styles.input}
+                  value={groupDraft.name}
+                  onChange={(event) => setGroupDraft((current) => ({ ...current, name: event.target.value }))}
+                />
+              </label>
+              <div style={styles.groupPickerList}>
+                {groupPickerApps.map((app) => {
+                  const selected = (groupDraft.appIds || []).includes(app.id);
+                  return (
+                    <button
+                      key={app.id}
+                      style={{
+                        ...styles.groupPickerRow,
+                        ...(selected ? styles.groupPickerRowSelected : {}),
+                      }}
+                      type="button"
+                      onClick={() => toggleGroupDraftApp(app.id)}
+                    >
+                      <span style={{ ...styles.storeIcon, ...styles.installedIcon, background: app.logoUrl ? "transparent" : getIconTone(app.name)[0] }}>
+                        {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.tileImage} /> : getInitials(app.name)}
+                      </span>
+                      <strong>{app.name}</strong>
+                      <span style={styles.groupPickerCheck}>{selected ? <Check size={16} /> : <Plus size={16} />}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={styles.groupActions}>
+                <button style={styles.removeButton} type="button" onClick={closeGroupEditor}>
+                  Cancel
+                </button>
+                <button style={styles.pinButton} type="button" onClick={saveGroupDraft}>
+                  Save Group
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
         {activeView === "testing" ? (
           <TestingHubPopup apps={session.account?.testingApps} onClose={() => setActiveView("home")} />
+        ) : null}
+
+        {activeView === "hall-pass" ? (
+          <div style={styles.settingsOverlay}>
+            <form style={styles.hallPassDialog} onSubmit={submitHallPassRequest}>
+              <div style={styles.settingsHeader}>
+                <h2 style={styles.settingsTitle}>Hall Pass</h2>
+                <button style={styles.settingsCloseButton} onClick={() => setActiveView("home")} type="button" title="Close">
+                  <X size={20} />
+                </button>
+              </div>
+              <div style={styles.hallPassBody}>
+                <label style={styles.label}>
+                  Location
+                  <select
+                    style={styles.input}
+                    value={hallPassDraft.destination || hallPassDestinations[0] || "Restroom"}
+                    onChange={(event) => setHallPassDraft((current) => ({ ...current, destination: event.target.value }))}
+                  >
+                    {hallPassDestinations.map((destination) => (
+                      <option key={destination} value={destination}>{destination}</option>
+                    ))}
+                  </select>
+                </label>
+                <label style={styles.label}>
+                  Note {hallPassSettings.requireReason ? "(required)" : "(optional)"}
+                  <textarea
+                    style={styles.textarea}
+                    value={hallPassDraft.note}
+                    onChange={(event) => setHallPassDraft((current) => ({ ...current, note: event.target.value }))}
+                    placeholder="Tell your teacher why you need to leave."
+                  />
+                </label>
+                <button style={styles.pinButton} type="submit" disabled={saving}>
+                  <Check size={17} />
+                  Request Hall Pass
+                </button>
+              </div>
+            </form>
+          </div>
         ) : null}
 
         {activeScreenNotification ? (
@@ -1870,7 +2623,7 @@ export default function StudentDevicePage() {
 
       </section>
 
-      <nav style={styles.dock}>
+      <nav style={{ ...styles.dock, gridTemplateColumns: `repeat(${3 + dockApps.length + (hallPassEnabled ? 1 : 0)}, minmax(0, 1fr))` }}>
         <button style={{ ...styles.dockButton, ...styles.dockPrimaryButton }} onClick={() => setActiveView("home")} type="button">
           <Home size={22} />
           <span>Home</span>
@@ -1895,6 +2648,12 @@ export default function StudentDevicePage() {
           <FlaskConical size={22} />
           <span>Testing</span>
         </button>
+        {hallPassEnabled ? (
+          <button style={{ ...styles.dockButton, ...styles.dockPrimaryButton }} onClick={openHallPass} type="button">
+            <Check size={22} />
+            <span>Pass</span>
+          </button>
+        ) : null}
       </nav>
 
       {saving ? <div style={styles.saving}>Saving...</div> : null}
@@ -2111,6 +2870,33 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
   },
+  batteryMenuMeter: {
+    background: "rgba(15,23,42,0.04)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    borderRadius: 14,
+    display: "grid",
+    gap: 10,
+    padding: 10,
+  },
+  batteryMenuMeterTop: {
+    alignItems: "center",
+    display: "flex",
+    fontSize: 13,
+    justifyContent: "space-between",
+  },
+  batteryMenuTrack: {
+    background: "rgba(15,23,42,0.10)",
+    borderRadius: 999,
+    height: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  batteryMenuFill: {
+    borderRadius: 999,
+    height: "100%",
+    minWidth: 0,
+    transition: "width 180ms ease",
+  },
   networkInfoList: {
     display: "grid",
     gap: 7,
@@ -2146,13 +2932,41 @@ const styles = {
   },
   desktopGrid: {
     alignContent: "start",
+    boxSizing: "border-box",
     display: "grid",
     gap: DESKTOP_SLOT_GAP,
     height: "100%",
     justifyContent: "start",
-    overflow: "auto",
+    maxHeight: "100%",
+    overflow: "hidden",
     padding: "10px 10px 36px",
     position: "relative",
+    scrollSnapAlign: "start",
+    flex: "0 0 100%",
+  },
+  desktopPager: {
+    display: "flex",
+    gap: 0,
+    height: "100%",
+    overflowX: "auto",
+    overflowY: "hidden",
+    position: "relative",
+    scrollBehavior: "smooth",
+    scrollSnapType: "x mandatory",
+  },
+  pageIndicator: {
+    background: "rgba(15,23,42,0.58)",
+    borderRadius: 999,
+    bottom: 4,
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: 900,
+    left: "50%",
+    padding: "6px 12px",
+    pointerEvents: "none",
+    position: "absolute",
+    transform: "translateX(-50%)",
+    zIndex: 3,
   },
   tileButton: {
     alignItems: "center",
@@ -2227,8 +3041,8 @@ const styles = {
     left: 10,
     minHeight: 38,
     padding: "0 14px",
-    position: "sticky",
-    top: 0,
+    position: "absolute",
+    top: 10,
     width: "max-content",
     zIndex: 5,
   },
@@ -2248,6 +3062,65 @@ const styles = {
   },
   tileImage: { height: "100%", objectFit: "contain", width: "100%" },
   tileLabel: { fontSize: 13, fontWeight: 800, maxWidth: 96, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  createGroupTile: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.58)",
+    backdropFilter: "blur(18px) saturate(1.12)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.12)",
+    border: "1px dashed rgba(15,23,42,0.18)",
+    borderRadius: 22,
+    color: "#0f172a",
+    cursor: "pointer",
+    display: "grid",
+    gap: 8,
+    justifyItems: "center",
+    minHeight: 112,
+    padding: 10,
+  },
+  createGroupTileLocked: {
+    cursor: "default",
+    opacity: 0.72,
+  },
+  createGroupIcon: {
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.12)",
+    borderRadius: 18,
+    color: "var(--color-primary-dark)",
+    display: "flex",
+    height: 64,
+    justifyContent: "center",
+    width: 64,
+  },
+  groupTileIcon: {
+    alignItems: "center",
+    color: "var(--color-primary-dark)",
+    display: "grid",
+    height: 64,
+    justifyItems: "center",
+    position: "relative",
+    width: 70,
+  },
+  groupPreviewGrid: {
+    display: "grid",
+    gap: 3,
+    gridTemplateColumns: "repeat(2, 18px)",
+    left: "50%",
+    position: "absolute",
+    top: 22,
+    transform: "translateX(-50%)",
+  },
+  groupPreviewIcon: {
+    alignItems: "center",
+    borderRadius: 6,
+    color: "#fff",
+    display: "flex",
+    fontSize: 10,
+    fontWeight: 900,
+    height: 18,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 18,
+  },
   centerPanel: {
     background: "rgba(255,255,255,0.72)",
     backdropFilter: "blur(18px) saturate(1.12)",
@@ -2281,6 +3154,21 @@ const styles = {
     top: 0,
     zIndex: 35,
   },
+  groupOverlay: {
+    alignItems: "center",
+    background: "rgba(15,23,42,0.10)",
+    backdropFilter: "blur(6px)",
+    WebkitBackdropFilter: "blur(6px)",
+    bottom: 0,
+    display: "flex",
+    justifyContent: "center",
+    left: 0,
+    padding: 18,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 35,
+  },
   settingsDialog: {
     background: "#fff",
     border: "1px solid rgba(226,232,240,0.95)",
@@ -2294,6 +3182,50 @@ const styles = {
     maxWidth: 1120,
     overflow: "hidden",
     width: "100%",
+  },
+  groupDialog: {
+    background: "rgba(255,255,255,0.62)",
+    backdropFilter: "blur(22px) saturate(1.16)",
+    WebkitBackdropFilter: "blur(22px) saturate(1.16)",
+    border: "1px solid rgba(255,255,255,0.58)",
+    borderRadius: 24,
+    boxShadow: "0 24px 70px rgba(15,23,42,0.18)",
+    color: "#111827",
+    display: "grid",
+    gap: 14,
+    margin: "0 auto",
+    maxHeight: "min(720px, 100%)",
+    maxWidth: 680,
+    overflow: "auto",
+    padding: "0 0 4px",
+    width: "min(680px, 100%)",
+  },
+  hallPassDialog: {
+    background: "rgba(255,255,255,0.72)",
+    backdropFilter: "blur(22px) saturate(1.16)",
+    WebkitBackdropFilter: "blur(22px) saturate(1.16)",
+    border: "1px solid rgba(255,255,255,0.64)",
+    borderRadius: 24,
+    boxShadow: "0 24px 70px rgba(15,23,42,0.18)",
+    color: "#111827",
+    display: "grid",
+    gap: 14,
+    margin: "0 auto",
+    maxWidth: 520,
+    overflow: "hidden",
+    width: "min(520px, 100%)",
+  },
+  hallPassBody: {
+    display: "grid",
+    gap: 14,
+    padding: "0 18px 18px",
+  },
+  groupDialogHeader: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "center",
+    minHeight: 58,
+    padding: "0 18px",
   },
   settingsHeader: {
     alignItems: "center",
@@ -2371,6 +3303,77 @@ const styles = {
     outline: "none",
   },
   storeGrid: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))" },
+  groupAppGrid: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))",
+    padding: "0 18px",
+  },
+  groupAppButton: {
+    ...{
+      alignItems: "center",
+      background: "rgba(255,255,255,0.56)",
+      backdropFilter: "blur(18px) saturate(1.12)",
+      WebkitBackdropFilter: "blur(18px) saturate(1.12)",
+      border: "1px solid rgba(255,255,255,0.58)",
+      borderRadius: 18,
+      boxShadow: "0 14px 34px rgba(15,23,42,0.12)",
+      color: "#0f172a",
+      cursor: "pointer",
+      display: "grid",
+      gap: 8,
+      justifyItems: "center",
+      minHeight: 128,
+      padding: 10,
+    },
+  },
+  groupAppButtonDropTarget: {
+    borderColor: "rgba(var(--color-primary-rgb),0.66)",
+    boxShadow: "0 0 0 4px rgba(var(--color-primary-rgb),0.14), 0 16px 34px rgba(15,23,42,0.16)",
+    transform: "translateY(-2px)",
+  },
+  groupAppButtonDragging: {
+    opacity: 0.42,
+    transform: "scale(0.96)",
+  },
+  groupActions: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "flex-end",
+    padding: "0 18px 18px",
+  },
+  groupPickerList: {
+    display: "grid",
+    gap: 8,
+    maxHeight: 420,
+    overflow: "auto",
+    padding: "0 18px",
+  },
+  groupPickerRow: {
+    alignItems: "center",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 16,
+    color: "#0f172a",
+    cursor: "pointer",
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "44px minmax(0, 1fr) 34px",
+    minHeight: 58,
+    padding: 8,
+    textAlign: "left",
+  },
+  groupPickerRowSelected: {
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    borderColor: "rgba(var(--color-primary-rgb),0.35)",
+  },
+  groupPickerCheck: {
+    alignItems: "center",
+    color: "var(--color-primary-dark)",
+    display: "flex",
+    justifyContent: "center",
+  },
   storeItem: {
     alignItems: "center",
     background: "rgba(255,255,255,0.64)",
@@ -2547,6 +3550,15 @@ const styles = {
     fontWeight: 900,
     minHeight: 44,
     padding: "0 14px",
+  },
+  textarea: {
+    border: "1px solid #d1d5db",
+    borderRadius: 14,
+    color: "#111827",
+    font: "inherit",
+    minHeight: 90,
+    padding: "10px 12px",
+    resize: "vertical",
   },
   colorSwatch: {
     border: "3px solid #fff",

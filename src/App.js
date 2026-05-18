@@ -145,6 +145,7 @@ const TeacherPortalApp = load("./platforms/campus/portals/teacher/TeacherPortalA
 const ParentPortalApp = load("./platforms/campus/portals/parent/ParentPortalApp");
 const CampusEnrollmentPublicPage = load("./platforms/campus/pages/CampusEnrollmentPublicPage");
 const EduAdminPage = load("./platforms/edu/pages/EduAdminPage");
+const EduSalesPage = load("./platforms/edu/pages/EduSalesPage");
 const EduTeacherPortalPage = load("./platforms/edu/pages/EduTeacherPortalPage");
 const StudentDevicePage = load("./platforms/edu/pages/StudentDevicePage");
 const PagesDashboard = load("./platforms/pages/PagesDashboard");
@@ -181,6 +182,7 @@ function AppRoutes() {
     path === "/login" ||
     path === "/teacher/login" ||
     path === "/parent/login" ||
+    path === "/edu/sales" ||
     path === "/studentdevice" ||
     path.startsWith("/studentdevice/") ||
     path === "/studentdevices" ||
@@ -241,6 +243,7 @@ function AppRoutes() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/teacher/login" element={<TeacherLoginPage />} />
         <Route path="/parent/login" element={<ParentLoginPage />} />
+        <Route path="/edu/sales" element={<EduSalesPage />} />
         <Route path="/studentdevice" element={<StudentDevicePage />} />
         <Route path="/studentdevice/:schoolCode" element={<StudentDevicePage />} />
         <Route path="/studentdevices" element={<StudentDevicePage />} />
