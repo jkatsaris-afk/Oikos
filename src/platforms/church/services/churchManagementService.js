@@ -25,6 +25,27 @@ function isUuid(value = "") {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+function withFallbackTimeout(promise, fallback, delay = 4500) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => {
+      globalThis.setTimeout(() => resolve(fallback), delay);
+    }),
+  ]);
+}
+
+function getCachedChurchAccountId() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem("oikos.organization.church");
+    const account = raw ? JSON.parse(raw) : null;
+    return account?.id || null;
+  } catch (_error) {
+    return null;
+  }
+}
+
 const defaultState = {
   databaseReady: false,
   databaseMessage: "",
@@ -38,9 +59,9 @@ const defaultState = {
       id: "template-standard",
       name: "Monthly Meeting",
       agenda:
-        "Opening prayer\nPrevious minutes\nFinancial report\nOld business\nNew business\nClosing prayer",
+        "Attendance:\n- \n\nOld Business:\n- \n\nNew Business:\n- ",
       body:
-        "Attendance:\n\nFinancial report:\n\nOld business:\n\nNew business:\n\nAction items:",
+        "Notes:\n\nAction items:",
     },
   ],
   minutes: [],
@@ -81,12 +102,14 @@ function readLocalState() {
   }
 }
 
-function writeLocalState(nextState) {
+function writeLocalState(nextState, { notify = true } = {}) {
   const normalized = normalizeWorkspace(nextState);
 
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-    window.dispatchEvent(new CustomEvent("oikos:church-management-updated"));
+    if (notify) {
+      window.dispatchEvent(new CustomEvent("oikos:church-management-updated"));
+    }
   }
 
   return normalized;
@@ -108,6 +131,10 @@ function isMissingTableError(error) {
     error?.code === "PGRST116" ||
     String(error?.message || "").toLowerCase().includes("could not find the table")
   );
+}
+
+function isTimeoutError(error) {
+  return error?.code === "CHURCH_QUERY_TIMEOUT";
 }
 
 function isMissingColumnError(error) {
@@ -136,8 +163,31 @@ function stripAccountingMetadata(payload) {
 
 async function getChurchAccountId(userId) {
   if (!userId) return null;
-  const access = await fetchOrganizationAccess(userId, "church");
-  return access?.account?.id || null;
+  const cachedAccountId = getCachedChurchAccountId();
+
+  try {
+    const access = await withFallbackTimeout(
+      fetchOrganizationAccess(userId, "church"),
+      cachedAccountId ? { account: { id: cachedAccountId } } : null
+    );
+    return access?.account?.id || cachedAccountId || null;
+  } catch (_error) {
+    return cachedAccountId || null;
+  }
+}
+
+function queryWithTimeout(query, label) {
+  return withFallbackTimeout(
+    query,
+    {
+      data: null,
+      error: {
+        code: "CHURCH_QUERY_TIMEOUT",
+        message: `${label} took too long to load.`,
+      },
+    },
+    6500
+  );
 }
 
 function normalizeAttendance(row = {}) {
@@ -255,14 +305,14 @@ export async function loadChurchManagementWorkspace(userId) {
       templatesResult,
       minutesResult,
     ] = await Promise.all([
-      supabase.from(TABLES.attendance).select("*").eq("account_id", accountId).order("attendance_date", { ascending: false }),
-      supabase.from(TABLES.families).select("*").eq("account_id", accountId).order("family_name", { ascending: true }),
-      supabase.from(TABLES.members).select("*").eq("account_id", accountId).order("last_name", { ascending: true }),
-      supabase.from(TABLES.tithing).select("*").eq("account_id", accountId).order("collection_date", { ascending: false }),
-      supabase.from(TABLES.accounting).select("*").eq("account_id", accountId).order("transaction_date", { ascending: false }),
-      supabase.from(TABLES.accountingBalances).select("*").eq("account_id", accountId).order("balance_month", { ascending: false }),
-      supabase.from(TABLES.templates).select("*").eq("account_id", accountId).order("created_at", { ascending: false }),
-      supabase.from(TABLES.minutes).select("*").eq("account_id", accountId).order("meeting_date", { ascending: false }),
+      queryWithTimeout(supabase.from(TABLES.attendance).select("*").eq("account_id", accountId).order("attendance_date", { ascending: false }), "Attendance"),
+      queryWithTimeout(supabase.from(TABLES.families).select("*").eq("account_id", accountId).order("family_name", { ascending: true }), "Families"),
+      queryWithTimeout(supabase.from(TABLES.members).select("*").eq("account_id", accountId).order("last_name", { ascending: true }), "Members"),
+      queryWithTimeout(supabase.from(TABLES.tithing).select("*").eq("account_id", accountId).order("collection_date", { ascending: false }), "Tithing"),
+      queryWithTimeout(supabase.from(TABLES.accounting).select("*").eq("account_id", accountId).order("transaction_date", { ascending: false }), "Accounting"),
+      queryWithTimeout(supabase.from(TABLES.accountingBalances).select("*").eq("account_id", accountId).order("balance_month", { ascending: false }), "Balances"),
+      queryWithTimeout(supabase.from(TABLES.templates).select("*").eq("account_id", accountId).order("created_at", { ascending: false }), "Templates"),
+      queryWithTimeout(supabase.from(TABLES.minutes).select("*").eq("account_id", accountId).order("meeting_date", { ascending: false }), "Minutes"),
     ]);
 
     const optionalResults = [accountingBalancesResult];
@@ -283,6 +333,9 @@ export async function loadChurchManagementWorkspace(userId) {
     const error = results.find((result) => result.error)?.error;
 
     if (error) {
+      if (isTimeoutError(error)) {
+        return localFallback("Church Management is using saved local data while Supabase finishes loading.");
+      }
       if (isMissingTableError(error)) {
         return localFallback("Run sql/church-management.sql in Supabase to enable Church Management database storage.");
       }
@@ -311,10 +364,12 @@ export async function loadChurchManagementWorkspace(userId) {
       minutes: (minutesResult.data || []).map((row) => normalizeMinutes(row)),
     });
 
-    writeLocalState(workspace);
+    writeLocalState(workspace, { notify: false });
     return workspace;
   } catch (error) {
-    console.error("Church management load error:", error);
+    if (!isTimeoutError(error)) {
+      console.error("Church management load error:", error);
+    }
     return localFallback(error?.message || "Church Management could not load from Supabase.");
   }
 }
@@ -730,6 +785,41 @@ export async function saveChurchMeetingMinutes(userId, minutes) {
         : [nextMinutes, ...(state.minutes || [])],
     };
   });
+}
+
+export async function deleteChurchMeetingMinutes(userId, minutesId) {
+  if (!minutesId) {
+    return loadChurchManagementWorkspace(userId);
+  }
+
+  const accountId = await getChurchAccountId(userId);
+
+  if (!accountId || !isUuid(minutesId)) {
+    const state = readLocalState();
+    return writeLocalState({
+      ...state,
+      minutes: (state.minutes || []).filter((item) => item.id !== minutesId),
+    });
+  }
+
+  const { error } = await supabase
+    .from(TABLES.minutes)
+    .delete()
+    .eq("id", minutesId)
+    .eq("account_id", accountId);
+
+  if (error) {
+    if (isMissingTableError(error)) {
+      const state = localFallback();
+      return writeLocalState({
+        ...state,
+        minutes: (state.minutes || []).filter((item) => item.id !== minutesId),
+      });
+    }
+    throw error;
+  }
+
+  return loadChurchManagementWorkspace(userId);
 }
 
 export async function getLatestChurchMinutes(userId) {

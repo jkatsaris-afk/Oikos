@@ -6,10 +6,12 @@ import {
   Download,
   Edit3,
   FileText,
+  GripVertical,
   Landmark,
   MonitorUp,
   Plus,
   RefreshCw,
+  Trash2,
   Upload,
   Users,
 } from "lucide-react";
@@ -24,13 +26,13 @@ import {
   addChurchMemberToFamily,
   addChurchTithing,
   createRolledChurchMinutes,
+  deleteChurchMeetingMinutes,
   importChurchAccountingTransactions,
   loadChurchManagementWorkspace,
   saveChurchAccountingTransaction,
   saveChurchAccountingBalance,
   saveChurchMember,
   saveChurchMeetingMinutes,
-  saveChurchMinuteTemplate,
 } from "../services/churchManagementService";
 
 const SECTIONS = [
@@ -39,6 +41,37 @@ const SECTIONS = [
   { id: "tithing", label: "Tithing", icon: Banknote },
   { id: "accounting", label: "Accounting", icon: Landmark },
   { id: "minutes", label: "Meeting Minutes", shortLabel: "Minutes", icon: ClipboardList },
+];
+
+const ACCOUNTING_CATEGORIES = [
+  "Tithes",
+  "Offering",
+  "Deposit",
+  "Reimbursement",
+  "Building Maintenance",
+  "Building Supplies",
+  "Church Work / Labor",
+  "Repairs",
+  "Utilities",
+  "Bills",
+  "Insurance",
+  "Mortgage / Rent",
+  "Supplies",
+  "Office Supplies",
+  "Education Supplies",
+  "Ministry",
+  "Missions",
+  "Benevolence",
+  "Payroll",
+  "Taxes",
+  "Software",
+  "Bank Fees",
+  "Cash Withdrawal",
+  "Transfer",
+  "Recurring Expense",
+  "Purchases",
+  "Interest",
+  "Other",
 ];
 
 function today() {
@@ -64,6 +97,15 @@ function sum(items, getter) {
   return items.reduce((total, item) => total + Number(getter(item) || 0), 0);
 }
 
+function isTransferTransaction(item = {}) {
+  const text = `${item.vendor || ""} ${item.category || ""} ${item.description || ""}`.toLowerCase();
+  return text.includes("online transfer") || text.includes("transfer to savings") || text.includes("savings transfer");
+}
+
+function getExpenseRecords(items = []) {
+  return items.filter((item) => item.type === "expense" && !isTransferTransaction(item));
+}
+
 function buildBreakdown(items, key) {
   const groups = new Map();
   items.forEach((item) => {
@@ -76,9 +118,58 @@ function buildBreakdown(items, key) {
     .sort((a, b) => b.total - a.total);
 }
 
+function createDefaultAgenda() {
+  return ["Attendance", "Old Business", "New Business"].map((title) => `${title}:`).join("\n\n");
+}
+
+function parseAgendaSections(value = "") {
+  const text = String(value || "").trim();
+  const fallbackSections = ["Attendance", "Old Business", "New Business"].map((title) => ({ title, items: [] }));
+
+  if (!text) return fallbackSections;
+
+  const sections = [];
+  let activeIndex = -1;
+  text.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    const isHeading = trimmed.endsWith(":") && !trimmed.startsWith("-") && trimmed.length > 1;
+
+    if (isHeading) {
+      sections.push({ title: trimmed.replace(/:$/, ""), items: [] });
+      activeIndex = sections.length - 1;
+      return;
+    }
+
+    const listMatch = line.match(/^\s*[-*](\s?)(.*)$/);
+    const itemText = listMatch ? listMatch[2] : "";
+    if (activeIndex >= 0 && listMatch) {
+      const checked = /^\[[xX]\]\s*/.test(itemText);
+      sections[activeIndex].items.push({
+        checked,
+        text: itemText.replace(/^\[[ xX]\]\s*/, ""),
+      });
+    }
+  });
+
+  return sections.length ? sections : fallbackSections;
+}
+
+function serializeAgendaSections(sections = []) {
+  return sections.map((section) => {
+    const title = section.title || "Section";
+    const items = (section.items || [])
+      .map((item) => (typeof item === "string" ? { checked: false, text: item } : item));
+    return `${title}:${items.length ? `\n${items.map((item) => `- ${item.checked ? "[x] " : ""}${item.text || ""}`).join("\n")}` : ""}`;
+  }).join("\n\n");
+}
+
+function getAgendaItemText(item) {
+  return typeof item === "string" ? item : item?.text || "";
+}
+
 function getMonthLabel(month = "") {
   if (!month) return "No month";
-  return new Date(`${month}-01T12:00:00`).toLocaleDateString(undefined, {
+  return new Date(`${String(month).slice(0, 7)}-01T12:00:00`).toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
   });
@@ -109,6 +200,39 @@ function matchesFilter(dateValue, filterType, filterValue) {
   if (filterType === "month") return String(dateValue).startsWith(filterValue);
   if (filterType === "year") return String(dateValue).startsWith(filterValue);
   return true;
+}
+
+function getBalanceAccountKey(accountName = "") {
+  const text = String(accountName || "").toLowerCase();
+  if (text.includes("check")) return "checking";
+  if (text.includes("saving")) return "savings";
+  return text.trim() || "account";
+}
+
+function getLatestBalancesForPeriod(balances = [], filterType, filterValue) {
+  const filteredBalances = balances
+    .filter((item) => matchesFilter(item.balanceMonth, filterType, filterValue))
+    .sort((a, b) => String(b.balanceMonth || "").localeCompare(String(a.balanceMonth || "")));
+  const latestByAccount = new Map();
+
+  filteredBalances.forEach((item) => {
+    const accountKey = getBalanceAccountKey(item.accountName);
+    if (!latestByAccount.has(accountKey)) {
+      latestByAccount.set(accountKey, item);
+    }
+  });
+
+  return Array.from(latestByAccount.values());
+}
+
+function getBalancePeriodLabel(items = []) {
+  const months = Array.from(
+    new Set(items.map((item) => String(item.balanceMonth || "").slice(0, 7)).filter(Boolean))
+  );
+
+  if (!months.length) return "No balance entered";
+  if (months.length === 1) return getMonthLabel(months[0]);
+  return "Mixed balance months";
 }
 
 const emptyAttendance = {
@@ -167,15 +291,9 @@ const emptyBalance = {
 const emptyMinutes = {
   meetingDate: today(),
   title: "Monthly Meeting",
-  agenda: "",
+  agenda: createDefaultAgenda(),
   body: "",
   status: "draft",
-};
-
-const emptyTemplate = {
-  name: "",
-  agenda: "",
-  body: "",
 };
 
 function parseCurrency(value = "") {
@@ -231,6 +349,7 @@ function inferBankCategory({ description = "", type = "expense", vendor = "" }) 
   }
 
   if (text.includes("pest")) return "Building Maintenance";
+  if (text.includes("labor") || text.includes("work done") || text.includes("contractor")) return "Church Work / Labor";
   if (text.includes("supabase")) return "Software";
   if (text.includes("otc brands")) return "Education Supplies";
   if (text.includes("atm withdrawal")) return "Cash Withdrawal";
@@ -299,7 +418,8 @@ function parseStatementCsv(text = "", statementName = "Statement") {
     const explicitVendor = vendorIndex >= 0 ? cells[vendorIndex] || "" : "";
     const vendor = explicitVendor || extractBankVendor(description);
     const explicitCategory = categoryIndex >= 0 ? cells[categoryIndex] || "" : "";
-    const type = isExpense ? "expense" : "income";
+    const isTransfer = /online transfer|transfer to savings|savings transfer/i.test(`${description} ${vendor}`);
+    const type = isExpense && !isTransfer ? "expense" : "income";
     const checkNumber = checkNumberIndex >= 0 ? cells[checkNumberIndex] || "" : "";
     const status = statusIndex >= 0 ? cells[statusIndex] || "" : "";
     const receiptNotes = [
@@ -314,7 +434,7 @@ function parseStatementCsv(text = "", statementName = "Statement") {
       transactionDate,
       type,
       vendor,
-      category: explicitCategory || inferBankCategory({ description, type, vendor }),
+      category: explicitCategory || (isTransfer ? "Transfer" : inferBankCategory({ description, type, vendor })),
       description,
       amount,
       taxExempt: ["yes", "true", "1", "y"].includes(taxExemptValue),
@@ -343,10 +463,10 @@ function autoMatchAccountingRows(rows = [], existing = []) {
 
 function downloadCsvTemplate() {
   const rows = [
-    ["Date", "Description", "Debit", "Credit", "Vendor", "Category", "Tax Exempt", "Receipt Notes"],
-    [today(), "Example electric bill", "125.42", "", "City Utilities", "Utilities", "yes", "Monthly church utilities"],
-    [today(), "Example offering deposit", "", "850.00", "Sunday Offering", "Tithes", "no", ""],
-    [today(), "Example office supplies", "42.19", "", "Office Store", "Office Supplies", "yes", "Paper and envelopes"],
+    ["Date", "Description", "Debit", "Credit", "Vendor", "Category", "Receipt Notes"],
+    [today(), "Example electric bill", "125.42", "", "City Utilities", "Utilities", "Monthly church utilities"],
+    [today(), "Example offering deposit", "", "850.00", "Sunday Offering", "Tithes", ""],
+    [today(), "Example office supplies", "42.19", "", "Office Store", "Office Supplies", "Paper and envelopes"],
   ];
   const csv = rows
     .map((row) => row.map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`).join(","))
@@ -386,7 +506,6 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
   const [filterType, setFilterType] = useState("year");
   const [filterValue, setFilterValue] = useState(yearValue());
   const [minutesDraft, setMinutesDraft] = useState(emptyMinutes);
-  const [templateDraft, setTemplateDraft] = useState(emptyTemplate);
   const [importRows, setImportRows] = useState([]);
   const [selectedFamilyId, setSelectedFamilyId] = useState("");
   const [editingMemberId, setEditingMemberId] = useState("");
@@ -397,11 +516,25 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
     let isMounted = true;
 
     async function loadWorkspace() {
-      setLoading(true);
-      const nextWorkspace = await loadChurchManagementWorkspace(user?.id);
-      if (isMounted) {
-        setWorkspace(nextWorkspace);
-        setLoading(false);
+      try {
+        setLoading(true);
+        const nextWorkspace = await loadChurchManagementWorkspace(user?.id);
+        if (isMounted) {
+          setWorkspace(nextWorkspace);
+        }
+      } catch (error) {
+        console.error("Church management page load error:", error);
+        if (isMounted) {
+          setWorkspace((current) => ({
+            ...current,
+            databaseReady: false,
+            databaseMessage: error?.message || "Church Management could not load.",
+          }));
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
@@ -458,49 +591,50 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
   };
   const tithingGrandTotal = tithingTotals.cash + tithingTotals.checks + tithingTotals.online;
   const incomeTotal = sum(
-    filteredAccounting.filter((item) => item.type === "income"),
+    filteredAccounting.filter((item) => item.type === "income" && !isTransferTransaction(item)),
     (item) => item.amount
   );
-  const expenseTotal = sum(
-    filteredAccounting.filter((item) => item.type === "expense"),
-    (item) => item.amount
-  );
+  const expenseRecords = useMemo(() => getExpenseRecords(filteredAccounting), [filteredAccounting]);
+  const expenseTotal = sum(expenseRecords, (item) => item.amount);
   const accountingByCategory = useMemo(
-    () => buildBreakdown(filteredAccounting.filter((item) => item.type === "expense"), "category"),
-    [filteredAccounting]
+    () => buildBreakdown(expenseRecords, "category"),
+    [expenseRecords]
   );
   const accountingByVendor = useMemo(
-    () => buildBreakdown(filteredAccounting.filter((item) => item.type === "expense"), "vendor"),
-    [filteredAccounting]
+    () => buildBreakdown(expenseRecords, "vendor"),
+    [expenseRecords]
   );
-  const taxExemptTransactions = useMemo(
-    () => filteredAccounting.filter((item) => item.taxExempt),
-    [filteredAccounting]
+  const uncategorizedAccounting = useMemo(
+    () =>
+      filteredAccounting.filter(
+        (item) => !isTransferTransaction(item) && (!String(item.category || "").trim() || saving === `accounting-${item.id}`)
+      ),
+    [filteredAccounting, saving]
   );
-  const taxExemptTotal = sum(taxExemptTransactions, (item) => item.amount);
   const accountingMonths = useMemo(
-    () => getAvailableMonths(workspace.accounting || [], "transactionDate"),
-    [workspace.accounting]
+    () =>
+      Array.from(
+        new Set([
+          ...getAvailableMonths(workspace.accounting || [], "transactionDate"),
+          ...getAvailableMonths(workspace.accountingBalances || [], "balanceMonth"),
+        ])
+      ).sort((a, b) => b.localeCompare(a)),
+    [workspace.accounting, workspace.accountingBalances]
   );
   const selectedMonthLabel = filterType === "month" ? getMonthLabel(filterValue) : filterType === "year" ? `${filterValue} YTD` : "All Records";
   const selectedBalanceMonth = filterType === "month" ? `${filterValue}-01` : `${monthValue()}-01`;
   const selectedBalances = useMemo(
-    () =>
-      (workspace.accountingBalances || []).filter((item) =>
-        matchesFilter(item.balanceMonth, filterType, filterValue)
-      ),
+    () => getLatestBalancesForPeriod(workspace.accountingBalances || [], filterType, filterValue),
     [filterType, filterValue, workspace.accountingBalances]
   );
+  const checkingBalances = selectedBalances.filter((item) => getBalanceAccountKey(item.accountName) === "checking");
+  const savingsBalances = selectedBalances.filter((item) => getBalanceAccountKey(item.accountName) === "savings");
   const beginningBalanceTotal = sum(selectedBalances, (item) => item.beginningBalance);
-  const checkingBalanceTotal = sum(
-    selectedBalances.filter((item) => String(item.accountName || "").toLowerCase().includes("check")),
-    (item) => item.beginningBalance
-  );
-  const savingsBalanceTotal = sum(
-    selectedBalances.filter((item) => String(item.accountName || "").toLowerCase().includes("saving")),
-    (item) => item.beginningBalance
-  );
-  const endingBalanceTotal = beginningBalanceTotal + incomeTotal - expenseTotal;
+  const checkingBalanceTotal = sum(checkingBalances, (item) => item.beginningBalance);
+  const savingsBalanceTotal = sum(savingsBalances, (item) => item.beginningBalance);
+  const checkingBalancePeriod = getBalancePeriodLabel(checkingBalances);
+  const savingsBalancePeriod = getBalancePeriodLabel(savingsBalances);
+  const totalBalancePeriod = getBalancePeriodLabel(selectedBalances);
 
   function refresh(nextWorkspace, message) {
     setWorkspace(nextWorkspace);
@@ -601,9 +735,6 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
     const maxCategory = Math.max(...accountingByCategory.map((item) => item.total), 1);
     const maxVendor = Math.max(...accountingByVendor.map((item) => item.total), 1);
     const transactions = [...filteredAccounting].sort((a, b) => String(a.transactionDate).localeCompare(String(b.transactionDate)));
-    const balanceRows = selectedBalances.length
-      ? selectedBalances
-      : [{ accountName: "No balances entered", beginningBalance: 0, notes: "" }];
 
     const html = `
       <!doctype html>
@@ -621,15 +752,19 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
             .church-name { font-size: 13px; font-weight: 800; margin-top: 4px; }
             .title { font-size: 23px; margin-top: 2px; }
             .muted { color: #64748b; font-size: 10px; line-height: 1.35; }
-            .stats { display: grid; gap: 8px; grid-template-columns: repeat(6, 1fr); margin: 14px 0; }
+            .stats { display: grid; gap: 8px; grid-template-columns: repeat(5, 1fr); margin: 14px 0; }
             .stat { border: 1px solid #d8e5d0; border-radius: 10px; min-height: 58px; padding: 9px; }
             .label { color: #64748b; font-size: 8px; font-weight: 800; text-transform: uppercase; }
             .value { font-size: 14px; font-weight: 900; margin-top: 6px; }
-            .grid { display: grid; gap: 10px; grid-template-columns: 0.9fr 1.1fr 1.1fr; }
+            .green { color: #166534; }
+            .red { color: #b91c1c; }
+            .grid { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
             .panel { border: 1px solid #d8e5d0; border-radius: 12px; padding: 10px; }
             .panel h2 { font-size: 13px; margin-bottom: 8px; }
             .panel.summary { grid-column: 1 / -1; }
             .summary-grid { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); }
+            .balance-list { display: grid; gap: 6px; grid-template-columns: repeat(3, 1fr); margin-top: 8px; }
+            .balance-item { background: #f8fafc; border-radius: 8px; padding: 7px; }
             .bar-row { display: grid; gap: 4px; margin: 7px 0; }
             .bar-top { display: flex; font-size: 9px; font-weight: 700; justify-content: space-between; }
             .bar-track { background: #eef2f7; border-radius: 999px; height: 7px; overflow: hidden; }
@@ -653,23 +788,13 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
               <div class="muted">${new Date().toLocaleDateString()}<br/>Generated from Church Management</div>
             </div>
             <div class="stats">
-              <div class="stat"><div class="label">Checking Balance</div><div class="value">${money(checkingBalanceTotal)}</div></div>
-              <div class="stat"><div class="label">Savings Balance</div><div class="value">${money(savingsBalanceTotal)}</div></div>
-              <div class="stat"><div class="label">Total Account Worth</div><div class="value">${money(beginningBalanceTotal)}</div></div>
-              <div class="stat"><div class="label">Income</div><div class="value">${money(incomeTotal)}</div></div>
-              <div class="stat"><div class="label">Expenses</div><div class="value">${money(expenseTotal)}</div></div>
-              <div class="stat"><div class="label">Estimated Ending</div><div class="value">${money(endingBalanceTotal)}</div></div>
+              <div class="stat"><div class="label">Tithing</div><div class="value green">${money(tithingGrandTotal)}</div></div>
+              <div class="stat"><div class="label">Income</div><div class="value green">${money(incomeTotal)}</div></div>
+              <div class="stat"><div class="label">Expenses</div><div class="value red">${money(expenseTotal)}</div></div>
+              <div class="stat"><div class="label">Net Activity</div><div class="value ${incomeTotal - expenseTotal >= 0 ? "green" : "red"}">${money(incomeTotal - expenseTotal)}</div></div>
+              <div class="stat"><div class="label">Transactions</div><div class="value">${transactions.length}</div></div>
             </div>
             <div class="grid">
-              <div class="panel">
-                <h2>Account Balances</h2>
-                <table>
-                  <thead><tr><th>Account</th><th class="amount">Beginning</th></tr></thead>
-                  <tbody>
-                    ${balanceRows.map((item) => `<tr><td>${escapeHtml(item.accountName)}</td><td class="amount">${money(item.beginningBalance)}</td></tr>`).join("")}
-                  </tbody>
-                </table>
-              </div>
               <div class="panel">
                 <h2>Cost By Category</h2>
                 ${accountingByCategory.slice(0, 6).map((item) => `
@@ -692,8 +817,13 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
                 <h2>Summary</h2>
                 <div class="summary-grid">
                   <p class="muted">Net activity: <strong>${money(incomeTotal - expenseTotal)}</strong></p>
-                  <p class="muted">Tax-exempt total: <strong>${money(taxExemptTotal)}</strong></p>
+                  <p class="muted">Tithing collected: <strong>${money(tithingGrandTotal)}</strong></p>
                   <p class="muted">Transaction count: <strong>${transactions.length}</strong></p>
+                </div>
+                <div class="balance-list">
+                  <div class="balance-item"><div class="label">Checking Balance</div><div class="value green">${money(checkingBalanceTotal)}</div><div class="muted">${escapeHtml(checkingBalancePeriod)}</div></div>
+                  <div class="balance-item"><div class="label">Savings Balance</div><div class="value green">${money(savingsBalanceTotal)}</div><div class="muted">${escapeHtml(savingsBalancePeriod)}</div></div>
+                  <div class="balance-item"><div class="label">Total Account Worth</div><div class="value green">${money(beginningBalanceTotal)}</div><div class="muted">${escapeHtml(totalBalancePeriod)}</div></div>
                 </div>
               </div>
             </div>
@@ -789,16 +919,6 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
     setWorkspace(nextWorkspace);
   }
 
-  async function handleTemplateSubmit(event) {
-    event.preventDefault();
-    await runSave(
-      "template",
-      () => saveChurchMinuteTemplate(user?.id, templateDraft),
-      "Minutes template saved."
-    );
-    setTemplateDraft(emptyTemplate);
-  }
-
   async function handleMinutesSubmit(event) {
     event.preventDefault();
     await runSave(
@@ -809,15 +929,12 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
     setMinutesDraft(emptyMinutes);
   }
 
-  function applyTemplate(templateId) {
-    const template = (workspace.minuteTemplates || []).find((item) => item.id === templateId);
-    if (!template) return;
-
-    setMinutesDraft((current) => ({
-      ...current,
-      agenda: template.agenda || "",
-      body: template.body || "",
-    }));
+  async function handleMinutesDelete(minutesId) {
+    await runSave(
+      `minutes-delete-${minutesId}`,
+      () => deleteChurchMeetingMinutes(user?.id, minutesId),
+      "Meeting minutes deleted."
+    );
   }
 
   async function rollLastMonthForward() {
@@ -1084,12 +1201,17 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
             setFilterValue={setFilterValue}
           />
           <div style={{ ...styles.statsGrid, ...(isPhone ? styles.oneColumn : {}) }}>
-            <Stat label="Checking Balance" tone="moneyIn" value={money(checkingBalanceTotal)} />
-            <Stat label="Savings Balance" tone="moneyIn" value={money(savingsBalanceTotal)} />
-            <Stat label="Total Account Worth" tone="moneyIn" value={money(beginningBalanceTotal)} />
+            <Stat detail={checkingBalancePeriod} label="Checking Balance" tone="moneyIn" value={money(checkingBalanceTotal)} />
+            <Stat detail={savingsBalancePeriod} label="Savings Balance" tone="moneyIn" value={money(savingsBalanceTotal)} />
+            <Stat detail={totalBalancePeriod} label="Total Account Worth" tone="moneyIn" value={money(beginningBalanceTotal)} />
             <Stat label="Income" tone="moneyIn" value={money(incomeTotal)} />
             <Stat label="Expenses" tone="moneyOut" value={money(expenseTotal)} />
             <Stat label="Net" tone={incomeTotal - expenseTotal >= 0 ? "moneyIn" : "moneyOut"} value={money(incomeTotal - expenseTotal)} />
+          </div>
+
+          <div style={{ ...styles.twoColumn, ...(isPhone ? styles.oneColumn : {}) }}>
+            <BreakdownCard title="Cost By Category" items={accountingByCategory} total={expenseTotal} />
+            <BreakdownCard title="Cost By Vendor" items={accountingByVendor} total={expenseTotal} />
           </div>
 
           <div style={{ ...styles.twoColumn, ...(isPhone ? styles.oneColumn : {}) }}>
@@ -1109,7 +1231,7 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
               <div style={styles.balanceList}>
                 {selectedBalances.map((item) => (
                   <div key={item.id} style={styles.balanceRow}>
-                    <span>{item.accountName}</span>
+                    <span>{item.accountName} <small style={styles.inlineMuted}>{getMonthLabel(item.balanceMonth)}</small></span>
                     <strong>{money(item.beginningBalance)}</strong>
                   </div>
                 ))}
@@ -1133,15 +1255,11 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
                     <option value="income">Income</option>
                   </select>
                 </label>
-                <Field label="Category" value={accountingDraft.category} onChange={(value) => setAccountingDraft((current) => ({ ...current, category: value }))} />
+                <CategorySelect value={accountingDraft.category} onChange={(value) => setAccountingDraft((current) => ({ ...current, category: value }))} />
                 <Field label="Vendor" value={accountingDraft.vendor} onChange={(value) => setAccountingDraft((current) => ({ ...current, vendor: value }))} />
                 <Field label="Amount" type="number" value={accountingDraft.amount} onChange={(value) => setAccountingDraft((current) => ({ ...current, amount: value }))} />
               </div>
               <Textarea label="Description" value={accountingDraft.description} onChange={(value) => setAccountingDraft((current) => ({ ...current, description: value }))} />
-              <label style={styles.checkRow}>
-                <input type="checkbox" checked={accountingDraft.taxExempt} onChange={(event) => setAccountingDraft((current) => ({ ...current, taxExempt: event.target.checked }))} />
-                Include on tax-exempt report
-              </label>
               <SubmitButton label="Save Transaction" />
               </form>
             </details>
@@ -1188,34 +1306,15 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
             />
           ) : null}
 
-          <div style={{ ...styles.twoColumn, ...(isPhone ? styles.oneColumn : {}) }}>
-            <BreakdownCard title="Cost By Category" items={accountingByCategory} total={expenseTotal} />
-            <BreakdownCard title="Cost By Vendor" items={accountingByVendor} total={expenseTotal} />
-          </div>
-
-          <div style={{ ...styles.twoColumn, ...(isPhone ? styles.oneColumn : {}) }}>
-            <ReportCard
-              title={`${selectedMonthLabel} Report`}
-              body={[
-                `Report period: ${selectedMonthLabel}`,
-                `Income: ${money(incomeTotal)}`,
-                `Expenses: ${money(expenseTotal)}`,
-                `Net: ${money(incomeTotal - expenseTotal)}`,
-                "",
-                "Top Categories:",
-                ...accountingByCategory.slice(0, 6).map((item) => `${item.label}: ${money(item.total)}`),
-              ].join("\n")}
+          {uncategorizedAccounting.length ? (
+            <AccountingTable
+              isPhone={isPhone}
+              items={uncategorizedAccounting}
+              onChange={updateAccountingDraft}
+              onSave={handleAccountingSave}
+              title="Uncategorized Transactions"
             />
-            <ReportCard
-              title="Tax-Exempt Report"
-              body={[
-                `Report period: ${selectedMonthLabel}`,
-                `Tax-exempt total: ${money(taxExemptTotal)}`,
-                "",
-                ...taxExemptTransactions.map((item) => `${item.transactionDate} • ${item.vendor || "No vendor"} • ${item.category || "Uncategorized"} • ${money(item.amount)}`),
-              ].join("\n")}
-            />
-          </div>
+          ) : null}
 
           <AccountingTable
             isPhone={isPhone}
@@ -1232,7 +1331,7 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
           <div style={{ ...styles.actionHeader, ...(isPhone ? styles.actionHeaderPhone : {}) }}>
             <div>
               <div style={styles.cardTitle}>Meeting Minutes</div>
-              <div style={styles.muted}>Create templates, roll last month forward, and open a clean iPad note page.</div>
+              <div style={styles.muted}>Roll last month forward, update agenda sections, and open a clean iPad note page.</div>
             </div>
             <div style={{ ...styles.headerActions, ...(isPhone ? styles.headerActionsPhone : {}) }}>
               <button type="button" style={styles.secondaryButton} onClick={rollLastMonthForward}>
@@ -1246,44 +1345,26 @@ export default function ChurchManagementPage({ churchName = "Church", initialSec
             </div>
           </div>
 
-          <div style={{ ...styles.twoColumn, ...(isPhone ? styles.oneColumn : {}) }}>
+          <div style={styles.stack}>
             <form style={styles.card} onSubmit={handleMinutesSubmit}>
               <div style={styles.cardTitle}>Minutes</div>
               <div style={{ ...styles.formGrid, ...(isPhone ? styles.oneColumn : {}) }}>
                 <Field label="Date" type="date" value={minutesDraft.meetingDate} onChange={(value) => setMinutesDraft((current) => ({ ...current, meetingDate: value }))} />
                 <Field label="Title" value={minutesDraft.title} onChange={(value) => setMinutesDraft((current) => ({ ...current, title: value }))} />
               </div>
-              <label style={styles.label}>
-                Apply Template
-                <select style={styles.input} onChange={(event) => applyTemplate(event.target.value)} defaultValue="">
-                  <option value="">Choose template</option>
-                  {(workspace.minuteTemplates || []).map((template) => (
-                    <option key={template.id} value={template.id}>{template.name}</option>
-                  ))}
-                </select>
-              </label>
-              <Textarea label="Agenda" value={minutesDraft.agenda} onChange={(value) => setMinutesDraft((current) => ({ ...current, agenda: value }))} />
+              <AgendaBuilder
+                value={minutesDraft.agenda}
+                onChange={(value) => setMinutesDraft((current) => ({ ...current, agenda: value }))}
+              />
               <Textarea label="Notes" value={minutesDraft.body} onChange={(value) => setMinutesDraft((current) => ({ ...current, body: value }))} tall />
               <SubmitButton label="Save Minutes" />
             </form>
-
-            <form style={styles.card} onSubmit={handleTemplateSubmit}>
-              <div style={styles.cardTitle}>Template Builder</div>
-              <Field label="Template Name" value={templateDraft.name} onChange={(value) => setTemplateDraft((current) => ({ ...current, name: value }))} />
-              <Textarea label="Agenda Template" value={templateDraft.agenda} onChange={(value) => setTemplateDraft((current) => ({ ...current, agenda: value }))} />
-              <Textarea label="Notes Template" value={templateDraft.body} onChange={(value) => setTemplateDraft((current) => ({ ...current, body: value }))} tall />
-              <SubmitButton label="Save Template" />
-            </form>
           </div>
 
-          <RecordList
-            emptyText="No meeting minutes yet."
-            items={(workspace.minutes || []).map((item) => ({
-              id: item.id,
-              title: `${item.meetingDate} • ${item.title}`,
-              meta: item.status,
-              body: item.body,
-            }))}
+          <MinutesRecordList
+            items={workspace.minutes || []}
+            onDelete={handleMinutesDelete}
+            onOpen={(item) => setMinutesDraft(item)}
           />
         </section>
       ) : null}
@@ -1305,6 +1386,26 @@ function Field({ label, onChange, type = "text", value }) {
   );
 }
 
+function CategorySelect({ label = "Category", onChange, value }) {
+  const currentValue = value || "";
+  const hasCustomValue = currentValue && !ACCOUNTING_CATEGORIES.includes(currentValue);
+
+  return (
+    <label style={styles.label}>
+      {label}
+      <select style={styles.input} value={currentValue} onChange={(event) => onChange(event.target.value)}>
+        <option value="">Choose category</option>
+        {hasCustomValue ? <option value={currentValue}>{currentValue}</option> : null}
+        {ACCOUNTING_CATEGORIES.map((category) => (
+          <option key={category} value={category}>
+            {category}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function Textarea({ label, onChange, tall = false, value }) {
   return (
     <label style={styles.label}>
@@ -1318,6 +1419,153 @@ function Textarea({ label, onChange, tall = false, value }) {
   );
 }
 
+function AgendaBuilder({ onChange, title = "Agenda", value }) {
+  const sections = parseAgendaSections(value);
+
+  function emit(nextSections) {
+    onChange(serializeAgendaSections(nextSections));
+  }
+
+  function updateSectionTitle(sectionIndex, titleValue) {
+    emit(sections.map((section, index) => (
+      index === sectionIndex ? { ...section, title: titleValue || "Section" } : section
+    )));
+  }
+
+  function updateItem(sectionIndex, itemIndex, nextValue) {
+    emit(sections.map((section, index) => {
+      if (index !== sectionIndex) return section;
+      return {
+        ...section,
+        items: section.items.map((item, nextIndex) => (
+          nextIndex === itemIndex ? { ...(typeof item === "string" ? { checked: false } : item), text: nextValue } : item
+        )),
+      };
+    }));
+  }
+
+  function toggleItem(sectionIndex, itemIndex, checked) {
+    emit(sections.map((section, index) => {
+      if (index !== sectionIndex) return section;
+      return {
+        ...section,
+        items: section.items.map((item, nextIndex) => (
+          nextIndex === itemIndex ? { ...(typeof item === "string" ? { text: item } : item), checked } : item
+        )),
+      };
+    }));
+  }
+
+  function addItem(sectionIndex) {
+    emit(sections.map((section, index) => (
+      index === sectionIndex ? { ...section, items: [...section.items, { checked: false, text: "" }] } : section
+    )));
+  }
+
+  function addSection() {
+    emit([...sections, { title: "New Section", items: [{ checked: false, text: "" }] }]);
+  }
+
+  function removeItem(sectionIndex, itemIndex) {
+    emit(sections.map((section, index) => (
+      index === sectionIndex
+        ? { ...section, items: section.items.filter((_item, nextIndex) => nextIndex !== itemIndex) }
+        : section
+    )));
+  }
+
+  function moveItem(sectionIndex, itemIndex, direction) {
+    const nextSections = sections.map((section) => ({ ...section, items: [...section.items] }));
+    const section = nextSections[sectionIndex];
+    const nextIndex = itemIndex + direction;
+    if (!section || nextIndex < 0 || nextIndex >= section.items.length) return;
+    const [item] = section.items.splice(itemIndex, 1);
+    section.items.splice(nextIndex, 0, item);
+    emit(nextSections);
+  }
+
+  return (
+    <div style={styles.agendaBuilder}>
+      <div style={styles.agendaBuilderHeader}>
+        <div style={styles.cardTitle}>{title}</div>
+        <button type="button" style={styles.smallButton} onClick={addSection}>
+          <Plus size={14} />
+          Add Section
+        </button>
+      </div>
+      <div style={styles.agendaSections}>
+        {sections.map((section, sectionIndex) => (
+          <div key={`${section.title}-${sectionIndex}`} style={styles.agendaSection}>
+            <div style={styles.agendaSectionHeader}>
+              <input
+                style={styles.agendaSectionInput}
+                value={section.title}
+                onChange={(event) => updateSectionTitle(sectionIndex, event.target.value)}
+              />
+              <button type="button" style={styles.smallButton} onClick={() => addItem(sectionIndex)}>
+                <Plus size={14} />
+                {section.title.toLowerCase() === "attendance" ? "Add Name" : "Add Item"}
+              </button>
+            </div>
+            <div style={styles.agendaItemList}>
+              {!section.items.length ? (
+                <div style={styles.emptyState}>
+                  {section.title.toLowerCase() === "attendance" ? "No names added yet." : "No items added yet."}
+                </div>
+              ) : null}
+              {section.items.map((item, itemIndex) => (
+                <div
+                  key={`${section.title}-${itemIndex}`}
+                  draggable
+                  style={{
+                    ...styles.agendaItem,
+                    ...(section.title.toLowerCase() === "attendance" ? {} : styles.agendaItemNoCheck),
+                  }}
+                  onDragStart={(event) => event.dataTransfer.setData("text/plain", `${sectionIndex}:${itemIndex}`)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const [fromSection, fromItem] = event.dataTransfer.getData("text/plain").split(":").map(Number);
+                    if (fromSection !== sectionIndex || fromItem === itemIndex) return;
+                    const nextSections = sections.map((nextSection) => ({ ...nextSection, items: [...nextSection.items] }));
+                    const [draggedItem] = nextSections[fromSection].items.splice(fromItem, 1);
+                    nextSections[sectionIndex].items.splice(itemIndex, 0, draggedItem);
+                    emit(nextSections);
+                  }}
+                >
+                  <GripVertical size={15} />
+                  {section.title.toLowerCase() === "attendance" ? (
+                    <input
+                      type="checkbox"
+                      checked={typeof item === "string" ? false : item.checked === true}
+                      onChange={(event) => toggleItem(sectionIndex, itemIndex, event.target.checked)}
+                    />
+                  ) : null}
+                  <input
+                    style={styles.agendaInput}
+                    value={getAgendaItemText(item)}
+                    placeholder={section.title.toLowerCase() === "attendance" ? "Person name" : `${section.title} item`}
+                    onChange={(event) => updateItem(sectionIndex, itemIndex, event.target.value)}
+                  />
+                  <button type="button" style={styles.iconButton} onClick={() => moveItem(sectionIndex, itemIndex, -1)}>
+                    Up
+                  </button>
+                  <button type="button" style={styles.iconButton} onClick={() => moveItem(sectionIndex, itemIndex, 1)}>
+                    Down
+                  </button>
+                  <button type="button" style={styles.iconButton} onClick={() => removeItem(sectionIndex, itemIndex)}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SubmitButton({ label }) {
   return (
     <button type="submit" style={styles.primaryButton}>
@@ -1327,24 +1575,10 @@ function SubmitButton({ label }) {
   );
 }
 
-function Stat({ label, tone = "", value }) {
+function Stat({ detail = "", label, tone = "", value }) {
   return (
-    <div
-      style={{
-        ...styles.statCard,
-        ...(tone === "moneyIn" ? styles.statCardMoneyIn : {}),
-        ...(tone === "moneyOut" ? styles.statCardMoneyOut : {}),
-      }}
-    >
-      <div
-        style={{
-          ...styles.statLabel,
-          ...(tone === "moneyIn" ? styles.statLabelMoneyIn : {}),
-          ...(tone === "moneyOut" ? styles.statLabelMoneyOut : {}),
-        }}
-      >
-        {label}
-      </div>
+    <div style={styles.statCard}>
+      <div style={styles.statLabel}>{label}</div>
       <div
         style={{
           ...styles.statValue,
@@ -1354,6 +1588,7 @@ function Stat({ label, tone = "", value }) {
       >
         {value}
       </div>
+      {detail ? <div style={styles.statDetail}>{detail}</div> : null}
     </div>
   );
 }
@@ -1419,16 +1654,6 @@ function AccountingMonthBar({ availableMonths, filterType, filterValue, onOpenPd
           </select>
         </label>
         <div style={styles.monthButtonGroup}>
-          <button
-            type="button"
-            style={{
-              ...styles.secondaryButton,
-              ...(filterType === "all" ? styles.secondaryButtonActive : {}),
-            }}
-            onClick={() => setFilterType("all")}
-          >
-            All Records
-          </button>
           <button type="button" style={styles.primaryButton} onClick={onOpenPdfReport}>
             <Download size={15} />
             PDF Report
@@ -1460,6 +1685,37 @@ function RecordList({ emptyText, items }) {
   );
 }
 
+function MinutesRecordList({ items, onDelete, onOpen }) {
+  if (!items.length) {
+    return <div style={styles.emptyState}>No meeting minutes yet.</div>;
+  }
+
+  return (
+    <div style={styles.recordList}>
+      {items.map((item) => (
+        <div key={item.id} style={styles.recordCard}>
+          <div style={styles.recordIcon}><ClipboardList size={15} /></div>
+          <div style={styles.recordContent}>
+            <div style={styles.recordTitle}>{item.meetingDate} • {item.title}</div>
+            <div style={styles.recordMeta}>{item.status}</div>
+            {item.body ? <div style={styles.recordBody}>{item.body}</div> : null}
+          </div>
+          <div style={styles.recordActions}>
+            <button type="button" style={styles.secondaryButton} onClick={() => onOpen(item)}>
+              <Edit3 size={15} />
+              Open
+            </button>
+            <button type="button" style={styles.dangerButton} onClick={() => onDelete(item.id)}>
+              <Trash2 size={15} />
+              Delete
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DropdownPanel({ children, count = "", title }) {
   return (
     <details style={styles.dropdownCard}>
@@ -1476,7 +1732,8 @@ function DropdownPanel({ children, count = "", title }) {
 
 function BreakdownCard({ items, title, total }) {
   return (
-    <DropdownPanel count={items.length} title={title}>
+    <div style={styles.card}>
+      <div style={styles.cardTitle}>{title}</div>
       {!items.length ? <div style={styles.emptyState}>No expenses in this filter.</div> : null}
       <div style={styles.breakdownList}>
         {items.slice(0, 8).map((item) => {
@@ -1494,32 +1751,7 @@ function BreakdownCard({ items, title, total }) {
           );
         })}
       </div>
-    </DropdownPanel>
-  );
-}
-
-function ReportCard({ body, title }) {
-  function downloadReport() {
-    const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  return (
-    <DropdownPanel title={title}>
-      <div style={styles.reportHeader}>
-        <div style={styles.cardTitle}>{title}</div>
-        <button type="button" style={styles.secondaryButton} onClick={downloadReport}>
-          <Download size={15} />
-          Export
-        </button>
-      </div>
-      <div style={styles.reportText}>{body || "No records in this filter."}</div>
-    </DropdownPanel>
+    </div>
   );
 }
 
@@ -1543,15 +1775,14 @@ function AccountingTable({ isPhone, items, onChange, onSave, title }) {
                 </select>
               </label>
               <Field label="Vendor" value={item.vendor} onChange={(value) => onChange(item.id, "vendor", value)} />
-              <Field label="Category" value={item.category} onChange={(value) => onChange(item.id, "category", value)} />
+              <CategorySelect
+                value={item.category}
+                onChange={(value) => onChange(item.id, "category", value)}
+              />
               <Field label="Amount" type="number" value={item.amount} onChange={(value) => onChange(item.id, "amount", value)} />
             </div>
             <Textarea label="Description" value={item.description} onChange={(value) => onChange(item.id, "description", value)} />
             <div style={{ ...styles.transactionFooter, ...(isPhone ? styles.headerActionsPhone : {}) }}>
-              <label style={styles.checkRow}>
-                <input type="checkbox" checked={item.taxExempt === true} onChange={(event) => onChange(item.id, "taxExempt", event.target.checked)} />
-                Tax-exempt report
-              </label>
               {onSave ? (
                 <button type="button" style={styles.secondaryButton} onClick={() => onSave(item)}>
                   <FileText size={15} />
@@ -1609,8 +1840,10 @@ const styles = {
   sectionTile: {
     alignItems: "center",
     background: "#ffffff",
-    border: "1px solid #d8e5d0",
+    borderColor: "#d8e5d0",
     borderRadius: 16,
+    borderStyle: "solid",
+    borderWidth: 1,
     color: "#355f43",
     cursor: "pointer",
     display: "flex",
@@ -1620,6 +1853,7 @@ const styles = {
     gap: 10,
     justifyContent: "center",
     minHeight: 64,
+    outline: "none",
     padding: 12,
   },
   sectionTilePhone: {
@@ -1651,25 +1885,11 @@ const styles = {
     borderRadius: 16,
     padding: 16,
   },
-  statCardMoneyIn: {
-    background: "#f0fdf4",
-    border: "1px solid #bbf7d0",
-  },
-  statCardMoneyOut: {
-    background: "#fef2f2",
-    border: "1px solid #fecaca",
-  },
   statLabel: {
     color: "#64748b",
     fontSize: 12,
     fontWeight: 850,
     textTransform: "uppercase",
-  },
-  statLabelMoneyIn: {
-    color: "#166534",
-  },
-  statLabelMoneyOut: {
-    color: "#991b1b",
   },
   statValue: {
     color: "#0f172a",
@@ -1678,10 +1898,21 @@ const styles = {
     marginTop: 8,
   },
   statValueMoneyIn: {
-    color: "#14532d",
+    color: "#166534",
   },
   statValueMoneyOut: {
-    color: "#7f1d1d",
+    color: "#b91c1c",
+  },
+  statDetail: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 750,
+    marginTop: 6,
+  },
+  inlineMuted: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 750,
   },
   card: {
     background: "#ffffff",
@@ -1774,6 +2005,89 @@ const styles = {
   textareaTall: {
     minHeight: 180,
   },
+  agendaBuilder: {
+    display: "grid",
+    gap: 10,
+  },
+  agendaBuilderHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  agendaSections: {
+    display: "grid",
+    gap: 10,
+  },
+  agendaSection: {
+    background: "#f8fafc",
+    border: "1px solid #d6e2da",
+    borderRadius: 14,
+    display: "grid",
+    gap: 10,
+    padding: 12,
+  },
+  agendaSectionHeader: {
+    alignItems: "center",
+    color: "#0f172a",
+    display: "flex",
+    fontSize: 13,
+    fontWeight: 900,
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  agendaSectionInput: {
+    background: "transparent",
+    border: "none",
+    color: "#0f172a",
+    flex: 1,
+    font: "inherit",
+    fontSize: 15,
+    fontWeight: 900,
+    minWidth: 0,
+    outline: "none",
+  },
+  agendaItemList: {
+    display: "grid",
+    gap: 8,
+  },
+  agendaItem: {
+    alignItems: "center",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    color: "#64748b",
+    display: "grid",
+    gap: 8,
+    gridTemplateColumns: "auto auto minmax(0, 1fr) auto auto auto",
+    padding: 8,
+  },
+  agendaItemNoCheck: {
+    gridTemplateColumns: "auto minmax(0, 1fr) auto auto auto",
+  },
+  agendaInput: {
+    background: "#ffffff",
+    border: "none",
+    color: "#0f172a",
+    font: "inherit",
+    fontSize: 14,
+    outline: "none",
+    width: "100%",
+  },
+  smallButton: {
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.16)",
+    borderRadius: 999,
+    color: "var(--color-primary-dark)",
+    cursor: "pointer",
+    display: "inline-flex",
+    fontSize: 12,
+    fontWeight: 850,
+    gap: 6,
+    justifyContent: "center",
+    padding: "7px 10px",
+  },
   primaryButton: {
     alignItems: "center",
     alignSelf: "flex-start",
@@ -1803,11 +2117,6 @@ const styles = {
     justifyContent: "center",
     padding: "12px 14px",
   },
-  secondaryButtonActive: {
-    background: "var(--color-primary)",
-    borderColor: "var(--color-primary)",
-    color: "#ffffff",
-  },
   recordList: {
     display: "grid",
     gap: 10,
@@ -1820,6 +2129,17 @@ const styles = {
     display: "flex",
     gap: 12,
     padding: 14,
+  },
+  recordContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  recordActions: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "flex-end",
   },
   recordIcon: {
     alignItems: "center",
@@ -1859,8 +2179,10 @@ const styles = {
   },
   familyCard: {
     background: "#ffffff",
-    border: "1px solid #d8e5d0",
+    borderColor: "#d8e5d0",
     borderRadius: 18,
+    borderStyle: "solid",
+    borderWidth: 1,
     boxShadow: "0 8px 20px rgba(15,23,42,0.05)",
     color: "#0f172a",
     cursor: "pointer",
@@ -1920,7 +2242,21 @@ const styles = {
     height: 32,
     justifyContent: "center",
     minWidth: 32,
-    padding: 0,
+    padding: "0 8px",
+  },
+  dangerButton: {
+    alignItems: "center",
+    background: "rgba(185,28,28,0.08)",
+    border: "1px solid rgba(185,28,28,0.18)",
+    borderRadius: 12,
+    color: "#b91c1c",
+    cursor: "pointer",
+    display: "inline-flex",
+    fontSize: 13,
+    fontWeight: 850,
+    gap: 8,
+    justifyContent: "center",
+    padding: "12px 14px",
   },
   memberEditForm: {
     display: "grid",
@@ -1959,16 +2295,6 @@ const styles = {
     display: "inline-flex",
     gap: 10,
   },
-  reportText: {
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    borderRadius: 14,
-    color: "#0f172a",
-    fontSize: 14,
-    lineHeight: 1.7,
-    padding: 14,
-    whiteSpace: "pre-line",
-  },
   balanceList: {
     display: "grid",
     gap: 8,
@@ -1984,12 +2310,6 @@ const styles = {
     fontWeight: 800,
     justifyContent: "space-between",
     padding: "10px 12px",
-  },
-  reportHeader: {
-    alignItems: "center",
-    display: "flex",
-    gap: 10,
-    justifyContent: "space-between",
   },
   importActions: {
     display: "flex",

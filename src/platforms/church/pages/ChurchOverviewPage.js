@@ -31,6 +31,30 @@ function money(value) {
   });
 }
 
+function createFallbackOverview() {
+  return {
+    account: null,
+    liveDisplay: { display: null, screens: [] },
+    management: {},
+    visibleTileIds: DEFAULT_CHURCH_OVERVIEW_TILE_IDS,
+    stats: {
+      activeMemberCount: 0,
+      connectedScreens: 0,
+      currentAccountTotal: { accountCount: 0, total: 0 },
+      familyCount: 0,
+      inviteCode: "",
+      lastMonthExpenses: { expenses: 0, monthLabel: "Last month", transactionCount: 0 },
+      latestAttendance: null,
+      liveState: "loop",
+      monthlyAccounting: { expenses: 0, income: 0, month: "", net: 0 },
+      serviceReady: false,
+      totalTithes: 0,
+      upcomingAnniversaries: [],
+      upcomingBirthdays: [],
+    },
+  };
+}
+
 function shortDate(dateValue = "") {
   if (!dateValue) return "Not set";
 
@@ -98,7 +122,7 @@ const TILE_DEFINITIONS = [
     getValue: ({ stats }) => stats.latestAttendance?.worshipCount || 0,
     getDetail: ({ stats }) =>
       stats.latestAttendance
-        ? `${shortDate(stats.latestAttendance.attendanceDate)} • Class ${stats.latestAttendance.classCount || 0} • Visitors ${stats.latestAttendance.visitorCount || 0}`
+        ? `Sunday ${shortDate(stats.latestAttendance.attendanceDate)} • Class ${stats.latestAttendance.classCount || 0} • Visitors ${stats.latestAttendance.visitorCount || 0}`
         : "No attendance logged",
   },
   {
@@ -183,20 +207,47 @@ export default function ChurchOverviewPage({ churchName = "Church", onOpenSectio
     let isMounted = true;
 
     async function loadOverview() {
-      setLoading(true);
-      const nextOverview = await loadChurchOverview(user?.id);
+      try {
+        setLoading(true);
+        const nextOverview = await loadChurchOverview(user?.id);
 
-      if (isMounted) {
-        setOverview(nextOverview);
-        setVisibleTileIds(nextOverview.visibleTileIds || DEFAULT_CHURCH_OVERVIEW_TILE_IDS);
-        setLoading(false);
+        if (isMounted) {
+          setOverview(nextOverview);
+          setVisibleTileIds(nextOverview.visibleTileIds || DEFAULT_CHURCH_OVERVIEW_TILE_IDS);
+        }
+      } catch (error) {
+        console.error("Church overview load error:", error);
+        if (isMounted) {
+          setOverview(createFallbackOverview());
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    async function refreshOverview() {
+      try {
+        const nextOverview = await loadChurchOverview(user?.id);
+
+        if (isMounted) {
+          setOverview(nextOverview);
+          setVisibleTileIds(nextOverview.visibleTileIds || DEFAULT_CHURCH_OVERVIEW_TILE_IDS);
+        }
+      } catch (error) {
+        console.error("Church overview refresh error:", error);
       }
     }
 
     loadOverview();
+    window.addEventListener("oikos:church-management-updated", refreshOverview);
+    window.addEventListener("storage", refreshOverview);
 
     return () => {
       isMounted = false;
+      window.removeEventListener("oikos:church-management-updated", refreshOverview);
+      window.removeEventListener("storage", refreshOverview);
     };
   }, [user?.id]);
 

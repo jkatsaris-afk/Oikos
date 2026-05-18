@@ -172,7 +172,6 @@ export default function ChurchDashboardPage() {
                       ? {
                           ...styles.navButtonActive,
                           background: "var(--color-primary)",
-                          borderColor: "transparent",
                         }
                       : {}),
                   }}
@@ -278,7 +277,9 @@ const styles = {
     background: "rgba(255,255,255,0.76)",
     backdropFilter: "blur(18px) saturate(1.12)",
     WebkitBackdropFilter: "blur(18px) saturate(1.12)",
-    border: "1px solid rgba(255,255,255,0.58)",
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.58)",
     borderRadius: 24,
     bottom: 16,
     boxShadow: "0 18px 46px rgba(15,23,42,0.14)",
@@ -322,7 +323,9 @@ const styles = {
   navButton: {
     alignItems: "center",
     background: "rgba(var(--color-primary-rgb),0.09)",
-    border: "1px solid transparent",
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderColor: "transparent",
     borderRadius: 999,
     color: "var(--color-primary-dark)",
     cursor: "pointer",
@@ -385,7 +388,9 @@ const styles = {
   footerButton: {
     alignItems: "center",
     background: "rgba(var(--color-primary-rgb),0.12)",
-    border: "1px solid transparent",
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderColor: "transparent",
     borderRadius: 999,
     color: "var(--color-primary-dark)",
     cursor: "pointer",
@@ -413,7 +418,9 @@ const styles = {
   },
   logoutButton: {
     background: "rgba(15,23,42,0.05)",
-    border: "1px solid transparent",
+    borderStyle: "solid",
+    borderWidth: 1,
+    borderColor: "transparent",
     color: "#334155",
   },
   navLabelPhone: {

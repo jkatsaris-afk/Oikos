@@ -74,6 +74,20 @@ function getControllerUrl(controllerId) {
   return `${window.location.origin}/church/controllers/${controllerId}`;
 }
 
+function getMinutesPadUrl() {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}/church/management/minutes-pad`;
+}
+
+function withTimeout(promise, fallback) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => {
+      window.setTimeout(() => resolve(fallback), 12000);
+    }),
+  ]);
+}
+
 export default function RemotePage({
   initialController = "",
   showHeader = true,
@@ -98,8 +112,20 @@ export default function RemotePage({
 
     try {
       const [displayResult, hymnResult] = await Promise.all([
-        loadChurchLiveDisplay(user?.id),
-        loadChurchHymns(user?.id),
+        withTimeout(
+          loadChurchLiveDisplay(user?.id).catch((loadError) => {
+            console.error("Controller display load error:", loadError);
+            return { display: null, screens: [] };
+          }),
+          { display: null, screens: [] }
+        ),
+        withTimeout(
+          loadChurchHymns(user?.id).catch((loadError) => {
+            console.error("Controller hymn load error:", loadError);
+            return { hymns: [] };
+          }),
+          { hymns: [] }
+        ),
       ]);
 
       setDisplay(displayResult.display);
@@ -132,6 +158,7 @@ export default function RemotePage({
     })),
     []
   );
+  const minutesPadUrl = useMemo(() => getMinutesPadUrl(), []);
 
   async function runAction(actionKey, runner, successMessage = "") {
     if (!display || !user?.id) return;
@@ -332,6 +359,12 @@ export default function RemotePage({
               onCopy={() => copyText(link.url, `${link.label} link`)}
             />
           ))}
+          <LinkCard
+            label="Meeting Minutes iPad"
+            url={minutesPadUrl}
+            isPhone={isPhone}
+            onCopy={() => copyText(minutesPadUrl, "Meeting Minutes iPad link")}
+          />
         </section>
       ) : null}
     </div>

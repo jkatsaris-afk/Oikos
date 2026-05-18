@@ -6,6 +6,70 @@ const EVENTS_KEY = "oikos.church.events";
 const CHURCH_ANNOUNCEMENTS_TABLE = "church_announcements";
 const CHURCH_EVENTS_TABLE = "church_events";
 const MAX_PRE_SERVICE_ENTRIES = 6;
+const MISSING_TABLES_KEY = "oikos.church.missingTables";
+const MISSING_TABLE_RETRY_MS = 5 * 60 * 1000;
+
+function isMissingRelationError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    error?.code === "42P01" ||
+    error?.code === "PGRST205" ||
+    message.includes("could not find the table") ||
+    message.includes("schema cache")
+  );
+}
+
+function getMissingTables() {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(MISSING_TABLES_KEY) || "{}");
+    if (Array.isArray(parsed)) {
+      return Object.fromEntries(parsed.map((tableName) => [tableName, Date.now()]));
+    }
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function isTableMarkedMissing(tableName) {
+  const missingTables = getMissingTables();
+  const markedAt = Number(missingTables[tableName] || 0);
+  if (!markedAt) return false;
+  return Date.now() - markedAt < MISSING_TABLE_RETRY_MS;
+}
+
+function markTableMissing(tableName) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const missingTables = getMissingTables();
+    missingTables[tableName] = Date.now();
+    window.localStorage.setItem(MISSING_TABLES_KEY, JSON.stringify(missingTables));
+  } catch (error) {
+    // Local storage is best-effort only.
+  }
+}
+
+function clearTableMissing(tableName) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const missingTables = getMissingTables();
+    if (!missingTables[tableName]) return;
+    delete missingTables[tableName];
+    window.localStorage.setItem(MISSING_TABLES_KEY, JSON.stringify(missingTables));
+  } catch (error) {
+    // Local storage is best-effort only.
+  }
+}
 
 const defaultAnnouncements = [
   {
@@ -153,7 +217,7 @@ async function getChurchAccountId(userId) {
 }
 
 export async function loadChurchEvents(userId) {
-  if (!userId) {
+  if (!userId || isTableMarkedMissing(CHURCH_EVENTS_TABLE)) {
     return getChurchEvents();
   }
 
@@ -171,21 +235,30 @@ export async function loadChurchEvents(userId) {
       .order("created_at", { ascending: false });
 
     if (error) {
+      if (isMissingRelationError(error)) {
+        markTableMissing(CHURCH_EVENTS_TABLE);
+        return getChurchEvents();
+      }
       console.error("Church events load error:", error);
       return getChurchEvents();
     }
 
     const nextEvents = Array.isArray(data) ? data.map((item) => normalizeEvent(item)) : [];
+    clearTableMissing(CHURCH_EVENTS_TABLE);
     saveChurchEvents(nextEvents);
     return nextEvents;
   } catch (error) {
+    if (isMissingRelationError(error)) {
+      markTableMissing(CHURCH_EVENTS_TABLE);
+      return getChurchEvents();
+    }
     console.error("Church events load error:", error);
     return getChurchEvents();
   }
 }
 
 export async function loadChurchAnnouncements(userId) {
-  if (!userId) {
+  if (!userId || isTableMarkedMissing(CHURCH_ANNOUNCEMENTS_TABLE)) {
     return getChurchAnnouncements();
   }
 
@@ -203,6 +276,10 @@ export async function loadChurchAnnouncements(userId) {
       .order("created_at", { ascending: false });
 
     if (error) {
+      if (isMissingRelationError(error)) {
+        markTableMissing(CHURCH_ANNOUNCEMENTS_TABLE);
+        return getChurchAnnouncements();
+      }
       console.error("Church announcements load error:", error);
       return getChurchAnnouncements();
     }
@@ -210,9 +287,14 @@ export async function loadChurchAnnouncements(userId) {
     const nextAnnouncements = Array.isArray(data)
       ? data.map((item) => normalizeAnnouncement(item))
       : [];
+    clearTableMissing(CHURCH_ANNOUNCEMENTS_TABLE);
     saveChurchAnnouncements(nextAnnouncements);
     return nextAnnouncements;
   } catch (error) {
+    if (isMissingRelationError(error)) {
+      markTableMissing(CHURCH_ANNOUNCEMENTS_TABLE);
+      return getChurchAnnouncements();
+    }
     console.error("Church announcements load error:", error);
     return getChurchAnnouncements();
   }
@@ -221,7 +303,7 @@ export async function loadChurchAnnouncements(userId) {
 export async function createChurchAnnouncement(userId, draft) {
   const nextAnnouncement = normalizeAnnouncement(draft);
 
-  if (!userId) {
+  if (!userId || isTableMarkedMissing(CHURCH_ANNOUNCEMENTS_TABLE)) {
     const nextAnnouncements = [nextAnnouncement, ...getChurchAnnouncements()];
     saveChurchAnnouncements(nextAnnouncements);
     return nextAnnouncements;
@@ -250,6 +332,12 @@ export async function createChurchAnnouncement(userId, draft) {
 
     return loadChurchAnnouncements(userId);
   } catch (error) {
+    if (isMissingRelationError(error)) {
+      markTableMissing(CHURCH_ANNOUNCEMENTS_TABLE);
+      const nextAnnouncements = [nextAnnouncement, ...getChurchAnnouncements()];
+      saveChurchAnnouncements(nextAnnouncements);
+      return nextAnnouncements;
+    }
     console.error("Church announcement create error:", error);
     const nextAnnouncements = [nextAnnouncement, ...getChurchAnnouncements()];
     saveChurchAnnouncements(nextAnnouncements);
@@ -258,7 +346,7 @@ export async function createChurchAnnouncement(userId, draft) {
 }
 
 export async function deleteChurchAnnouncement(userId, announcementId) {
-  if (!userId) {
+  if (!userId || isTableMarkedMissing(CHURCH_ANNOUNCEMENTS_TABLE)) {
     const nextAnnouncements = getChurchAnnouncements().filter(
       (item) => item.id !== announcementId
     );
@@ -278,6 +366,14 @@ export async function deleteChurchAnnouncement(userId, announcementId) {
 
     return loadChurchAnnouncements(userId);
   } catch (error) {
+    if (isMissingRelationError(error)) {
+      markTableMissing(CHURCH_ANNOUNCEMENTS_TABLE);
+      const nextAnnouncements = getChurchAnnouncements().filter(
+        (item) => item.id !== announcementId
+      );
+      saveChurchAnnouncements(nextAnnouncements);
+      return nextAnnouncements;
+    }
     console.error("Church announcement delete error:", error);
     const nextAnnouncements = getChurchAnnouncements().filter(
       (item) => item.id !== announcementId
@@ -294,7 +390,7 @@ export async function toggleChurchAnnouncementLive(userId, announcement) {
 
   const nextValue = announcement.showOnLive === false;
 
-  if (!userId) {
+  if (!userId || isTableMarkedMissing(CHURCH_ANNOUNCEMENTS_TABLE)) {
     const nextAnnouncements = getChurchAnnouncements().map((item) =>
       item.id === announcement.id
         ? {
@@ -321,6 +417,19 @@ export async function toggleChurchAnnouncementLive(userId, announcement) {
 
     return loadChurchAnnouncements(userId);
   } catch (error) {
+    if (isMissingRelationError(error)) {
+      markTableMissing(CHURCH_ANNOUNCEMENTS_TABLE);
+      const nextAnnouncements = getChurchAnnouncements().map((item) =>
+        item.id === announcement.id
+          ? {
+              ...item,
+              showOnLive: nextValue,
+            }
+          : item
+      );
+      saveChurchAnnouncements(nextAnnouncements);
+      return nextAnnouncements;
+    }
     console.error("Church announcement live toggle error:", error);
     const nextAnnouncements = getChurchAnnouncements().map((item) =>
       item.id === announcement.id
@@ -338,7 +447,7 @@ export async function toggleChurchAnnouncementLive(userId, announcement) {
 export async function createChurchEvent(userId, draft) {
   const nextEvent = normalizeEvent(draft);
 
-  if (!userId) {
+  if (!userId || isTableMarkedMissing(CHURCH_EVENTS_TABLE)) {
     const nextEvents = [nextEvent, ...getChurchEvents()];
     saveChurchEvents(nextEvents);
     return nextEvents;
@@ -370,6 +479,12 @@ export async function createChurchEvent(userId, draft) {
 
     return loadChurchEvents(userId);
   } catch (error) {
+    if (isMissingRelationError(error)) {
+      markTableMissing(CHURCH_EVENTS_TABLE);
+      const nextEvents = [nextEvent, ...getChurchEvents()];
+      saveChurchEvents(nextEvents);
+      return nextEvents;
+    }
     console.error("Church event create error:", error);
     const nextEvents = [nextEvent, ...getChurchEvents()];
     saveChurchEvents(nextEvents);
@@ -378,7 +493,7 @@ export async function createChurchEvent(userId, draft) {
 }
 
 export async function deleteChurchEvent(userId, eventId) {
-  if (!userId) {
+  if (!userId || isTableMarkedMissing(CHURCH_EVENTS_TABLE)) {
     const nextEvents = getChurchEvents().filter((item) => item.id !== eventId);
     saveChurchEvents(nextEvents);
     return nextEvents;
@@ -393,6 +508,12 @@ export async function deleteChurchEvent(userId, eventId) {
 
     return loadChurchEvents(userId);
   } catch (error) {
+    if (isMissingRelationError(error)) {
+      markTableMissing(CHURCH_EVENTS_TABLE);
+      const nextEvents = getChurchEvents().filter((item) => item.id !== eventId);
+      saveChurchEvents(nextEvents);
+      return nextEvents;
+    }
     console.error("Church event delete error:", error);
     const nextEvents = getChurchEvents().filter((item) => item.id !== eventId);
     saveChurchEvents(nextEvents);
@@ -407,7 +528,7 @@ export async function toggleChurchEventLive(userId, event) {
 
   const nextValue = event.showOnLive === false;
 
-  if (!userId) {
+  if (!userId || isTableMarkedMissing(CHURCH_EVENTS_TABLE)) {
     const nextEvents = getChurchEvents().map((item) =>
       item.id === event.id
         ? {
@@ -434,6 +555,19 @@ export async function toggleChurchEventLive(userId, event) {
 
     return loadChurchEvents(userId);
   } catch (error) {
+    if (isMissingRelationError(error)) {
+      markTableMissing(CHURCH_EVENTS_TABLE);
+      const nextEvents = getChurchEvents().map((item) =>
+        item.id === event.id
+          ? {
+              ...item,
+              showOnLive: nextValue,
+            }
+          : item
+      );
+      saveChurchEvents(nextEvents);
+      return nextEvents;
+    }
     console.error("Church event live toggle error:", error);
     const nextEvents = getChurchEvents().map((item) =>
       item.id === event.id

@@ -85,6 +85,11 @@ function sum(items = [], getter) {
   return items.reduce((total, item) => total + Number(getter(item) || 0), 0);
 }
 
+function isTransferTransaction(item = {}) {
+  const text = `${item.vendor || ""} ${item.category || ""} ${item.description || ""}`.toLowerCase();
+  return text.includes("online transfer") || text.includes("transfer to savings") || text.includes("savings transfer");
+}
+
 function buildCurrentAccountSummary(balances = []) {
   const latestByAccount = new Map();
 
@@ -114,11 +119,11 @@ function buildMonthlyAccountingSummary(accounting = []) {
     ? accounting.filter((item) => String(item.transactionDate || "").startsWith(month))
     : [];
   const income = sum(
-    records.filter((item) => item.type === "income"),
+    records.filter((item) => item.type === "income" && !isTransferTransaction(item)),
     (item) => item.amount
   );
   const expenses = sum(
-    records.filter((item) => item.type === "expense"),
+    records.filter((item) => item.type === "expense" && !isTransferTransaction(item)),
     (item) => item.amount
   );
 
@@ -134,7 +139,7 @@ function buildLastMonthExpenseSummary(accounting = []) {
   const month = getPreviousMonth();
   const records = accounting.filter((item) => String(item.transactionDate || "").startsWith(month));
   const expenses = sum(
-    records.filter((item) => item.type === "expense"),
+    records.filter((item) => item.type === "expense" && !isTransferTransaction(item)),
     (item) => item.amount
   );
 
@@ -142,7 +147,7 @@ function buildLastMonthExpenseSummary(accounting = []) {
     expenses,
     month,
     monthLabel: getMonthLabel(month),
-    transactionCount: records.filter((item) => item.type === "expense").length,
+    transactionCount: records.filter((item) => item.type === "expense" && !isTransferTransaction(item)).length,
   };
 }
 
