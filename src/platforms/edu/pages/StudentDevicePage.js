@@ -25,9 +25,11 @@ import {
   clearStudentDeviceEnrollment,
   clearStudentDeviceSession,
   changeEduStudentDevicePin,
+  dismissEduStudentDeviceNotification,
   enrollEduStudentDevice,
   getStudentDeviceEnrollment,
   loadEduStudentDeviceCatalog,
+  loadEduStudentDeviceNotifications,
   loginEduStudentDevice,
   refreshEduStudentDeviceEnrollment,
   saveEduStudentDeviceDesktop,
@@ -234,6 +236,20 @@ function normalizeUrl(url = "") {
   if (!trimmed) return "";
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
+}
+
+function isGoogleAppUrl(url = "") {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    return host === "google.com" || host.endsWith(".google.com");
+  } catch (_error) {
+    return false;
+  }
+}
+
+function getStudentAppLaunchUrl(url = "") {
+  if (!isGoogleAppUrl(url)) return url;
+  return `https://accounts.google.com/Logout?continue=${encodeURIComponent(url)}`;
 }
 
 function getInitials(name = "A") {
@@ -528,6 +544,8 @@ export default function StudentDevicePage() {
   const moveSelectionJustSetRef = useRef(false);
   const screenCloseCheckAtRef = useRef(Date.now());
   const screenHiddenAtRef = useRef(0);
+  const networkMenuRef = useRef(null);
+  const batteryMenuRef = useRef(null);
   const [pinDraft, setPinDraft] = useState({
     currentPin: "",
     nextPin: "",
@@ -536,6 +554,7 @@ export default function StudentDevicePage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [screenNotifications, setScreenNotifications] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -618,6 +637,28 @@ export default function StudentDevicePage() {
       connection?.removeEventListener?.("change", updateNetworkInfo);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showNetworkMenu && !showBatteryMenu) return undefined;
+
+    function closeStatusMenusOnOutsideClick(event) {
+      const target = event.target;
+      if (
+        networkMenuRef.current?.contains(target)
+        || batteryMenuRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setShowNetworkMenu(false);
+      setShowBatteryMenu(false);
+    }
+
+    document.addEventListener("pointerdown", closeStatusMenusOnOutsideClick);
+    return () => {
+      document.removeEventListener("pointerdown", closeStatusMenusOnOutsideClick);
+    };
+  }, [showNetworkMenu, showBatteryMenu]);
 
   useEffect(() => {
     let cancelled = false;
@@ -721,7 +762,15 @@ export default function StudentDevicePage() {
   }, [apps, globalDockAppIdSet, storeQuery]);
   const dockApps = globalDockAppIds.map((id) => appMap.get(id)).filter(Boolean).slice(0, 3);
   const batteryPercent = Number.isFinite(batteryInfo.level) ? Math.round(batteryInfo.level * 100) : null;
+  const batteryIconColor = batteryInfo.supported && batteryInfo.charging
+    ? "#16a34a"
+    : batteryInfo.supported && batteryPercent !== null && batteryPercent <= 10
+      ? "#dc2626"
+      : batteryInfo.supported && batteryPercent !== null && batteryPercent <= 25
+        ? "#ca8a04"
+        : "#0f172a";
   const networkStatusLabel = networkInfo.online ? "Online" : "Offline";
+  const networkIconColor = networkInfo.online ? "#16a34a" : "#dc2626";
   const orgThemeColor = session?.account?.brandColor || enrollment?.account?.brandColor || "#2563eb";
   const deviceBackground = getDeviceBackground(session?.account || enrollment?.account || {});
   const loginBackground = getLoginBackground(session?.account || enrollment?.account || {});
@@ -780,6 +829,7 @@ export default function StudentDevicePage() {
     ["Time Remaining", batteryInfo.supported && !batteryInfo.charging ? formatBatteryTime(batteryInfo.dischargingTime) : "Not discharging"],
     ["Time Remaining Seconds", batteryInfo.supported && Number.isFinite(batteryInfo.dischargingTime) ? batteryInfo.dischargingTime : "Unknown"],
   ];
+  const activeScreenNotification = screenNotifications[0] || null;
   const currentDeviceTelemetry = useCallback(() => getDeviceTelemetry({
     networkInfo,
     batteryInfo,
@@ -810,6 +860,31 @@ export default function StudentDevicePage() {
     const timer = window.setInterval(beat, 30000);
     return () => window.clearInterval(timer);
   }, [session?.sessionToken, deviceName, enrollment?.deviceToken, currentDeviceTelemetry]);
+
+  useEffect(() => {
+    if (!session?.sessionToken) {
+      setScreenNotifications([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function refreshNotifications() {
+      try {
+        const nextNotifications = await loadEduStudentDeviceNotifications(session.sessionToken);
+        if (!cancelled) setScreenNotifications(nextNotifications);
+      } catch (notificationError) {
+        console.warn("Student device notifications failed:", notificationError);
+      }
+    }
+
+    refreshNotifications();
+    const timer = window.setInterval(refreshNotifications, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [session?.sessionToken]);
 
   useEffect(() => {
     if (!session?.sessionToken) return undefined;
@@ -1099,6 +1174,7 @@ export default function StudentDevicePage() {
   async function openApp(appId) {
     const app = appMap.get(appId);
     const appUrl = normalizeUrl(app?.url || "");
+    const launchUrl = getStudentAppLaunchUrl(appUrl);
     if (!appUrl) {
       setError("This app does not have a website link yet.");
       return;
@@ -1112,7 +1188,7 @@ export default function StudentDevicePage() {
           sessionToken: session.sessionToken,
           deviceName,
           activeAppId: appId,
-          activeUrl: appUrl,
+          activeUrl: launchUrl,
           deviceToken: enrollment?.deviceToken || "",
           deviceInfo: currentDeviceTelemetry(),
         });
@@ -1121,7 +1197,17 @@ export default function StudentDevicePage() {
       console.warn("Student device app launch heartbeat failed:", heartbeatError);
     }
 
-    window.location.assign(appUrl);
+    window.location.assign(launchUrl);
+  }
+
+  async function dismissScreenNotification(notificationId) {
+    if (!session?.sessionToken || !notificationId) return;
+    setScreenNotifications((current) => current.filter((notification) => notification.id !== notificationId));
+    try {
+      await dismissEduStudentDeviceNotification(session.sessionToken, notificationId);
+    } catch (notificationError) {
+      console.warn("Student device notification dismiss failed:", notificationError);
+    }
   }
 
   function changeTheme(color) {
@@ -1321,14 +1407,16 @@ export default function StudentDevicePage() {
           </div>
         </div>
         <div style={styles.topActions}>
-          <div style={styles.statusMenuWrap}>
+          <div ref={networkMenuRef} style={styles.statusMenuWrap}>
             <button
               style={styles.statusButton}
               onClick={toggleNetworkMenu}
               type="button"
               title="Network information"
             >
-              {networkInfo.online ? <Wifi size={18} /> : <WifiOff size={18} />}
+              <span style={{ ...styles.statusIcon, color: networkIconColor }}>
+                {networkInfo.online ? <Wifi size={18} /> : <WifiOff size={18} />}
+              </span>
               <span>{networkStatusLabel}</span>
             </button>
             {showNetworkMenu ? (
@@ -1351,14 +1439,16 @@ export default function StudentDevicePage() {
               </div>
             ) : null}
           </div>
-          <div style={styles.statusMenuWrap}>
+          <div ref={batteryMenuRef} style={styles.statusMenuWrap}>
             <button
               style={styles.statusButton}
               onClick={toggleBatteryMenu}
               type="button"
               title="Battery information"
             >
-              {batteryInfo.charging ? <BatteryCharging size={18} /> : <Battery size={18} />}
+              <span style={{ ...styles.statusIcon, color: batteryIconColor }}>
+                {batteryInfo.charging ? <BatteryCharging size={18} /> : <Battery size={18} />}
+              </span>
               <span>{batteryPercent === null ? "--" : `${batteryPercent}%`}</span>
             </button>
             {showBatteryMenu ? (
@@ -1745,6 +1835,39 @@ export default function StudentDevicePage() {
           <TestingHubPopup apps={session.account?.testingApps} onClose={() => setActiveView("home")} />
         ) : null}
 
+        {activeScreenNotification ? (
+          <div style={styles.screenNotificationOverlay}>
+            <section
+              aria-label="Teacher notification"
+              aria-live="assertive"
+              role="dialog"
+              style={styles.screenNotificationCard}
+            >
+              <div style={styles.screenNotificationHeader}>
+                <span style={styles.screenNotificationBadge}>
+                  <Info size={18} />
+                </span>
+                <div>
+                  <div style={styles.screenNotificationEyebrow}>
+                    {activeScreenNotification.senderName || "School"}
+                  </div>
+                  <h2 style={styles.screenNotificationTitle}>
+                    {activeScreenNotification.title || "Classroom Message"}
+                  </h2>
+                </div>
+              </div>
+              <p style={styles.screenNotificationMessage}>{activeScreenNotification.message}</p>
+              <button
+                style={styles.screenNotificationButton}
+                type="button"
+                onClick={() => dismissScreenNotification(activeScreenNotification.id)}
+              >
+                Got it
+              </button>
+            </section>
+          </div>
+        ) : null}
+
       </section>
 
       <nav style={styles.dock}>
@@ -1958,6 +2081,11 @@ const styles = {
     justifyContent: "center",
     minWidth: 58,
     padding: "0 10px",
+  },
+  statusIcon: {
+    alignItems: "center",
+    display: "inline-flex",
+    justifyContent: "center",
   },
   statusMenuWrap: {
     position: "relative",
@@ -2593,6 +2721,75 @@ const styles = {
     padding: 12,
     position: "fixed",
     right: 18,
+  },
+  screenNotificationOverlay: {
+    alignItems: "center",
+    display: "flex",
+    inset: 0,
+    justifyContent: "center",
+    padding: 20,
+    pointerEvents: "none",
+    position: "fixed",
+    zIndex: 70,
+  },
+  screenNotificationCard: {
+    background: "rgba(255,255,255,0.94)",
+    backdropFilter: "blur(20px) saturate(1.12)",
+    WebkitBackdropFilter: "blur(20px) saturate(1.12)",
+    border: "1px solid rgba(15,23,42,0.12)",
+    borderRadius: 24,
+    boxShadow: "0 24px 70px rgba(15,23,42,0.26)",
+    boxSizing: "border-box",
+    display: "grid",
+    gap: 16,
+    maxWidth: 520,
+    padding: 22,
+    pointerEvents: "auto",
+    width: "min(520px, calc(100vw - 32px))",
+  },
+  screenNotificationHeader: {
+    alignItems: "center",
+    display: "flex",
+    gap: 12,
+  },
+  screenNotificationBadge: {
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.12)",
+    borderRadius: 16,
+    color: "var(--color-primary-dark)",
+    display: "inline-flex",
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  screenNotificationEyebrow: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: 900,
+    textTransform: "uppercase",
+  },
+  screenNotificationTitle: {
+    fontSize: 22,
+    lineHeight: 1.15,
+    margin: 0,
+  },
+  screenNotificationMessage: {
+    color: "#0f172a",
+    fontSize: 18,
+    lineHeight: 1.45,
+    margin: 0,
+    whiteSpace: "pre-wrap",
+  },
+  screenNotificationButton: {
+    background: "var(--color-primary)",
+    border: 0,
+    borderRadius: 14,
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 900,
+    justifySelf: "end",
+    minHeight: 44,
+    padding: "0 18px",
   },
   emptyText: { color: "#64748b", padding: 10 },
 };

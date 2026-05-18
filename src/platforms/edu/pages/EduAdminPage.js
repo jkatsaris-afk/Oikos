@@ -3,6 +3,7 @@ import {
   Activity,
   AppWindow,
   ArrowLeft,
+  Bell,
   Download,
   ExternalLink,
   FlaskConical,
@@ -50,6 +51,7 @@ import {
   saveEduTeacher,
   saveEduTeacherStudents,
   saveEduTestingApps,
+  sendEduAdminScreenNotification,
   sendEduTeacherPasswordReset,
   syncEduChromeGuardPolicy,
   uploadEduDeviceAppLogo,
@@ -72,6 +74,13 @@ const EMPTY_STUDENT = {
   gradeLevel: "",
   themeColor: "#2563eb",
   isActive: true,
+};
+
+const EMPTY_NOTIFICATION = {
+  targetType: "all",
+  studentId: "",
+  title: "",
+  message: "",
 };
 
 function normalizeHexColor(value = "") {
@@ -228,6 +237,19 @@ const EMPTY_CHROME_EXTENSION = {
   blockUnknownHosts: true,
   overlayEnabled: true,
 };
+
+const GOOGLE_SIGN_IN_ALLOWED_HOSTS = [
+  "accounts.google.com",
+  "myaccount.google.com",
+  "oauth2.googleapis.com",
+  "apis.google.com",
+  "ssl.gstatic.com",
+  "fonts.gstatic.com",
+  "fonts.googleapis.com",
+  "lh3.googleusercontent.com",
+  "googleusercontent.com",
+  "gstatic.com",
+];
 
 function getOrigin() {
   if (typeof window === "undefined") {
@@ -453,6 +475,7 @@ export default function EduAdminPage() {
   const [devicePane, setDevicePane] = useState("overview");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [deviceNameDraft, setDeviceNameDraft] = useState("");
+  const [notificationDraft, setNotificationDraft] = useState(EMPTY_NOTIFICATION);
   const baseStudentDeviceUrl = `${getOrigin()}/studentdevice`;
   const studentDeviceUrl = workspace?.account?.deviceCode
     ? `${baseStudentDeviceUrl}/${workspace.account.deviceCode}`
@@ -461,6 +484,7 @@ export default function EduAdminPage() {
   function getAutomaticAllowedHosts(apps = dockApps || []) {
     return [
       extractHost(studentDeviceUrl),
+      ...GOOGLE_SIGN_IN_ALLOWED_HOSTS,
       ...apps.map((app) => extractHost(app.url)),
     ].filter(Boolean);
   }
@@ -681,6 +705,13 @@ export default function EduAdminPage() {
       setSelectedTeacherId(workspace.teachers[0].id);
     }
   }, [selectedTeacherId, workspace?.teachers]);
+
+  useEffect(() => {
+    setNotificationDraft((current) => ({
+      ...current,
+      studentId: current.studentId || workspace?.students?.[0]?.id || "",
+    }));
+  }, [workspace?.students]);
 
   if (loading && !workspace) {
     return (
@@ -1041,6 +1072,29 @@ export default function EduAdminPage() {
       await reload();
     } catch (deleteError) {
       setError(deleteError?.message || "Could not delete student.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleSendNotification(event) {
+    event.preventDefault();
+    setSaving("notification");
+    setError("");
+    setNotice("");
+    try {
+      const result = await sendEduAdminScreenNotification({
+        accountId: workspace.account.id,
+        ...notificationDraft,
+      });
+      setNotificationDraft((current) => ({
+        ...current,
+        title: "",
+        message: "",
+      }));
+      setNotice(`Notification sent to ${result?.sentCount || 0} student${result?.sentCount === 1 ? "" : "s"}.`);
+    } catch (notificationError) {
+      setError(notificationError?.message || "Could not send notification.");
     } finally {
       setSaving("");
     }
@@ -1753,6 +1807,7 @@ export default function EduAdminPage() {
     { id: "admins", label: "Admins", icon: UserPlus },
     { id: "teachers", label: "Teachers", icon: GraduationCap },
     { id: "students", label: "Students", icon: Users },
+    { id: "notifications", label: "Notifications", shortLabel: "Alerts", icon: Bell },
     { id: "devices", label: "Devices", icon: Monitor },
   ];
   const loginBackgroundUsesDevice = loginBackgroundDraft.useDeviceBackground !== false;
@@ -2531,6 +2586,81 @@ export default function EduAdminPage() {
                   <div style={styles.muted}>Select a student to see their account, PIN, color, and teachers.</div>
                 )}
               </section>
+            </section>
+          ) : null}
+
+          {activeSection === "notifications" ? (
+            <section style={styles.panel}>
+              <div style={styles.panelHeader}>
+                <div>
+                  <h2 style={styles.panelTitle}>Screen Notifications</h2>
+                  <div style={styles.rowSub}>Send pop-up messages to enrolled student devices.</div>
+                </div>
+              </div>
+              <form style={styles.detailStack} onSubmit={handleSendNotification}>
+                <div style={styles.formGrid}>
+                  <label style={styles.label}>
+                    Send To
+                    <select
+                      style={styles.input}
+                      value={notificationDraft.targetType}
+                      onChange={(event) => setNotificationDraft((current) => ({ ...current, targetType: event.target.value }))}
+                    >
+                      <option value="all">All active students</option>
+                      <option value="student">One student</option>
+                    </select>
+                  </label>
+                  {notificationDraft.targetType === "student" ? (
+                    <label style={styles.label}>
+                      Student
+                      <select
+                        style={styles.input}
+                        value={notificationDraft.studentId}
+                        onChange={(event) => setNotificationDraft((current) => ({ ...current, studentId: event.target.value }))}
+                      >
+                        {(workspace.students || []).map((student) => (
+                          <option key={student.id} value={student.id}>
+                            {student.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <div style={styles.detailItem}>
+                      <span>Recipients</span>
+                      <strong>{(workspace.students || []).filter((student) => student.isActive !== false).length} active students</strong>
+                    </div>
+                  )}
+                  <label style={styles.label}>
+                    Title
+                    <input
+                      style={styles.input}
+                      value={notificationDraft.title}
+                      onChange={(event) => setNotificationDraft((current) => ({ ...current, title: event.target.value }))}
+                      placeholder="School message"
+                    />
+                  </label>
+                </div>
+                <label style={styles.label}>
+                  Message
+                  <textarea
+                    style={styles.textarea}
+                    value={notificationDraft.message}
+                    onChange={(event) => setNotificationDraft((current) => ({ ...current, message: event.target.value }))}
+                    placeholder="Please pause and look at the board."
+                  />
+                </label>
+                <div style={styles.actionGroup}>
+                  <button
+                    style={styles.primaryButton}
+                    type="submit"
+                    disabled={saving === "notification" || !notificationDraft.message.trim()}
+                  >
+                    <Bell size={16} />
+                    {saving === "notification" ? "Sending..." : "Send Notification"}
+                  </button>
+                </div>
+              </form>
             </section>
           ) : null}
 
@@ -3500,6 +3630,18 @@ const styles = {
     font: "inherit",
     minHeight: 42,
     padding: "9px 10px",
+    width: "100%",
+  },
+  textarea: {
+    background: "rgba(255,255,255,0.78)",
+    border: "1px solid rgba(15,23,42,0.10)",
+    borderRadius: 14,
+    boxSizing: "border-box",
+    color: "#0f172a",
+    font: "inherit",
+    minHeight: 120,
+    padding: "10px 11px",
+    resize: "vertical",
     width: "100%",
   },
   hiddenFileInput: {

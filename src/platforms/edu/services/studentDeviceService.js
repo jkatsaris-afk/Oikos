@@ -314,6 +314,16 @@ function normalizeDevice(row = {}) {
   };
 }
 
+function normalizeScreenNotification(row = {}) {
+  return {
+    id: row.id || "",
+    title: row.title || "",
+    message: row.message || "",
+    senderName: row.senderName || row.sender_name || "School",
+    createdAt: row.createdAt || row.created_at || "",
+  };
+}
+
 async function findEduAccountForUser(userId, cachedAccount, organizationAccess = null) {
   const access = organizationAccess || await fetchOrganizationAccess(userId, EDU_MODE);
   let account = normalizeEduAccount(access?.account || null);
@@ -1161,6 +1171,63 @@ export async function sendEduStudentDeviceHeartbeat({
     p_active_url: activeUrl || "",
     p_device_token: deviceToken || null,
     p_device_info: deviceInfo || {},
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function loadEduStudentDeviceNotifications(sessionToken) {
+  const { data, error } = await supabase.rpc("edu_student_device_get_notifications", {
+    p_session_token: sessionToken,
+  });
+
+  if (error) throw error;
+  return Array.isArray(data) ? data.map(normalizeScreenNotification) : [];
+}
+
+export async function dismissEduStudentDeviceNotification(sessionToken, notificationId) {
+  const { data, error } = await supabase.rpc("edu_student_device_dismiss_notification", {
+    p_session_token: sessionToken,
+    p_notification_id: notificationId,
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function sendEduTeacherScreenNotification({
+  targetType,
+  studentId,
+  groupId,
+  title,
+  message,
+}) {
+  const { data, error } = await supabase.rpc("edu_teacher_portal_send_notification", {
+    p_target_type: targetType || "student",
+    p_student_id: targetType === "student" ? studentId || null : null,
+    p_group_id: targetType === "group" ? groupId || null : null,
+    p_title: title || "",
+    p_message: message || "",
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function sendEduAdminScreenNotification({
+  accountId,
+  targetType,
+  studentId,
+  title,
+  message,
+}) {
+  const { data, error } = await supabase.rpc("edu_admin_send_student_notification", {
+    p_account_id: accountId,
+    p_target_type: targetType || "student",
+    p_student_id: targetType === "student" ? studentId || null : null,
+    p_title: title || "",
+    p_message: message || "",
   });
 
   if (error) throw error;

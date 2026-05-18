@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AppWindow,
+  Bell,
   GraduationCap,
   LayoutDashboard,
   Monitor,
@@ -25,6 +26,7 @@ import {
   removeEduTeacherStudent,
   saveEduTeacherDeviceApp,
   saveEduTeacherClassGroup,
+  sendEduTeacherScreenNotification,
   updateEduTeacherStudentPin,
 } from "../services/studentDeviceService";
 
@@ -43,6 +45,14 @@ const EMPTY_GROUP = {
   name: "",
   color: "#2563eb",
   studentIds: [],
+};
+
+const EMPTY_NOTIFICATION = {
+  targetType: "student",
+  studentId: "",
+  groupId: "",
+  title: "",
+  message: "",
 };
 
 function formatSeen(value = "") {
@@ -90,6 +100,7 @@ export default function EduTeacherPortalPage() {
   const [appDraft, setAppDraft] = useState(EMPTY_APP);
   const [showAppForm, setShowAppForm] = useState(false);
   const [groupDraft, setGroupDraft] = useState(EMPTY_GROUP);
+  const [notificationDraft, setNotificationDraft] = useState(EMPTY_NOTIFICATION);
 
   async function reload() {
     setLoading(true);
@@ -165,6 +176,14 @@ export default function EduTeacherPortalPage() {
       setSelectedStudentId(students[0].id);
     }
   }, [selectedStudentId, students]);
+
+  useEffect(() => {
+    setNotificationDraft((current) => ({
+      ...current,
+      studentId: current.studentId || students[0]?.id || "",
+      groupId: current.groupId || groups[0]?.id || "",
+    }));
+  }, [groups, students]);
 
   async function handleSetPin(event) {
     event.preventDefault();
@@ -330,6 +349,26 @@ export default function EduTeacherPortalPage() {
     }
   }
 
+  async function handleSendNotification(event) {
+    event.preventDefault();
+    setSaving("notification");
+    setError("");
+    setNotice("");
+    try {
+      const result = await sendEduTeacherScreenNotification(notificationDraft);
+      setNotificationDraft((current) => ({
+        ...current,
+        title: "",
+        message: "",
+      }));
+      setNotice(`Notification sent to ${result?.sentCount || 0} student${result?.sentCount === 1 ? "" : "s"}.`);
+    } catch (notificationError) {
+      setError(notificationError?.message || "Could not send notification.");
+    } finally {
+      setSaving("");
+    }
+  }
+
   if (loading && !workspace) {
     return (
       <GlobalLoadingPage
@@ -413,6 +452,7 @@ export default function EduTeacherPortalPage() {
     { id: "apps", label: "Student App Store", shortLabel: "Apps", icon: AppWindow },
     { id: "students", label: "Students", icon: Users },
     { id: "groups", label: "Class Groups", shortLabel: "Groups", icon: GraduationCap },
+    { id: "notifications", label: "Notifications", shortLabel: "Alerts", icon: Bell },
     { id: "devices", label: "Devices", icon: Monitor },
   ];
 
@@ -787,6 +827,91 @@ export default function EduTeacherPortalPage() {
             </section>
           ) : null}
 
+          {activeSection === "notifications" ? (
+            <section style={styles.panel}>
+              <div style={styles.panelHeader}>
+                <div>
+                  <h2 style={styles.panelTitle}>Screen Notifications</h2>
+                  <div style={styles.rowSub}>Send a pop-up message to a student or one of your class groups.</div>
+                </div>
+              </div>
+              <form style={styles.detailStack} onSubmit={handleSendNotification}>
+                <div style={styles.formGrid}>
+                  <label style={styles.label}>
+                    Send To
+                    <select
+                      style={styles.input}
+                      value={notificationDraft.targetType}
+                      onChange={(event) => setNotificationDraft((current) => ({ ...current, targetType: event.target.value }))}
+                    >
+                      <option value="student">Student</option>
+                      <option value="group">Class group</option>
+                    </select>
+                  </label>
+                  {notificationDraft.targetType === "group" ? (
+                    <label style={styles.label}>
+                      Class Group
+                      <select
+                        style={styles.input}
+                        value={notificationDraft.groupId}
+                        onChange={(event) => setNotificationDraft((current) => ({ ...current, groupId: event.target.value }))}
+                      >
+                        {groups.map((group) => (
+                          <option key={group.id} value={group.id}>
+                            {group.name} ({groupStudentMap.get(group.id)?.size || 0})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <label style={styles.label}>
+                      Student
+                      <select
+                        style={styles.input}
+                        value={notificationDraft.studentId}
+                        onChange={(event) => setNotificationDraft((current) => ({ ...current, studentId: event.target.value }))}
+                      >
+                        {students.map((student) => (
+                          <option key={student.id} value={student.id}>
+                            {student.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <label style={styles.label}>
+                    Title
+                    <input
+                      style={styles.input}
+                      value={notificationDraft.title}
+                      onChange={(event) => setNotificationDraft((current) => ({ ...current, title: event.target.value }))}
+                      placeholder="Classroom message"
+                    />
+                  </label>
+                </div>
+                <label style={styles.label}>
+                  Message
+                  <textarea
+                    style={styles.textarea}
+                    value={notificationDraft.message}
+                    onChange={(event) => setNotificationDraft((current) => ({ ...current, message: event.target.value }))}
+                    placeholder="Please return to the lesson page."
+                  />
+                </label>
+                <div style={styles.actionGroup}>
+                  <button
+                    style={styles.primaryButton}
+                    type="submit"
+                    disabled={saving === "notification" || !notificationDraft.message.trim()}
+                  >
+                    <Bell size={16} />
+                    {saving === "notification" ? "Sending..." : "Send Notification"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          ) : null}
+
           {activeSection === "devices" ? (
             <section style={styles.panel}>
               <div style={styles.panelHeader}>
@@ -1052,6 +1177,18 @@ const styles = {
     font: "inherit",
     minHeight: 42,
     padding: "9px 10px",
+    width: "100%",
+  },
+  textarea: {
+    background: "rgba(255,255,255,0.78)",
+    border: "1px solid rgba(15,23,42,0.10)",
+    borderRadius: 14,
+    boxSizing: "border-box",
+    color: "#0f172a",
+    font: "inherit",
+    minHeight: 120,
+    padding: "10px 11px",
+    resize: "vertical",
     width: "100%",
   },
   colorInput: { padding: 4 },

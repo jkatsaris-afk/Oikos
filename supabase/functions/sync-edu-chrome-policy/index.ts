@@ -11,6 +11,18 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CHROME_POLICY_URL = "https://chromepolicy.googleapis.com/v1";
 const DIRECTORY_URL = "https://admin.googleapis.com/admin/directory/v1";
 const DEFAULT_EXTENSION_UPDATE_URL = "https://clients2.google.com/service/update2/crx";
+const GOOGLE_SIGN_IN_ALLOWED_HOSTS = [
+  "accounts.google.com",
+  "myaccount.google.com",
+  "oauth2.googleapis.com",
+  "apis.google.com",
+  "ssl.gstatic.com",
+  "fonts.gstatic.com",
+  "fonts.googleapis.com",
+  "lh3.googleusercontent.com",
+  "googleusercontent.com",
+  "gstatic.com",
+];
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -172,6 +184,7 @@ function buildManagedConfiguration(settings: Record<string, unknown>, appHosts: 
   const allowedHosts = Array.from(
     new Set([
       normalizeHost(homeUrl),
+      ...GOOGLE_SIGN_IN_ALLOWED_HOSTS,
       ...((Array.isArray(settings.allowedHosts) ? settings.allowedHosts : []) as string[]).map(normalizeHost),
       ...appHosts.map(normalizeHost),
     ].filter(Boolean)),
