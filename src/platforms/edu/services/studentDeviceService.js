@@ -11,6 +11,7 @@ const SESSIONS_TABLE = "edu_student_device_sessions";
 const DEVICES_TABLE = "edu_student_devices";
 const TEACHERS_TABLE = "edu_teachers";
 const TEACHER_STUDENTS_TABLE = "edu_teacher_students";
+const TESTING_CATALOG_TABLE = "edu_testing_app_catalog";
 const ACCOUNTS_TABLE = "accounts";
 const ORGANIZATION_BUCKET = "organization-assets";
 const EDU_MODE = "edu";
@@ -22,6 +23,9 @@ const DEFAULT_LOGIN_BACKGROUND = {
   imageUrl: "",
   color: "#f8f9fb",
   useDeviceBackground: true,
+};
+const DEFAULT_DEVICE_SECURITY = {
+  idleLogoutMinutes: 0,
 };
 const DEFAULT_CHROME_EXTENSION = {
   enabled: true,
@@ -44,7 +48,7 @@ const DEFAULT_TESTING_APPS = [
     launchMode: "new-window",
     logoUrl: "",
     description: "Pearson TestNav kiosk launcher",
-    isActive: true,
+    isActive: false,
     sortOrder: 0,
   },
   {
@@ -55,7 +59,7 @@ const DEFAULT_TESTING_APPS = [
     launchMode: "new-window",
     logoUrl: "",
     description: "DRC INSIGHT secure testing launcher",
-    isActive: true,
+    isActive: false,
     sortOrder: 1,
   },
   {
@@ -66,7 +70,7 @@ const DEFAULT_TESTING_APPS = [
     launchMode: "new-window",
     logoUrl: "",
     description: "NWEA secure testing launcher",
-    isActive: true,
+    isActive: false,
     sortOrder: 2,
   },
 ];
@@ -109,7 +113,7 @@ function normalizeTestingAppConfig(app = {}, index = 0) {
     logoUrl: String(app.logoUrl || app.logo_url || app.iconUrl || app.imageUrl || app.logo || "").trim(),
     description: String(app.description || "").trim(),
     isActive: app.isActive !== false,
-    sortOrder: Number(app.sortOrder || index),
+    sortOrder: Number(app.sortOrder ?? app.sort_order ?? index),
   };
 }
 
@@ -119,13 +123,35 @@ function normalizeTestingApps(apps = []) {
     : [];
 }
 
-function mergeDefaultTestingApps(apps = []) {
-  const normalizedApps = normalizeTestingApps(apps);
+function normalizeTestingAppSettings(settings = []) {
+  return Array.isArray(settings)
+    ? settings
+        .map((app) => ({
+          id: String(app?.id || "").trim().toLowerCase(),
+          isActive: app?.isActive === true,
+        }))
+        .filter((app) => app.id)
+    : [];
+}
+
+function mergeDefaultTestingApps(apps = [], settings = []) {
+  const normalizedApps = normalizeTestingApps(
+    Array.isArray(apps) && apps.length > 0 ? apps : DEFAULT_TESTING_APPS
+  );
+  const activeSettings = new Map(normalizeTestingAppSettings(settings).map((app) => [app.id, app.isActive]));
   const existingIds = new Set(normalizedApps.map((app) => app.id));
   const missingDefaults = DEFAULT_TESTING_APPS.filter((app) => !existingIds.has(app.id));
 
   return [...normalizedApps, ...missingDefaults]
-    .map(normalizeTestingAppConfig)
+    .map((app, index) => {
+      const normalizedApp = normalizeTestingAppConfig(app, index);
+      return {
+        ...normalizedApp,
+        isActive: activeSettings.has(normalizedApp.id)
+          ? activeSettings.get(normalizedApp.id)
+          : normalizedApp.isActive === true,
+      };
+    })
     .sort((first, second) => first.sortOrder - second.sortOrder || first.name.localeCompare(second.name));
 }
 
@@ -143,14 +169,20 @@ function normalizeEduAccount(row = {}) {
     integrations?.eduStudentDevice?.dockAppIds ||
     row.deviceDockAppIds ||
     [];
+  const idleLogoutMinutes = Number(
+    integrations?.eduStudentDevice?.idleLogoutMinutes ??
+      row.idleLogoutMinutes ??
+      DEFAULT_DEVICE_SECURITY.idleLogoutMinutes
+  );
   const chromeExtension = {
     ...DEFAULT_CHROME_EXTENSION,
     ...(integrations?.eduStudentDevice?.chromeExtension || row.chromeExtension || {}),
   };
-  const testingApps =
+  const testingApps = row.testingApps || DEFAULT_TESTING_APPS;
+  const testingAppSettings =
+    integrations?.eduStudentDevice?.testingAppSettings ||
     integrations?.eduStudentDevice?.testingApps ||
-    row.testingApps ||
-    DEFAULT_TESTING_APPS;
+    [];
 
   return row?.id
     ? {
@@ -173,13 +205,16 @@ function normalizeEduAccount(row = {}) {
         deviceDockAppIds: Array.isArray(deviceDockAppIds)
           ? deviceDockAppIds.filter(Boolean).slice(0, 3)
           : [],
+        idleLogoutMinutes: Number.isFinite(idleLogoutMinutes)
+          ? Math.max(0, Math.min(240, idleLogoutMinutes))
+          : DEFAULT_DEVICE_SECURITY.idleLogoutMinutes,
         chromeExtension: {
           ...chromeExtension,
           allowedHosts: Array.isArray(chromeExtension.allowedHosts)
             ? chromeExtension.allowedHosts.filter(Boolean)
             : [],
         },
-        testingApps: mergeDefaultTestingApps(testingApps),
+        testingApps: mergeDefaultTestingApps(testingApps, testingAppSettings),
         deviceCode: row.edu_device_code || row.deviceCode || "",
       }
     : null;
@@ -418,6 +453,7 @@ export async function loadEduStudentDeviceAdmin(userId) {
     devicesResult,
     teachersResult,
     teacherStudentsResult,
+    testingCatalogResult,
   ] =
     await Promise.all([
       supabase
@@ -456,6 +492,12 @@ export async function loadEduStudentDeviceAdmin(userId) {
       supabase
         .from(TEACHER_STUDENTS_TABLE)
         .select("teacher_id, student_id"),
+      supabase
+        .from(TESTING_CATALOG_TABLE)
+        .select("id, name, type, launch_url, launch_mode, logo_url, description, sort_order")
+        .eq("is_globally_enabled", true)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true }),
     ]);
 
   if (accountError) throw accountError;
@@ -465,6 +507,9 @@ export async function loadEduStudentDeviceAdmin(userId) {
   if (devicesResult.error) throw devicesResult.error;
   if (teachersResult.error) throw teachersResult.error;
   if (teacherStudentsResult.error) throw teacherStudentsResult.error;
+  if (testingCatalogResult.error) {
+    console.warn("EDU testing app catalog unavailable, using built-in defaults:", testingCatalogResult.error);
+  }
 
   const teachers = (teachersResult.data || []).map(normalizeTeacher);
   const teacherIds = new Set(teachers.map((teacher) => teacher.id));
@@ -473,6 +518,7 @@ export async function loadEduStudentDeviceAdmin(userId) {
     account: normalizeEduAccount({
       ...account,
       ...accountRows,
+      testingApps: testingCatalogResult.error ? undefined : testingCatalogResult.data,
     }),
     apps: (appsResult.data || []).map(normalizeApp),
     students: (studentsResult.data || []).map(normalizeStudent),
@@ -602,6 +648,30 @@ export async function saveEduDeviceDockTiles(account, appIds = []) {
   return normalizeEduAccount(nextAccount);
 }
 
+export async function saveEduDeviceSecuritySettings(account, settings = {}) {
+  if (!account?.id) {
+    throw new Error("Missing organization account.");
+  }
+
+  const idleLogoutMinutes = Math.max(
+    0,
+    Math.min(240, Number(settings.idleLogoutMinutes || 0))
+  );
+  const integrations = account.integrations || {};
+  const eduStudentDevice = integrations.eduStudentDevice || {};
+  const nextAccount = await updateOrganizationSettings(account.id, {
+    integrations: {
+      ...integrations,
+      eduStudentDevice: {
+        ...eduStudentDevice,
+        idleLogoutMinutes,
+      },
+    },
+  });
+
+  return normalizeEduAccount(nextAccount);
+}
+
 export async function saveEduChromeExtensionSettings(account, settings = {}) {
   if (!account?.id) {
     throw new Error("Missing organization account.");
@@ -642,7 +712,11 @@ export async function saveEduTestingApps(account, testingApps = []) {
     throw new Error("Missing organization account.");
   }
 
-  const normalizedApps = normalizeTestingApps(testingApps);
+  const normalizedApps = mergeDefaultTestingApps(testingApps);
+  const testingAppSettings = normalizedApps.map((app) => ({
+    id: app.id,
+    isActive: app.isActive === true,
+  }));
 
   const integrations = account.integrations || {};
   const eduStudentDevice = integrations.eduStudentDevice || {};
@@ -651,7 +725,7 @@ export async function saveEduTestingApps(account, testingApps = []) {
       ...integrations,
       eduStudentDevice: {
         ...eduStudentDevice,
-        testingApps: normalizedApps,
+        testingAppSettings,
       },
     },
   });

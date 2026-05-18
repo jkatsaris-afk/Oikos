@@ -7,6 +7,7 @@ export const defaultTestingApps = [
     launchMode: "new-window",
     logoUrl: "",
     description: "Pearson TestNav kiosk launcher",
+    isActive: false,
   },
   {
     id: "drc",
@@ -16,6 +17,7 @@ export const defaultTestingApps = [
     launchMode: "new-window",
     logoUrl: "",
     description: "DRC INSIGHT secure testing launcher",
+    isActive: false,
   },
   {
     id: "nwea",
@@ -25,6 +27,7 @@ export const defaultTestingApps = [
     launchMode: "new-window",
     logoUrl: "",
     description: "NWEA secure testing launcher",
+    isActive: false,
   },
 ];
 

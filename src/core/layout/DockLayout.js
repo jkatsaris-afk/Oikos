@@ -34,6 +34,7 @@ export default function DockLayout({ children }) {
   const location = useLocation();
   const dockless =
     location.pathname.startsWith("/church") ||
+    location.pathname.startsWith("/admin") ||
     location.pathname.startsWith("/edu/admin") ||
     location.pathname.startsWith("/edu/teacher");
 

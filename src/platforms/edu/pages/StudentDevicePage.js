@@ -21,13 +21,11 @@ import {
   changeEduStudentDevicePin,
   enrollEduStudentDevice,
   getStudentDeviceEnrollment,
-  getStudentDeviceSession,
   loadEduStudentDeviceCatalog,
   loginEduStudentDevice,
   refreshEduStudentDeviceEnrollment,
   saveEduStudentDeviceDesktop,
   saveStudentDeviceEnrollment,
-  saveStudentDeviceSession,
   sendEduStudentDeviceHeartbeat,
 } from "../services/studentDeviceService";
 
@@ -303,7 +301,7 @@ export default function StudentDevicePage() {
     let cancelled = false;
     const cleanRouteSchoolCode = String(routeSchoolCode || "").trim().toUpperCase();
     const cachedEnrollment = getStudentDeviceEnrollment();
-    const cached = getStudentDeviceSession();
+    clearStudentDeviceSession();
 
     async function bootstrapDevice() {
       let activeEnrollment = cachedEnrollment;
@@ -348,50 +346,7 @@ export default function StudentDevicePage() {
         setSchoolCode(cleanRouteSchoolCode);
       }
 
-      if (!cached?.sessionToken) {
-        if (!cancelled) setBootstrapped(true);
-        return;
-      }
-
-      if (!activeEnrollment?.deviceToken) {
-        clearStudentDeviceSession();
-        setSession(null);
-        setApps([]);
-        setInstalledAppIds([]);
-        setSchoolCode(cleanRouteSchoolCode);
-        setBootstrapped(true);
-        return;
-      }
-
-      const restoredSession = {
-        ...cached,
-        account: mergeAccountForStudentDevice(cached.account, activeEnrollment.account),
-      };
-
-      setSession(restoredSession);
-      setThemeColor(pickStudentTheme(restoredSession.student?.themeColor, restoredSession.account?.brandColor));
-      setSchoolCode(activeEnrollment.account?.deviceCode || restoredSession.account?.deviceCode || "");
-
-      try {
-        const catalog = await loadEduStudentDeviceCatalog(cached.sessionToken);
-        if (cancelled) return;
-        setApps(catalog?.apps || []);
-        setInstalledAppIds(normalizeDesktopLayout(catalog?.installedAppIds || []));
-        if (catalog?.account) {
-          const nextSession = {
-            ...restoredSession,
-            account: mergeAccountForStudentDevice(catalog.account, restoredSession.account),
-          };
-          setSession(nextSession);
-          saveStudentDeviceSession(nextSession);
-        }
-      } catch (_catalogError) {
-        if (cancelled) return;
-        clearStudentDeviceSession();
-        setSession(null);
-      } finally {
-        if (!cancelled) setBootstrapped(true);
-      }
+      if (!cancelled) setBootstrapped(true);
     }
 
     bootstrapDevice();
@@ -545,7 +500,6 @@ export default function StudentDevicePage() {
               ...current,
               account: mergeAccountForStudentDevice(catalog.account, current.account),
             };
-            saveStudentDeviceSession(nextSession);
             return nextSession;
           });
         }
@@ -576,7 +530,6 @@ export default function StudentDevicePage() {
         student: { ...session.student, themeColor: nextTheme },
       };
       setSession(nextSession);
-      saveStudentDeviceSession(nextSession);
     } catch (saveError) {
       setError(saveError?.message || "Could not save desktop.");
     } finally {
@@ -629,7 +582,6 @@ export default function StudentDevicePage() {
       });
       nextSession.account = mergeAccountForStudentDevice(nextSession.account, activeEnrollment?.account);
       window.localStorage.setItem("oikos.edu.studentDevice.name", deviceName);
-      saveStudentDeviceSession(nextSession);
       setSession(nextSession);
       setApps(nextSession.apps || []);
       setInstalledAppIds(normalizeDesktopLayout(nextSession.installedAppIds || []));
@@ -651,6 +603,43 @@ export default function StudentDevicePage() {
     setActiveAppId("");
     setPin("");
   }
+
+  useEffect(() => {
+    const idleMinutes = Number(session?.account?.idleLogoutMinutes || 0);
+    if (!session?.sessionToken || !Number.isFinite(idleMinutes) || idleMinutes <= 0) {
+      return undefined;
+    }
+
+    const idleMs = idleMinutes * 60 * 1000;
+    let timer = null;
+
+    function signOutForIdleTime() {
+      handleLogout();
+      setError(`Signed out after ${idleMinutes} minute${idleMinutes === 1 ? "" : "s"} of inactivity.`);
+    }
+
+    function resetIdleTimer() {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+      timer = window.setTimeout(signOutForIdleTime, idleMs);
+    }
+
+    const activityEvents = ["pointerdown", "keydown", "touchstart", "mousemove", "scroll"];
+    resetIdleTimer();
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, resetIdleTimer, { passive: true });
+    });
+
+    return () => {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, resetIdleTimer);
+      });
+    };
+  }, [session?.sessionToken, session?.account?.idleLogoutMinutes]);
 
   function installApp(appId) {
     if (installedAppIdsWithoutHoles.includes(appId)) return;

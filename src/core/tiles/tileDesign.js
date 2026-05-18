@@ -15,6 +15,7 @@ import StudentsTileDesign from "../../platforms/campus/tiles/Students/TileDesign
 import TuitionTileDesign from "../../platforms/campus/tiles/Tuition/TileDesign";
 import TestingHubTileDesign from "../../platforms/edu/tiles/TestingHub/TileDesign";
 import GlobalUsersTileDesign from "../../platforms/admin/tiles/GlobalUsers/TileDesign";
+import EduTestingAppsTileDesign from "../../platforms/admin/tiles/EduTestingApps/TileDesign";
 import TileStoreManagerTileDesign from "../../platforms/admin/tiles/TileStoreManager/TileDesign";
 
 /**
@@ -65,6 +66,7 @@ export const tileDesign = {
   [TuitionTileDesign.id]: TuitionTileDesign,
   [TestingHubTileDesign.id]: TestingHubTileDesign,
   [GlobalUsersTileDesign.id]: GlobalUsersTileDesign,
+  [EduTestingAppsTileDesign.id]: EduTestingAppsTileDesign,
   [TileStoreManagerTileDesign.id]: TileStoreManagerTileDesign,
 };
 

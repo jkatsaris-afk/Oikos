@@ -45,6 +45,7 @@ import {
   saveEduDeviceLoginBackground,
   saveEduDeviceApp,
   saveEduDeviceDockTiles,
+  saveEduDeviceSecuritySettings,
   saveEduDeviceStudent,
   saveEduTeacher,
   saveEduTeacherStudents,
@@ -61,18 +62,6 @@ const EMPTY_APP = {
   color: "#2563eb",
   sortOrder: 0,
   isActive: true,
-};
-
-const EMPTY_TESTING_APP = {
-  id: "",
-  name: "",
-  type: "kiosk-pwa",
-  launchUrl: "",
-  launchMode: "new-window",
-  logoUrl: "",
-  description: "",
-  isActive: true,
-  sortOrder: 0,
 };
 
 const EMPTY_STUDENT = {
@@ -110,6 +99,12 @@ const STUDENT_IMPORT_TEMPLATE = [
   ["Jordan Lee", "jordan lee", "1234", "4", "#2563eb", "true"],
 ];
 
+const DRC_EXTENSION_ID = "mfeoihemchmelmbjfodiokelcdhdajob";
+const DRC_EXTENSION_URL = "https://cdn-download-prod.drcedirect.com/all/download/securebrowser/drc-insight-chromeos/update.xml";
+const DRC_ADDITIONAL_ORIGIN = "[*.]drcedirect.com";
+const DRC_POLICY_JSON = "{\"ouIds\":{\"Value\":[\"unset\"]}}";
+const DRC_LAUNCHER_URL = "https://cdn-app-prod.drcedirect.com/drc-insight-chromeos-ui/index.html";
+
 const TEACHER_IMPORT_TEMPLATE = [
   ["display_name", "email", "grade_level", "location", "is_active"],
   ["Mrs. Rivera", "teacher@school.org", "4", "Room 12", "true"],
@@ -124,6 +119,10 @@ const EMPTY_LOGIN_BACKGROUND = {
   imageUrl: "",
   color: "#f8f9fb",
   useDeviceBackground: true,
+};
+
+const EMPTY_DEVICE_SECURITY = {
+  idleLogoutMinutes: 0,
 };
 
 const EMPTY_CHROME_EXTENSION = {
@@ -261,21 +260,21 @@ export default function EduAdminPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [appDraft, setAppDraft] = useState(EMPTY_APP);
-  const [testingAppDraft, setTestingAppDraft] = useState(EMPTY_TESTING_APP);
   const [studentDraft, setStudentDraft] = useState(EMPTY_STUDENT);
   const [teacherDraft, setTeacherDraft] = useState(EMPTY_TEACHER);
   const [backgroundDraft, setBackgroundDraft] = useState(EMPTY_BACKGROUND);
   const [loginBackgroundDraft, setLoginBackgroundDraft] = useState(EMPTY_LOGIN_BACKGROUND);
+  const [deviceSecurityDraft, setDeviceSecurityDraft] = useState(EMPTY_DEVICE_SECURITY);
   const [dockDraft, setDockDraft] = useState([]);
   const [chromeDraft, setChromeDraft] = useState(EMPTY_CHROME_EXTENSION);
   const [allowedHostDraft, setAllowedHostDraft] = useState("");
   const [showChromeSetupGuide, setShowChromeSetupGuide] = useState(false);
+  const [showTestingSetupGuide, setShowTestingSetupGuide] = useState(false);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [showTeacherForm, setShowTeacherForm] = useState(false);
   const [showStudentForm, setShowStudentForm] = useState(false);
   const [showAppForm, setShowAppForm] = useState(false);
-  const [showTestingAppForm, setShowTestingAppForm] = useState(false);
   const [showAdminForm, setShowAdminForm] = useState(false);
   const [adminInviteName, setAdminInviteName] = useState("");
   const [adminInviteEmail, setAdminInviteEmail] = useState("");
@@ -384,6 +383,9 @@ export default function EduAdminPage() {
       useDeviceBackground: workspace.account.deviceLoginBackground?.useDeviceBackground !== false,
     });
     setDockDraft(Array.isArray(workspace.account.deviceDockAppIds) ? workspace.account.deviceDockAppIds : []);
+    setDeviceSecurityDraft({
+      idleLogoutMinutes: Number(workspace.account.idleLogoutMinutes || 0),
+    });
     setChromeDraft({
       ...EMPTY_CHROME_EXTENSION,
       ...(workspace.account.chromeExtension || {}),
@@ -397,6 +399,7 @@ export default function EduAdminPage() {
     workspace?.account?.deviceLoginBackground?.color,
     workspace?.account?.deviceLoginBackground?.useDeviceBackground,
     workspace?.account?.deviceDockAppIds,
+    workspace?.account?.idleLogoutMinutes,
     workspace?.account?.chromeExtension,
     studentDeviceUrl,
   ]);
@@ -767,34 +770,40 @@ export default function EduAdminPage() {
     setShowAppForm(false);
   }
 
-  function getNextTestingApps(nextApp) {
-    const currentApps = workspace?.account?.testingApps || [];
-    const cleanId = String(nextApp.id || nextApp.name || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-");
-    const payload = {
-      ...nextApp,
-      id: cleanId || `testing-${Date.now()}`,
-      sortOrder: Number(nextApp.sortOrder || currentApps.length),
-      isActive: nextApp.isActive !== false,
-    };
-    const exists = currentApps.some((app) => app.id === payload.id);
-    return exists
-      ? currentApps.map((app) => (app.id === payload.id ? payload : app))
-      : [...currentApps, payload];
+  async function copyGuideValue(label, value) {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setNotice(`${label} copied.`);
+    } catch (_error) {
+      setError(`Could not copy ${label}.`);
+    }
   }
 
-  async function handleSaveTestingApp(event) {
-    event.preventDefault();
-    setSaving("testing-app");
+  async function handleToggleTestingApp(app) {
+    setSaving(`testing-app:${app.id}`);
     setError("");
     setNotice("");
     try {
-      if (!String(testingAppDraft.name || "").trim()) {
-        throw new Error("Testing app name is required.");
-      }
-      if (!String(testingAppDraft.launchUrl || "").trim()) {
-        throw new Error("Launch URL is required.");
-      }
-      const nextApps = getNextTestingApps(testingAppDraft);
+      const nextApps = (workspace?.account?.testingApps || []).map((testingApp) =>
+        testingApp.id === app.id
+          ? {
+              ...testingApp,
+              isActive: testingApp.isActive === false,
+            }
+          : testingApp
+      );
       const nextAccount = await saveEduTestingApps(workspace.account, nextApps);
       setWorkspace((current) => ({
         ...current,
@@ -803,64 +812,12 @@ export default function EduAdminPage() {
           ...nextAccount,
         },
       }));
-      setTestingAppDraft(EMPTY_TESTING_APP);
-      setShowTestingAppForm(false);
-      setNotice("Testing app saved.");
+      setNotice(`${app.name} ${app.isActive === false ? "enabled" : "hidden"} for students.`);
     } catch (saveError) {
-      setError(saveError?.message || "Could not save testing app.");
+      setError(saveError?.message || "Could not update testing app access.");
     } finally {
       setSaving("");
     }
-  }
-
-  async function handleDeleteTestingApp(appId) {
-    setSaving(`testing-app:${appId}`);
-    setError("");
-    setNotice("");
-    try {
-      const nextApps = (workspace?.account?.testingApps || []).filter((app) => app.id !== appId);
-      const nextAccount = await saveEduTestingApps(workspace.account, nextApps);
-      setWorkspace((current) => ({
-        ...current,
-        account: {
-          ...current.account,
-          ...nextAccount,
-        },
-      }));
-      if (testingAppDraft.id === appId) {
-        setTestingAppDraft(EMPTY_TESTING_APP);
-        setShowTestingAppForm(false);
-      }
-      setNotice("Testing app deleted.");
-    } catch (deleteError) {
-      setError(deleteError?.message || "Could not delete testing app.");
-    } finally {
-      setSaving("");
-    }
-  }
-
-  function handleAddTestingApp() {
-    setTestingAppDraft({
-      ...EMPTY_TESTING_APP,
-      sortOrder: workspace?.account?.testingApps?.length || 0,
-    });
-    setShowTestingAppForm(true);
-  }
-
-  function handleEditTestingApp(app) {
-    setTestingAppDraft({
-      ...EMPTY_TESTING_APP,
-      ...app,
-      launchMode: app.launchMode || "new-window",
-      isActive: app.isActive !== false,
-    });
-    setShowTestingAppForm(true);
-    setActiveSection("testing");
-  }
-
-  function handleCancelTestingAppEdit() {
-    setTestingAppDraft(EMPTY_TESTING_APP);
-    setShowTestingAppForm(false);
   }
 
   async function handleDeleteStudent(studentId) {
@@ -1018,6 +975,28 @@ export default function EduAdminPage() {
       setNotice("Login background image uploaded.");
     } catch (uploadError) {
       setError(uploadError?.message || "Could not upload login background image.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleSaveDeviceSecurity(event) {
+    event.preventDefault();
+    setSaving("device-security");
+    setError("");
+    setNotice("");
+    try {
+      const nextAccount = await saveEduDeviceSecuritySettings(workspace.account, deviceSecurityDraft);
+      setWorkspace((current) => ({
+        ...current,
+        account: {
+          ...current.account,
+          ...nextAccount,
+        },
+      }));
+      setNotice("Student session security updated.");
+    } catch (saveError) {
+      setError(saveError?.message || "Could not save student session security.");
     } finally {
       setSaving("");
     }
@@ -1439,102 +1418,6 @@ export default function EduAdminPage() {
     </form>
   );
 
-  const testingAppForm = (
-    <form style={styles.modalPanel} onSubmit={handleSaveTestingApp}>
-      <div style={styles.panelHeader}>
-        <h2 style={styles.panelTitle}>{testingAppDraft.id ? "Edit Testing App" : "Add Testing App"}</h2>
-        <button style={styles.iconButton} type="button" onClick={handleCancelTestingAppEdit} title="Close">
-          <X size={17} />
-        </button>
-      </div>
-      <div style={styles.formGrid}>
-        <label style={styles.label}>
-          Name
-          <input
-            style={styles.input}
-            value={testingAppDraft.name}
-            onChange={(event) => setTestingAppDraft((current) => ({ ...current, name: event.target.value }))}
-            placeholder="TestNav"
-          />
-        </label>
-        <label style={styles.label}>
-          Launch URL
-          <input
-            style={styles.input}
-            value={testingAppDraft.launchUrl}
-            onChange={(event) => setTestingAppDraft((current) => ({ ...current, launchUrl: event.target.value }))}
-            placeholder="https://home.testnav.com/"
-          />
-        </label>
-        <label style={styles.label}>
-          Type
-          <input
-            style={styles.input}
-            value={testingAppDraft.type}
-            onChange={(event) => setTestingAppDraft((current) => ({ ...current, type: event.target.value }))}
-            placeholder="kiosk-pwa"
-          />
-        </label>
-        <label style={styles.label}>
-          Logo Link
-          <input
-            style={styles.input}
-            value={testingAppDraft.logoUrl || ""}
-            onChange={(event) => setTestingAppDraft((current) => ({ ...current, logoUrl: event.target.value }))}
-            placeholder="https://..."
-          />
-        </label>
-        <label style={styles.label}>
-          Launch Method
-          <select
-            style={styles.input}
-            value={testingAppDraft.launchMode || "new-window"}
-            onChange={(event) => setTestingAppDraft((current) => ({ ...current, launchMode: event.target.value }))}
-          >
-            <option value="new-window">New window / kiosk handoff</option>
-            <option value="replace">Replace current page</option>
-            <option value="same-window">Same window</option>
-          </select>
-        </label>
-        <label style={styles.label}>
-          Sort Order
-          <input
-            style={styles.input}
-            value={testingAppDraft.sortOrder}
-            onChange={(event) => setTestingAppDraft((current) => ({ ...current, sortOrder: event.target.value.replace(/\D/g, "") }))}
-            inputMode="numeric"
-          />
-        </label>
-        <label style={styles.label}>
-          Description
-          <input
-            style={styles.input}
-            value={testingAppDraft.description}
-            onChange={(event) => setTestingAppDraft((current) => ({ ...current, description: event.target.value }))}
-            placeholder="Secure testing launcher"
-          />
-        </label>
-        <label style={{ ...styles.checkboxLabel, alignSelf: "end" }}>
-          <input
-            type="checkbox"
-            checked={testingAppDraft.isActive !== false}
-            onChange={(event) => setTestingAppDraft((current) => ({ ...current, isActive: event.target.checked }))}
-          />
-          Active in student Testing Hub
-        </label>
-      </div>
-      <div style={styles.actionGroup}>
-        <button style={styles.secondaryButton} type="button" onClick={handleCancelTestingAppEdit}>
-          Cancel
-        </button>
-        <button style={styles.primaryButton} disabled={saving === "testing-app"} type="submit">
-          <Save size={16} />
-          {testingAppDraft.id ? "Update App" : "Add App"}
-        </button>
-      </div>
-    </form>
-  );
-
   const studentForm = (
     <form style={styles.modalPanel} onSubmit={handleSaveStudent}>
       <div style={styles.panelHeader}>
@@ -1752,7 +1635,6 @@ export default function EduAdminPage() {
                         {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
                       </span>
                       <strong>{app.name}</strong>
-                      <span>{app.url}</span>
                     </button>
                     <button
                       style={styles.tileDeleteButton}
@@ -1774,10 +1656,11 @@ export default function EduAdminPage() {
             <section style={styles.panel}>
               <div style={styles.panelHeader}>
                 <h2 style={styles.panelTitle}>Testing Apps</h2>
-                <button style={styles.primaryButton} type="button" onClick={handleAddTestingApp}>
-                  <Plus size={16} />
-                  Add
-                </button>
+                <div style={styles.actionGroup}>
+                  <button style={styles.secondaryButton} type="button" onClick={() => setShowTestingSetupGuide(true)}>
+                    Setup Guide
+                  </button>
+                </div>
               </div>
               <div style={styles.list}>
                 {(workspace.account.testingApps || []).map((app) => (
@@ -1788,28 +1671,24 @@ export default function EduAdminPage() {
                     <div style={styles.rowMain}>
                       <strong>{app.name}</strong>
                       <span style={styles.rowSub}>
-                        {app.launchUrl} · {app.launchMode === "new-window" ? "New window handoff" : app.launchMode === "replace" ? "Replace page" : "Same window"}
+                        {app.description || "Secure testing launcher"}
                       </span>
                     </div>
                     <span style={app.isActive !== false ? styles.statusPill : styles.inactivePill}>
-                      {app.isActive !== false ? "Active" : "Hidden"}
+                      {app.isActive !== false ? "Enabled" : "Hidden"}
                     </span>
-                    <button style={styles.iconButton} type="button" onClick={() => handleEditTestingApp(app)} title="Edit">
-                      <Pencil size={17} />
-                    </button>
                     <button
-                      style={styles.dangerButton}
+                      style={app.isActive !== false ? styles.secondaryButton : styles.primaryButton}
                       type="button"
                       disabled={saving === `testing-app:${app.id}`}
-                      onClick={() => handleDeleteTestingApp(app.id)}
-                      title="Delete"
+                      onClick={() => handleToggleTestingApp(app)}
                     >
-                      <Trash2 size={17} />
+                      {app.isActive !== false ? "Hide" : "Enable"}
                     </button>
                   </div>
                 ))}
                 {(workspace.account.testingApps || []).length === 0 ? (
-                  <div style={styles.emptyState}>No testing apps have been added yet.</div>
+                  <div style={styles.emptyState}>No platform testing apps are available yet.</div>
                 ) : null}
               </div>
             </section>
@@ -2298,6 +2177,38 @@ export default function EduAdminPage() {
                 <button
                   style={{
                     ...styles.devicePaneTile,
+                    ...(devicePane === "overview" ? styles.devicePaneTileActive : {}),
+                  }}
+                  type="button"
+                  onClick={() => setDevicePane("overview")}
+                >
+                  <span style={styles.devicePaneIcon}>
+                    <Activity size={24} />
+                  </span>
+                  <span style={styles.devicePaneText}>
+                    <strong>Overview</strong>
+                    <small>Device counts and current activity.</small>
+                  </span>
+                </button>
+                <button
+                  style={{
+                    ...styles.devicePaneTile,
+                    ...(devicePane === "deployment" ? styles.devicePaneTileActive : {}),
+                  }}
+                  type="button"
+                  onClick={() => setDevicePane("deployment")}
+                >
+                  <span style={styles.devicePaneIcon}>
+                    <Upload size={24} />
+                  </span>
+                  <span style={styles.devicePaneText}>
+                    <strong>Deployment</strong>
+                    <small>Google Admin kiosk setup for Chromebooks.</small>
+                  </span>
+                </button>
+                <button
+                  style={{
+                    ...styles.devicePaneTile,
                     ...(devicePane === "settings" ? styles.devicePaneTileActive : {}),
                   }}
                   type="button"
@@ -2353,6 +2264,40 @@ export default function EduAdminPage() {
                     <div style={styles.deviceMetricCard}>
                       <span style={styles.summaryLabel}>Offline</span>
                       <strong style={styles.summaryValue}>{offlineDeviceCount}</strong>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {devicePane === "deployment" ? (
+                <section style={styles.deviceOverviewPanel}>
+                  <div style={styles.kioskGuidePanel}>
+                    <div style={styles.panelHeader}>
+                      <div>
+                        <h3 style={styles.subPanelTitle}>Chromebook Kiosk Deployment</h3>
+                        <div style={styles.rowSub}>Create the Google Admin OU, install Oikos OS by URL, and set it to auto-launch.</div>
+                      </div>
+                    </div>
+                    <label style={styles.label}>
+                      Student Device URL
+                      <input style={styles.input} value={studentDeviceUrl} readOnly />
+                    </label>
+                    <div style={styles.kioskStepList}>
+                      {[
+                        "In Google Admin, create a new Organizational Unit for the Chromebooks that will run Oikos EDU.",
+                        "Create or choose one managed student device user account that will sign in to those Chromebooks.",
+                        "Move the target Chromebooks and that single device user into the new Organizational Unit.",
+                        "Go to Devices > Chrome > Apps & Extensions > Kiosks.",
+                        "Select the new Organizational Unit you created.",
+                        "Add a kiosk app by URL and paste the Student Device URL shown above.",
+                        "Save the kiosk app, then set Oikos OS as the auto-launch app at the top of the Kiosks page.",
+                        "Sync policy or reboot the Chromebook, then sign in with the managed device user to confirm Oikos opens in kiosk mode.",
+                      ].map((step, index) => (
+                        <div key={step} style={styles.kioskStep}>
+                          <span style={styles.kioskStepNumber}>{index + 1}</span>
+                          <span>{step}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </section>
@@ -2520,6 +2465,44 @@ export default function EduAdminPage() {
                   {(workspace.apps || []).length === 0 ? <div style={styles.emptyState}>Add apps before choosing dock tiles.</div> : null}
                 </div>
               </section>
+              <form style={styles.chromeForm} onSubmit={handleSaveDeviceSecurity}>
+                <div style={styles.panelHeader}>
+                  <div>
+                    <h3 style={styles.subPanelTitle}>Student Session Security</h3>
+                    <div style={styles.rowSub}>Control when students are automatically returned to the login screen.</div>
+                  </div>
+                  <button style={styles.primaryButton} disabled={saving === "device-security"} type="submit">
+                    <Save size={16} />
+                    {saving === "device-security" ? "Saving..." : "Save Security"}
+                  </button>
+                </div>
+                <div style={styles.formGrid}>
+                  <label style={styles.label}>
+                    Idle logout time
+                    <select
+                      style={styles.input}
+                      value={String(deviceSecurityDraft.idleLogoutMinutes || 0)}
+                      onChange={(event) =>
+                        setDeviceSecurityDraft((current) => ({
+                          ...current,
+                          idleLogoutMinutes: Number(event.target.value),
+                        }))
+                      }
+                    >
+                      <option value="0">Off</option>
+                      <option value="5">5 minutes</option>
+                      <option value="10">10 minutes</option>
+                      <option value="15">15 minutes</option>
+                      <option value="30">30 minutes</option>
+                      <option value="45">45 minutes</option>
+                      <option value="60">60 minutes</option>
+                    </select>
+                  </label>
+                </div>
+                <div style={styles.rowSub}>
+                  Student sessions are also cleared when Oikos OS reloads, so students must sign in again after a refresh or reboot.
+                </div>
+              </form>
               <form style={styles.chromeForm} onSubmit={handleSaveChromeExtension}>
                 <div style={styles.panelHeader}>
                   <div>
@@ -2757,11 +2740,86 @@ export default function EduAdminPage() {
           </div>
         </div>
       ) : null}
-      {showTestingAppForm ? (
-        <div style={styles.modalOverlay} role="presentation" onMouseDown={handleCancelTestingAppEdit}>
-          <div role="dialog" aria-modal="true" aria-label="Testing app form" onMouseDown={(event) => event.stopPropagation()}>
-            {testingAppForm}
-          </div>
+      {showTestingSetupGuide ? (
+        <div style={styles.modalOverlay} role="presentation" onMouseDown={() => setShowTestingSetupGuide(false)}>
+          <section
+            style={styles.setupModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Testing apps setup guide"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div style={styles.panelHeader}>
+              <div>
+                <h2 style={styles.panelTitle}>Testing Apps Setup</h2>
+                <div style={styles.rowSub}>DRC INSIGHT kiosk and secure extension setup for Oikos OS.</div>
+              </div>
+              <button style={styles.iconButton} type="button" onClick={() => setShowTestingSetupGuide(false)} title="Close">
+                <X size={17} />
+              </button>
+            </div>
+            <section style={{ ...styles.testingGuidePanel, marginBottom: 0 }}>
+              <div>
+                <h3 style={styles.subPanelTitle}>DRC INSIGHT Setup</h3>
+                <div style={styles.rowSub}>DRC must be installed in Google Admin first, then its secure extension must be added under the Oikos OS kiosk app.</div>
+              </div>
+              <div style={styles.testingGuideGrid}>
+                <div style={styles.testingGuideColumn}>
+                  <strong>Google Admin Kiosk App</strong>
+                  <div style={styles.kioskStepList}>
+                    {[
+                      "Add DRC INSIGHT exactly as directed by DRC under Devices > Chrome > Apps & Extensions > Kiosks.",
+                      "Select the same Chromebook Organizational Unit used for the Oikos OS kiosk deployment.",
+                      "Confirm the DRC kiosk PWA version and secure extension version match the DRC release you intend to use.",
+                    ].map((step, index) => (
+                      <div key={step} style={styles.kioskStep}>
+                        <span style={styles.kioskStepNumber}>{index + 1}</span>
+                        <span>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={styles.testingGuideColumn}>
+                  <strong>Oikos OS Kiosk Extension</strong>
+                  <div style={styles.kioskStepList}>
+                    {[
+                      "Open the Oikos OS kiosk app settings for the OU, scroll down, click Add Extension, then choose Add from a custom URL.",
+                      "In the Add Chrome app or extension by ID popup, change From the Chrome Web Store to From a custom URL.",
+                      "Paste the Extension ID and Extension URL shown below.",
+                      "After the extension appears at the bottom of the PWA settings area, expand the extension settings.",
+                      "In Policy for extensions, choose Enter a JSON value and enter the desired DRC OUID JSON.",
+                      "In Additional URL origins for this kiosk app, add the DRC origin shown below.",
+                      "Save changes, sync policy, and reboot a test Chromebook before launching DRC from Oikos.",
+                    ].map((step, index) => (
+                      <div key={step} style={styles.kioskStep}>
+                        <span style={styles.kioskStepNumber}>{index + 1}</span>
+                        <span>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {[
+                ["Extension ID", DRC_EXTENSION_ID],
+                ["Extension URL", DRC_EXTENSION_URL],
+                ["Additional URL origins", DRC_ADDITIONAL_ORIGIN],
+                ["Extension policy JSON", DRC_POLICY_JSON],
+                ["Oikos DRC launcher URL", DRC_LAUNCHER_URL],
+              ].map(([label, value]) => (
+                <div key={label} style={styles.testingGuideCodeRow}>
+                  <span>{label}</span>
+                  <code style={styles.guideCode}>{value}</code>
+                  <button
+                    style={styles.copyButton}
+                    type="button"
+                    onClick={() => copyGuideValue(label, value)}
+                  >
+                    Copy
+                  </button>
+                </div>
+              ))}
+            </section>
+          </section>
         </div>
       ) : null}
       {showStudentForm ? (
@@ -3182,6 +3240,61 @@ const styles = {
     minWidth: 0,
     padding: 10,
   },
+  testingGuidePanel: {
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 18,
+    display: "grid",
+    gap: 12,
+    marginBottom: 14,
+    padding: 14,
+  },
+  testingGuideGrid: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  },
+  testingGuideColumn: {
+    display: "grid",
+    gap: 10,
+    minWidth: 0,
+  },
+  testingGuideCodeRow: {
+    alignItems: "center",
+    background: "rgba(248,250,252,0.76)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    borderRadius: 14,
+    color: "#475569",
+    display: "grid",
+    fontSize: 13,
+    fontWeight: 800,
+    gap: 8,
+    gridTemplateColumns: "170px minmax(0, 1fr) auto",
+    padding: 10,
+  },
+  guideCode: {
+    background: "#0f172a",
+    borderRadius: 10,
+    color: "#f8fafc",
+    display: "block",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontSize: 12,
+    fontWeight: 700,
+    overflow: "auto",
+    padding: "9px 10px",
+    whiteSpace: "nowrap",
+  },
+  copyButton: {
+    background: "#eef2ff",
+    border: "1px solid rgba(79,70,229,0.18)",
+    borderRadius: 10,
+    color: "#3730a3",
+    cursor: "pointer",
+    font: "inherit",
+    fontSize: 12,
+    fontWeight: 900,
+    padding: "9px 11px",
+  },
   appStoreGrid: {
     display: "grid",
     gap: 14,
@@ -3493,6 +3606,44 @@ const styles = {
     gap: 5,
     minHeight: 96,
     padding: 14,
+  },
+  kioskGuidePanel: {
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 18,
+    display: "grid",
+    gap: 12,
+    marginTop: 14,
+    padding: 14,
+  },
+  kioskStepList: {
+    display: "grid",
+    gap: 8,
+  },
+  kioskStep: {
+    alignItems: "start",
+    background: "rgba(248,250,252,0.76)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    borderRadius: 14,
+    color: "#334155",
+    display: "grid",
+    fontSize: 13,
+    gap: 10,
+    gridTemplateColumns: "30px minmax(0, 1fr)",
+    lineHeight: 1.35,
+    padding: 10,
+  },
+  kioskStepNumber: {
+    alignItems: "center",
+    background: "var(--color-primary)",
+    borderRadius: 999,
+    color: "#fff",
+    display: "inline-flex",
+    fontSize: 12,
+    fontWeight: 900,
+    height: 26,
+    justifyContent: "center",
+    width: 26,
   },
   backgroundForm: {
     alignItems: "stretch",
