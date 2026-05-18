@@ -6,7 +6,9 @@ import {
 import { resetPassword } from "../../../auth/authService";
 
 const APPS_TABLE = "edu_student_device_apps";
+const SYSTEM_APPS_TABLE = "edu_student_device_system_apps";
 const STUDENTS_TABLE = "edu_student_device_students";
+const INSTALLED_APPS_TABLE = "edu_student_device_installed_apps";
 const SESSIONS_TABLE = "edu_student_device_sessions";
 const DEVICES_TABLE = "edu_student_devices";
 const TEACHERS_TABLE = "edu_teachers";
@@ -90,15 +92,20 @@ function normalizeLoginName(name = "") {
 }
 
 function normalizeApp(row = {}) {
+  const createdByTeacherId = row.created_by_teacher_id || row.createdByTeacherId || "";
   return {
     id: row.id || "",
     accountId: row.account_id || "",
+    createdByTeacherId,
     name: row.name || "",
     url: row.url || "",
-    logoUrl: row.logo_url || "",
+    logoUrl: row.logo_url || row.logoUrl || "",
     color: row.color || "#2563eb",
     isActive: row.is_active !== false,
     sortOrder: Number(row.sort_order || 0),
+    description: row.description || "",
+    isSystem: row.is_system === true || row.isSystem === true || row.source === "system",
+    source: row.source || (row.is_system || row.isSystem ? "system" : createdByTeacherId ? "teacher" : "admin"),
   };
 }
 
@@ -108,11 +115,11 @@ function normalizeTestingAppConfig(app = {}, index = 0) {
     id: String(app.id || app.name || `testing-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
     name: String(app.name || "").trim(),
     type: String(app.type || "kiosk-pwa").trim() || "kiosk-pwa",
-    launchUrl: String(app.launchUrl || app.url || "").trim(),
+    launchUrl: String(app.launchUrl || app.launch_url || app.url || "").trim(),
     launchMode: String(app.launchMode || app.launch_mode || "new-window").trim() || "new-window",
     logoUrl: String(app.logoUrl || app.logo_url || app.iconUrl || app.imageUrl || app.logo || "").trim(),
     description: String(app.description || "").trim(),
-    isActive: app.isActive !== false,
+    isActive: app.isActive === true || app.is_active === true,
     sortOrder: Number(app.sortOrder ?? app.sort_order ?? index),
   };
 }
@@ -280,6 +287,7 @@ function normalizeSession(row = {}) {
     deviceName: row.device_name || "Student device",
     activeAppId: row.active_app_id || "",
     activeUrl: row.active_url || "",
+    deviceInfo: row.device_info || row.deviceInfo || {},
     lastSeenAt: row.last_seen_at || "",
     isOnline: typeof secondsAgo === "number" && secondsAgo < 90,
   };
@@ -298,6 +306,7 @@ function normalizeDevice(row = {}) {
     deviceName: row.device_name || "Student device",
     activeAppId: row.active_app_id || "",
     activeUrl: row.active_url || "",
+    deviceInfo: row.device_info || row.deviceInfo || {},
     lastSeenAt: row.last_seen_at || "",
     createdAt: row.created_at || "",
     updatedAt: row.updated_at || "",
@@ -448,6 +457,8 @@ export async function loadEduStudentDeviceAdmin(userId) {
   const [
     { data: accountRows, error: accountError },
     appsResult,
+    systemAppsResult,
+    installedAppsResult,
     studentsResult,
     sessionsResult,
     devicesResult,
@@ -467,6 +478,15 @@ export async function loadEduStudentDeviceAdmin(userId) {
         .eq("account_id", account.id)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true }),
+      supabase
+        .from(SYSTEM_APPS_TABLE)
+        .select("*")
+        .eq("is_globally_enabled", true)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true }),
+      supabase
+        .from(INSTALLED_APPS_TABLE)
+        .select("app_id, student_id, sort_order, installed_at"),
       supabase
         .from(STUDENTS_TABLE)
         .select("*")
@@ -502,6 +522,8 @@ export async function loadEduStudentDeviceAdmin(userId) {
 
   if (accountError) throw accountError;
   if (appsResult.error) throw appsResult.error;
+  if (systemAppsResult.error) throw systemAppsResult.error;
+  if (installedAppsResult.error) throw installedAppsResult.error;
   if (studentsResult.error) throw studentsResult.error;
   if (sessionsResult.error) throw sessionsResult.error;
   if (devicesResult.error) throw devicesResult.error;
@@ -513,6 +535,24 @@ export async function loadEduStudentDeviceAdmin(userId) {
 
   const teachers = (teachersResult.data || []).map(normalizeTeacher);
   const teacherIds = new Set(teachers.map((teacher) => teacher.id));
+  const students = (studentsResult.data || []).map(normalizeStudent);
+  const studentIds = new Set(students.map((student) => student.id));
+  const apps = (appsResult.data || []).map(normalizeApp);
+  const systemApps = (systemAppsResult.data || [])
+    .map((app) => normalizeApp({ ...app, is_system: true, source: "system" }));
+  const appNameById = new Map([...apps, ...systemApps].map((app) => [app.id, app.name]));
+  const installedAppCounts = new Map();
+  (installedAppsResult.data || []).forEach((item) => {
+    if (!item?.app_id || !studentIds.has(item.student_id)) return;
+    installedAppCounts.set(item.app_id, (installedAppCounts.get(item.app_id) || 0) + 1);
+  });
+  const appInstallAnalytics = Array.from(installedAppCounts.entries())
+    .map(([appId, installCount]) => ({
+      appId,
+      appName: appNameById.get(appId) || "Unknown app",
+      installCount,
+    }))
+    .sort((a, b) => b.installCount - a.installCount || a.appName.localeCompare(b.appName));
 
   return {
     account: normalizeEduAccount({
@@ -520,8 +560,10 @@ export async function loadEduStudentDeviceAdmin(userId) {
       ...accountRows,
       testingApps: testingCatalogResult.error ? undefined : testingCatalogResult.data,
     }),
-    apps: (appsResult.data || []).map(normalizeApp),
-    students: (studentsResult.data || []).map(normalizeStudent),
+    apps,
+    systemApps,
+    appInstallAnalytics,
+    students,
     sessions: (sessionsResult.data || []).map(normalizeSession),
     devices: (devicesResult.data || []).map(normalizeDevice),
     teachers,
@@ -609,6 +651,40 @@ export async function uploadEduDeviceBackgroundImage(account, file) {
 
   const safeName = file.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "").toLowerCase();
   const filePath = `${account.id}/edu-device-backgrounds/${Date.now()}-${safeName || "background"}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(ORGANIZATION_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(ORGANIZATION_BUCKET).getPublicUrl(filePath);
+
+  return publicUrl;
+}
+
+export async function uploadEduDeviceAppLogo(account, file) {
+  if (!account?.id) {
+    throw new Error("Missing organization account.");
+  }
+
+  if (!file) {
+    throw new Error("Choose an image to upload.");
+  }
+
+  if (!String(file.type || "").startsWith("image/")) {
+    throw new Error("Logo upload must be an image file.");
+  }
+
+  const safeName = file.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "").toLowerCase();
+  const filePath = `${account.id}/edu-device-app-logos/${Date.now()}-${safeName || "app-logo"}`;
 
   const { error: uploadError } = await supabase.storage
     .from(ORGANIZATION_BUCKET)
@@ -752,6 +828,7 @@ export async function syncEduChromeGuardPolicy(accountId) {
 export async function saveEduDeviceApp(accountId, app) {
   const payload = {
     account_id: accountId,
+    created_by_teacher_id: null,
     name: String(app.name || "").trim(),
     url: String(app.url || "").trim(),
     logo_url: String(app.logoUrl || "").trim(),
@@ -1041,7 +1118,10 @@ export async function loadEduStudentDeviceCatalog(sessionToken) {
   });
 
   if (error) throw error;
-  return data;
+  return {
+    ...(data || {}),
+    apps: (data?.apps || []).map(normalizeApp),
+  };
 }
 
 export async function saveEduStudentDeviceDesktop(sessionToken, installedAppIds, themeColor) {
@@ -1072,6 +1152,7 @@ export async function sendEduStudentDeviceHeartbeat({
   activeAppId,
   activeUrl,
   deviceToken,
+  deviceInfo,
 }) {
   const { data, error } = await supabase.rpc("edu_student_device_heartbeat", {
     p_session_token: sessionToken,
@@ -1079,6 +1160,7 @@ export async function sendEduStudentDeviceHeartbeat({
     p_active_app_id: activeAppId || null,
     p_active_url: activeUrl || "",
     p_device_token: deviceToken || null,
+    p_device_info: deviceInfo || {},
   });
 
   if (error) throw error;

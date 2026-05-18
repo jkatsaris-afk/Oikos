@@ -9,15 +9,30 @@ import {
   Grid,
   Home,
   Layers,
+  Plus,
+  Save,
   Settings2,
   ShieldCheck,
   Sparkles,
   Trophy,
+  Upload,
   Users,
+  X,
 } from "lucide-react";
 
 import { fetchEduTestingAppCatalog } from "../services/eduTestingAppsService";
-import { fetchGlobalUsers, fetchPlatformAccessRequests } from "../services/globalUsersService";
+import {
+  fetchEduSystemAppCatalog,
+  saveEduSystemAppCatalogEntry,
+  uploadEduSystemAppLogo,
+} from "../services/eduSystemAppsService";
+import {
+  fetchEduOrganizationWorkspace,
+  fetchEduPlatformDashboard,
+  fetchGlobalUsers,
+  fetchPlatformAccessRequests,
+  fetchPlatformOrganizations,
+} from "../services/globalUsersService";
 import EduTestingAppsPage from "../tiles/EduTestingApps/EduTestingAppsPage";
 import GlobalUsersPage from "../tiles/GlobalUsers/GlobalUsersPage";
 
@@ -109,6 +124,7 @@ const platformManagementTabs = {
     { id: "organizations", label: "Organizations", icon: Building2 },
     { id: "users", label: "Users", icon: Users },
     { id: "apps", label: "Student Apps", icon: AppWindow },
+    { id: "system-apps", label: "Global System Apps", icon: Grid },
     { id: "testing", label: "Testing Apps", icon: ClipboardList },
   ],
   admin: [
@@ -195,6 +211,7 @@ function NavButton({ item, active, onClick }) {
 
 function OverviewPage({ onOpen }) {
   const [summary, setSummary] = useState({
+    eduDashboard: null,
     users: [],
     requests: [],
     testingApps: [],
@@ -210,14 +227,15 @@ function OverviewPage({ onOpen }) {
       setError("");
 
       try {
-        const [users, requests, testingApps] = await Promise.all([
+        const [users, requests, testingApps, eduDashboard] = await Promise.all([
           fetchGlobalUsers(),
           fetchPlatformAccessRequests(),
           fetchEduTestingAppCatalog(),
+          fetchEduPlatformDashboard(),
         ]);
 
         if (!mounted) return;
-        setSummary({ users, requests, testingApps });
+        setSummary({ eduDashboard, users, requests, testingApps });
       } catch (loadError) {
         console.error("Admin overview load error:", loadError);
         if (!mounted) return;
@@ -241,6 +259,7 @@ function OverviewPage({ onOpen }) {
   const pendingRequests = summary.requests.filter((request) => request.status === "pending").length;
   const activeTestingApps = summary.testingApps.filter((app) => app.isGloballyEnabled).length;
   const builtPlatforms = platformItems.filter((platform) => platform.status === "built").length;
+  const eduDashboard = summary.eduDashboard || {};
 
   return (
     <div style={styles.contentStack}>
@@ -256,11 +275,15 @@ function OverviewPage({ onOpen }) {
       {error ? <div style={styles.errorBox}>{error}</div> : null}
 
       <section style={styles.metricGrid}>
-        <MetricCard icon={Users} label="Total Users" value={loading ? "..." : summary.users.length} />
-        <MetricCard icon={Building2} label="Organizations" value={loading ? "..." : organizationCount} />
+        <MetricCard icon={Users} label="Total Users" value={loading ? "..." : eduDashboard.totalUsers || summary.users.length} />
+        <MetricCard icon={GraduationCap} label="Students" value={loading ? "..." : eduDashboard.activeStudents || eduDashboard.students || 0} />
+        <MetricCard icon={AppWindow} label="Devices" value={loading ? "..." : eduDashboard.devices || 0} />
+        <MetricCard icon={Building2} label="Organizations" value={loading ? "..." : eduDashboard.organizations || organizationCount} />
+        <MetricCard icon={BadgeCheck} label="Teachers" value={loading ? "..." : eduDashboard.activeTeachers || eduDashboard.teachers || 0} />
+        <MetricCard icon={Grid} label="Student Apps" value={loading ? "..." : eduDashboard.studentApps || 0} />
         <MetricCard icon={Sparkles} label="Pending Requests" value={loading ? "..." : pendingRequests} />
-        <MetricCard icon={BadgeCheck} label="Built Platforms" value={`${builtPlatforms}/${platformItems.length}`} />
         <MetricCard icon={ClipboardList} label="Global Testing Apps" value={loading ? "..." : activeTestingApps} />
+        <MetricCard icon={ShieldCheck} label="Built Platforms" value={`${builtPlatforms}/${platformItems.length}`} />
       </section>
 
       <section style={styles.panel}>
@@ -530,53 +553,36 @@ function EduPlatformManagement({ activeTool, onToolChange }) {
   }
 
   if (activeTool === "organizations") {
-    return (
-      <section style={styles.panel}>
-        <div style={styles.panelHeader}>
-          <h2 style={styles.panelTitle}>EDU Organization Management</h2>
-          <span style={styles.panelHint}>District-level setup and administration.</span>
-        </div>
-        <div style={styles.managementGrid}>
-          <ManagementCard
-            icon={Building2}
-            title="Organization Admin Portal"
-            description="Manage EDU organization settings, admins, teachers, students, device deployment, and class setup."
-            actionLabel="Open EDU Admin"
-            href="/edu/admin"
-          />
-          <ManagementCard
-            icon={Users}
-            title="Admins And Teachers"
-            description="Create EDU admins, invite teachers, and manage who can access the organization."
-            actionLabel="Open EDU Admin"
-            href="/edu/admin"
-          />
-        </div>
-      </section>
-    );
+    return <EduOrganizationsPanel />;
+  }
+
+  if (activeTool === "system-apps") {
+    return <EduSystemAppsPanel onOpenTesting={() => onToolChange("testing")} />;
   }
 
   if (activeTool === "apps") {
     return (
       <section style={styles.panel}>
         <div style={styles.panelHeader}>
-          <h2 style={styles.panelTitle}>EDU App Management</h2>
-          <span style={styles.panelHint}>Student-facing apps and secure testing launchers.</span>
+          <div>
+            <h2 style={styles.panelTitle}>Student Apps</h2>
+            <span style={styles.panelHint}>Organization-created apps and websites students can add to their desktop.</span>
+          </div>
         </div>
         <div style={styles.managementGrid}>
           <ManagementCard
             icon={AppWindow}
-            title="Student App Store"
-            description="Manage the apps and websites students can add to their Oikos EDU desktop."
+            title="Organization Student App Store"
+            description="Open the EDU admin portal to manage apps created by each school or district."
             actionLabel="Open EDU Admin"
             href="/edu/admin"
           />
           <ManagementCard
-            icon={ClipboardList}
-            title="Built-In Testing Apps"
-            description="Manage the global TestNav, DRC, and NWEA definitions used by every EDU organization."
-            actionLabel="Open Testing Apps"
-            onClick={() => onToolChange("testing")}
+            icon={Grid}
+            title="Global System Apps"
+            description="Manage apps like Gmail, Classroom, Drive, Docs, Sheets, Slides, and Calendar."
+            actionLabel="Open System Apps"
+            onClick={() => onToolChange("system-apps")}
           />
         </div>
       </section>
@@ -619,6 +625,561 @@ function EduPlatformManagement({ activeTool, onToolChange }) {
       </section>
     </>
   );
+}
+
+function EduOrganizationsPanel() {
+  const [organizations, setOrganizations] = useState([]);
+  const [workspace, setWorkspace] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [workspaceError, setWorkspaceError] = useState("");
+  const [query, setQuery] = useState("");
+
+  async function openOrganization(organizationId) {
+    if (!organizationId) return;
+    setWorkspaceLoading(true);
+    setWorkspaceError("");
+
+    try {
+      const nextWorkspace = await fetchEduOrganizationWorkspace(organizationId);
+      setWorkspace(nextWorkspace);
+    } catch (loadError) {
+      console.error("EDU organization workspace load error:", loadError);
+      setWorkspaceError(loadError?.message || "We could not load this organization.");
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadOrganizations() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const nextOrganizations = await fetchPlatformOrganizations("edu");
+        if (!mounted) return;
+        setOrganizations(nextOrganizations);
+        if (nextOrganizations[0]?.id) {
+          openOrganization(nextOrganizations[0].id);
+        }
+      } catch (loadError) {
+        console.error("EDU organizations load error:", loadError);
+        if (!mounted) return;
+        setError(loadError?.message || "We could not load EDU organizations.");
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadOrganizations();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filteredOrganizations = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+    if (!cleanQuery) return organizations;
+
+    return organizations.filter((organization) => {
+      const organizationText = `${organization.name} ${organization.id}`.toLowerCase();
+      const userText = organization.users
+        .map((user) => `${user.fullName} ${user.email} ${user.role}`)
+        .join(" ")
+        .toLowerCase();
+      return organizationText.includes(cleanQuery) || userText.includes(cleanQuery);
+    });
+  }, [organizations, query]);
+
+  const eduUserCount = useMemo(() => {
+    const userIds = new Set();
+    organizations.forEach((organization) => {
+      organization.users.forEach((user) => userIds.add(user.id));
+    });
+    return userIds.size;
+  }, [organizations]);
+
+  const workspaceCounts = workspace
+    ? {
+        members: workspace.members.length,
+        students: workspace.students.length,
+        teachers: workspace.teachers.length,
+        apps: workspace.apps.length,
+        devices: workspace.devices.length,
+      }
+    : null;
+
+  return (
+    <div style={styles.contentStack}>
+      <section style={styles.panel}>
+        <div style={styles.panelHeader}>
+          <div>
+            <h2 style={styles.panelTitle}>EDU Organizations</h2>
+            <span style={styles.panelHint}>Support view for every EDU organization, user, app, teacher, student, and device.</span>
+          </div>
+          <div style={styles.orgSummaryPills}>
+            <span style={styles.readyPill}>{loading ? "..." : `${organizations.length} orgs`}</span>
+            <span style={styles.soonPill}>{loading ? "..." : `${eduUserCount} platform users`}</span>
+          </div>
+        </div>
+
+        {error ? <div style={styles.errorBox}>{error}</div> : null}
+
+        <div style={styles.directoryToolbar}>
+          <input
+            aria-label="Search EDU organizations"
+            placeholder="Search organizations or users"
+            style={styles.directorySearch}
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+
+        {loading ? (
+          <div style={styles.emptyDirectory}>Loading EDU organizations...</div>
+        ) : filteredOrganizations.length === 0 ? (
+          <div style={styles.emptyDirectory}>
+            {organizations.length === 0
+              ? "No EDU organizations found yet."
+              : "No EDU organizations match that search."}
+          </div>
+        ) : (
+          <div style={styles.organizationList}>
+            {filteredOrganizations.map((organization) => {
+              const active = workspace?.account?.id === organization.id;
+              return (
+                <button
+                  key={organization.id}
+                  style={active ? { ...styles.organizationCard, ...styles.organizationCardActive } : styles.organizationCard}
+                  type="button"
+                  onClick={() => openOrganization(organization.id)}
+                >
+                  <div style={styles.organizationHeader}>
+                    <div>
+                      <h3 style={styles.organizationName}>{organization.name}</h3>
+                      <div style={styles.organizationMeta}>
+                        EDU organization
+                        {organization.memberCount ? ` · ${organization.memberCount} users` : " · No users"}
+                      </div>
+                    </div>
+                    <span style={active ? styles.readyPill : styles.soonPill}>{active ? "Open" : "View"}</span>
+                  </div>
+
+                  {organization.users.length ? (
+                    <div style={styles.organizationUsers}>
+                      {organization.users.slice(0, 4).map((user) => (
+                        <div key={`${organization.id}-${user.id}`} style={styles.organizationUserRow}>
+                          <div style={styles.userAvatar}>
+                            {getInitials(user.fullName || user.email)}
+                          </div>
+                          <div style={styles.organizationUserMain}>
+                            <strong>{user.fullName || user.email}</strong>
+                            <span>{user.email || "No email"}</span>
+                          </div>
+                          <div style={styles.userBadges}>
+                            <span style={styles.rolePill}>{user.role || "member"}</span>
+                            {user.status ? <span style={styles.statusPill}>{user.status}</span> : null}
+                          </div>
+                        </div>
+                      ))}
+                      {organization.users.length > 4 ? (
+                        <div style={styles.organizationMore}>{organization.users.length - 4} more users in this org</div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div style={styles.emptyDirectory}>No users are attached to this organization.</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section style={styles.panel}>
+        <div style={styles.panelHeader}>
+          <div>
+            <h2 style={styles.panelTitle}>{workspace?.account?.name || "Organization Workspace"}</h2>
+            <span style={styles.panelHint}>
+              {workspace?.account?.deviceCode ? `Device code ${workspace.account.deviceCode}` : "Select an organization to inspect it."}
+            </span>
+          </div>
+          {workspaceCounts ? (
+            <div style={styles.orgSummaryPills}>
+              <span style={styles.readyPill}>{workspaceCounts.devices} devices</span>
+              <span style={styles.soonPill}>{workspaceCounts.students} students</span>
+              <span style={styles.soonPill}>{workspaceCounts.apps} apps</span>
+            </div>
+          ) : null}
+        </div>
+
+        {workspaceError ? <div style={styles.errorBox}>{workspaceError}</div> : null}
+        {workspaceLoading ? <div style={styles.emptyDirectory}>Loading organization workspace...</div> : null}
+        {!workspaceLoading && workspace ? <EduOrganizationWorkspace workspace={workspace} /> : null}
+      </section>
+    </div>
+  );
+}
+
+function EduOrganizationWorkspace({ workspace }) {
+  const teacherStudentCounts = useMemo(() => {
+    const counts = new Map();
+    workspace.teacherStudents.forEach((assignment) => {
+      counts.set(assignment.teacherId, (counts.get(assignment.teacherId) || 0) + 1);
+    });
+    return counts;
+  }, [workspace.teacherStudents]);
+
+  return (
+    <div style={styles.workspaceDetail}>
+      <div style={styles.workspaceMetrics}>
+        <MetricCard icon={Users} label="Members" value={workspace.members.length} />
+        <MetricCard icon={GraduationCap} label="Students" value={workspace.students.length} />
+        <MetricCard icon={BadgeCheck} label="Teachers" value={workspace.teachers.length} />
+        <MetricCard icon={AppWindow} label="Devices" value={workspace.devices.length} />
+        <MetricCard icon={Grid} label="Apps" value={workspace.apps.length + workspace.systemApps.length} />
+      </div>
+
+      <WorkspaceSection title="Admins And Users" emptyText="No platform users are attached to this organization.">
+        {workspace.members.map((member) => (
+          <WorkspaceRow
+            key={member.id}
+            title={member.fullName || member.email}
+            subtitle={member.email || "No email"}
+            badge={member.isOwner ? "owner" : member.role || "member"}
+            mutedBadge={member.status || ""}
+          />
+        ))}
+      </WorkspaceSection>
+
+      <WorkspaceSection title="Students" emptyText="No students found in this organization.">
+        {workspace.students.map((student) => (
+          <WorkspaceRow
+            key={student.id}
+            title={student.displayName}
+            subtitle={[student.loginName, student.gradeLevel].filter(Boolean).join(" · ") || "No login details"}
+            badge={student.isActive ? "active" : "inactive"}
+          />
+        ))}
+      </WorkspaceSection>
+
+      <WorkspaceSection title="Teachers" emptyText="No teachers found in this organization.">
+        {workspace.teachers.map((teacher) => (
+          <WorkspaceRow
+            key={teacher.id}
+            title={teacher.displayName}
+            subtitle={[teacher.email, teacher.gradeLevel, teacher.location].filter(Boolean).join(" · ") || "No teacher details"}
+            badge={`${teacherStudentCounts.get(teacher.id) || 0} students`}
+            mutedBadge={teacher.isActive ? "active" : "inactive"}
+          />
+        ))}
+      </WorkspaceSection>
+
+      <WorkspaceSection title="Organization Apps" emptyText="No organization apps found.">
+        {workspace.apps.map((app) => (
+          <WorkspaceRow
+            key={app.id}
+            title={app.name}
+            subtitle={app.url || "No launch URL"}
+            badge={app.isActive ? "active" : "inactive"}
+          />
+        ))}
+      </WorkspaceSection>
+
+      <WorkspaceSection title="Global System Apps" emptyText="No global system apps found.">
+        {workspace.systemApps.map((app) => (
+          <WorkspaceRow
+            key={app.id || app.appKey}
+            title={app.name}
+            subtitle={app.url || app.appKey}
+            badge={app.isGloballyEnabled ? "available" : "hidden"}
+          />
+        ))}
+      </WorkspaceSection>
+
+      <WorkspaceSection title="Devices" emptyText="No enrolled devices found.">
+        {workspace.devices.map((device) => (
+          <WorkspaceRow
+            key={device.id}
+            title={device.deviceName}
+            subtitle={[
+              device.studentName || "No student",
+              device.activeAppName || device.activeUrl || "No active app",
+              device.lastSeenAt ? `Last seen ${formatShortDate(device.lastSeenAt)}` : "",
+            ].filter(Boolean).join(" · ")}
+            badge={device.isOnline ? "online" : "offline"}
+          />
+        ))}
+      </WorkspaceSection>
+    </div>
+  );
+}
+
+function WorkspaceSection({ title, emptyText, children }) {
+  const rows = toChildArray(children);
+  return (
+    <div style={styles.workspaceSection}>
+      <h3 style={styles.workspaceSectionTitle}>{title}</h3>
+      {rows.length ? <div style={styles.workspaceRows}>{rows}</div> : <div style={styles.emptyDirectory}>{emptyText}</div>}
+    </div>
+  );
+}
+
+function WorkspaceRow({ title, subtitle, badge, mutedBadge }) {
+  return (
+    <div style={styles.workspaceRow}>
+      <div style={styles.organizationUserMain}>
+        <strong>{title}</strong>
+        <span>{subtitle}</span>
+      </div>
+      <div style={styles.userBadges}>
+        {badge ? <span style={styles.rolePill}>{badge}</span> : null}
+        {mutedBadge ? <span style={styles.statusPill}>{mutedBadge}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function toChildArray(children) {
+  return Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
+}
+
+function formatShortDate(value) {
+  if (!value) return "";
+  try {
+    return new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function EduSystemAppsPanel({ onOpenTesting }) {
+  const [apps, setApps] = useState([]);
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function loadApps() {
+    setLoading(true);
+    setError("");
+    try {
+      setApps(await fetchEduSystemAppCatalog());
+    } catch (loadError) {
+      setError(loadError?.message || "Could not load EDU system apps.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadApps();
+  }, []);
+
+  function handleAddApp() {
+    setError("");
+    setNotice("");
+    setSelectedApp({
+      id: "",
+      appKey: "",
+      name: "",
+      url: "",
+      logoUrl: "",
+      color: "#2563eb",
+      description: "",
+      isGloballyEnabled: true,
+      sortOrder: apps.length * 10 + 100,
+      isNew: true,
+    });
+  }
+
+  async function handleSave(event) {
+    event.preventDefault();
+    if (!selectedApp) return;
+
+    setSaving(selectedApp.appKey || "new");
+    setError("");
+    setNotice("");
+    try {
+      await saveEduSystemAppCatalogEntry(selectedApp);
+      await loadApps();
+      setSelectedApp(null);
+      setNotice("System app updated.");
+    } catch (saveError) {
+      setError(saveError?.message || "Could not save system app.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleLogoUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !selectedApp) return;
+
+    setSaving(`${selectedApp.appKey}:logo`);
+    setError("");
+    setNotice("");
+    try {
+      const logoUrl = await uploadEduSystemAppLogo(selectedApp.appKey, file);
+      setSelectedApp((app) => ({ ...app, logoUrl }));
+      setNotice("Logo uploaded. Save the app to keep it.");
+    } catch (uploadError) {
+      setError(uploadError?.message || "Could not upload logo.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  return (
+    <section style={styles.panel}>
+      <div style={styles.panelHeader}>
+        <div>
+          <h2 style={styles.panelTitle}>Global System Apps</h2>
+          <span style={styles.panelHint}>Default app catalog shown in every student App Store.</span>
+        </div>
+        <div style={styles.orgSummaryPills}>
+          <button style={styles.secondaryActionButton} type="button" onClick={onOpenTesting}>
+            <ClipboardList size={16} />
+            Testing Apps
+          </button>
+          <button style={styles.primaryActionButton} type="button" onClick={handleAddApp}>
+            <Plus size={16} />
+            Add System App
+          </button>
+        </div>
+      </div>
+
+      {error ? <div style={styles.errorBox}>{error}</div> : null}
+      {notice ? <div style={styles.noticeBox}>{notice}</div> : null}
+
+      {loading ? <div style={styles.emptyDirectory}>Loading system apps...</div> : null}
+      {!loading && apps.length === 0 ? <div style={styles.emptyDirectory}>No system apps are available.</div> : null}
+      {!loading && apps.length ? (
+        <div style={styles.systemAppGrid}>
+          {apps.map((app) => (
+            <button key={app.id || app.appKey} style={styles.systemAppCard} type="button" onClick={() => setSelectedApp(app)}>
+              <div style={{ ...styles.systemAppIcon, background: app.logoUrl ? "transparent" : getAppTone(app.name) }}>
+                {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.systemAppLogo} /> : getInitials(app.name)}
+              </div>
+              <div style={styles.systemAppMain}>
+                <strong>{app.name}</strong>
+                <span>{app.description || app.url}</span>
+              </div>
+              <span style={app.isGloballyEnabled ? styles.readyPill : styles.soonPill}>
+                {app.isGloballyEnabled ? "Available" : "Hidden"}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {selectedApp ? (
+        <div style={styles.modalOverlay} role="presentation" onMouseDown={() => setSelectedApp(null)}>
+          <form style={styles.systemAppModal} role="dialog" aria-modal="true" onSubmit={handleSave} onMouseDown={(event) => event.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>{selectedApp.isNew ? "Add System App" : `Edit ${selectedApp.name}`}</h3>
+              <button style={styles.iconActionButton} type="button" onClick={() => setSelectedApp(null)} title="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <div style={styles.logoEditor}>
+              <div style={{ ...styles.systemAppIconLarge, background: selectedApp.logoUrl ? "transparent" : getAppTone(selectedApp.name) }}>
+                {selectedApp.logoUrl ? <img src={selectedApp.logoUrl} alt="" style={styles.systemAppLogo} /> : getInitials(selectedApp.name)}
+              </div>
+              <label style={styles.secondaryActionButton}>
+                <Upload size={16} />
+                {saving === `${selectedApp.appKey}:logo` ? "Uploading..." : "Upload Logo"}
+                <input style={styles.hiddenFileInput} type="file" accept="image/*" disabled={saving === `${selectedApp.appKey}:logo`} onChange={handleLogoUpload} />
+              </label>
+            </div>
+            <div style={styles.systemAppForm}>
+              <label style={styles.fieldLabel}>
+                App Key
+                <input
+                  style={styles.formInput}
+                  value={selectedApp.appKey}
+                  disabled={!selectedApp.isNew}
+                  placeholder="gmail"
+                  onChange={(event) => setSelectedApp((app) => ({ ...app, appKey: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") }))}
+                />
+              </label>
+              <label style={styles.fieldLabel}>
+                Name
+                <input style={styles.formInput} value={selectedApp.name} onChange={(event) => setSelectedApp((app) => ({ ...app, name: event.target.value }))} />
+              </label>
+              <label style={styles.fieldLabel}>
+                URL
+                <input style={styles.formInput} value={selectedApp.url} onChange={(event) => setSelectedApp((app) => ({ ...app, url: event.target.value }))} />
+              </label>
+              <label style={styles.fieldLabel}>
+                Logo URL
+                <input style={styles.formInput} value={selectedApp.logoUrl} onChange={(event) => setSelectedApp((app) => ({ ...app, logoUrl: event.target.value }))} />
+              </label>
+              <label style={styles.fieldLabel}>
+                Color
+                <input style={styles.formInput} value={selectedApp.color} onChange={(event) => setSelectedApp((app) => ({ ...app, color: event.target.value }))} />
+              </label>
+              <label style={styles.fieldLabel}>
+                Sort Order
+                <input style={styles.formInput} inputMode="numeric" value={selectedApp.sortOrder} onChange={(event) => setSelectedApp((app) => ({ ...app, sortOrder: event.target.value.replace(/\D/g, "") }))} />
+              </label>
+              <label style={{ ...styles.fieldLabel, ...styles.fullWidthField }}>
+                Description
+                <input style={styles.formInput} value={selectedApp.description} onChange={(event) => setSelectedApp((app) => ({ ...app, description: event.target.value }))} />
+              </label>
+              <label style={styles.checkboxRow}>
+                <input type="checkbox" checked={selectedApp.isGloballyEnabled} onChange={(event) => setSelectedApp((app) => ({ ...app, isGloballyEnabled: event.target.checked }))} />
+                Available in student App Store
+              </label>
+            </div>
+            <div style={styles.modalActions}>
+              <button style={styles.secondaryActionButton} type="button" onClick={() => setSelectedApp(null)}>
+                Cancel
+              </button>
+              <button style={styles.primaryActionButton} type="submit" disabled={Boolean(saving)}>
+                <Save size={16} />
+                {saving ? "Saving..." : "Save App"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function getInitials(value = "") {
+  const parts = String(value || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return "OU";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
+}
+
+function getAppTone(value = "") {
+  const palette = ["#2563eb", "#0f766e", "#e86a1f", "#7c3aed", "#be123c", "#334155"];
+  const index = String(value || "A")
+    .split("")
+    .reduce((total, character) => total + character.charCodeAt(0), 0) % palette.length;
+  return palette[index];
 }
 
 function AdminPlatformManagement({ activeTool, platform }) {
@@ -868,6 +1429,166 @@ const styles = {
     fontSize: 13,
     fontWeight: 700,
   },
+  orgSummaryPills: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "flex-end",
+  },
+  directoryToolbar: {
+    marginBottom: 14,
+  },
+  directorySearch: {
+    background: "#f8fafc",
+    border: "1px solid rgba(148, 163, 184, 0.28)",
+    borderRadius: 12,
+    color: "#162033",
+    font: "inherit",
+    fontWeight: 700,
+    outline: "none",
+    padding: "11px 13px",
+    width: "min(420px, 100%)",
+  },
+  emptyDirectory: {
+    background: "#f8fafc",
+    border: "1px solid rgba(148, 163, 184, 0.22)",
+    borderRadius: 14,
+    color: "#667085",
+    fontWeight: 800,
+    padding: 14,
+  },
+  organizationList: {
+    display: "grid",
+    gap: 12,
+  },
+  organizationCard: {
+    background: "#f8fafc",
+    border: "1px solid rgba(148, 163, 184, 0.22)",
+    borderRadius: 16,
+    color: "inherit",
+    cursor: "pointer",
+    display: "grid",
+    font: "inherit",
+    gap: 12,
+    padding: 14,
+    textAlign: "left",
+  },
+  organizationCardActive: {
+    background: "#eef2ff",
+    borderColor: "rgba(79, 70, 229, 0.28)",
+  },
+  organizationHeader: {
+    alignItems: "start",
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  organizationName: {
+    color: "#162033",
+    fontSize: 18,
+    margin: 0,
+  },
+  organizationMeta: {
+    color: "#667085",
+    fontSize: 13,
+    fontWeight: 800,
+    marginTop: 5,
+  },
+  organizationUsers: {
+    display: "grid",
+    gap: 8,
+  },
+  organizationMore: {
+    color: "#667085",
+    fontSize: 12,
+    fontWeight: 900,
+    padding: "2px 4px 0",
+  },
+  organizationUserRow: {
+    alignItems: "center",
+    background: "#ffffff",
+    border: "1px solid rgba(148, 163, 184, 0.2)",
+    borderRadius: 14,
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "42px minmax(0, 1fr) auto",
+    padding: 10,
+  },
+  userAvatar: {
+    alignItems: "center",
+    background: "#eef2ff",
+    borderRadius: 13,
+    color: "#3730a3",
+    display: "flex",
+    fontSize: 12,
+    fontWeight: 950,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  organizationUserMain: {
+    display: "grid",
+    gap: 2,
+    minWidth: 0,
+  },
+  userBadges: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "flex-end",
+  },
+  rolePill: {
+    background: "#e0f2fe",
+    borderRadius: 999,
+    color: "#075985",
+    fontSize: 11,
+    fontWeight: 900,
+    padding: "5px 8px",
+    textTransform: "capitalize",
+  },
+  statusPill: {
+    background: "#f1f5f9",
+    borderRadius: 999,
+    color: "#475467",
+    fontSize: 11,
+    fontWeight: 900,
+    padding: "5px 8px",
+    textTransform: "capitalize",
+  },
+  workspaceDetail: {
+    display: "grid",
+    gap: 16,
+  },
+  workspaceMetrics: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  },
+  workspaceSection: {
+    display: "grid",
+    gap: 10,
+  },
+  workspaceSectionTitle: {
+    color: "#162033",
+    fontSize: 16,
+    margin: 0,
+  },
+  workspaceRows: {
+    display: "grid",
+    gap: 8,
+  },
+  workspaceRow: {
+    alignItems: "center",
+    background: "#f8fafc",
+    border: "1px solid rgba(148, 163, 184, 0.22)",
+    borderRadius: 14,
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    padding: 11,
+  },
   platformGrid: {
     display: "grid",
     gap: 12,
@@ -1029,5 +1750,185 @@ const styles = {
     padding: 12,
     textAlign: "left",
     textDecoration: "none",
+  },
+  primaryActionButton: {
+    alignItems: "center",
+    background: "#4f46e5",
+    border: 0,
+    borderRadius: 12,
+    color: "#ffffff",
+    cursor: "pointer",
+    display: "inline-flex",
+    font: "inherit",
+    fontWeight: 900,
+    gap: 8,
+    minHeight: 38,
+    padding: "0 13px",
+  },
+  secondaryActionButton: {
+    alignItems: "center",
+    background: "#f8fafc",
+    border: "1px solid rgba(148, 163, 184, 0.28)",
+    borderRadius: 12,
+    color: "#475467",
+    cursor: "pointer",
+    display: "inline-flex",
+    font: "inherit",
+    fontWeight: 900,
+    gap: 8,
+    minHeight: 38,
+    padding: "0 13px",
+  },
+  systemAppGrid: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+  },
+  systemAppCard: {
+    alignItems: "center",
+    background: "#f8fafc",
+    border: "1px solid rgba(148, 163, 184, 0.22)",
+    borderRadius: 14,
+    color: "inherit",
+    cursor: "pointer",
+    display: "grid",
+    font: "inherit",
+    gap: 12,
+    gridTemplateColumns: "52px minmax(0, 1fr) auto",
+    padding: 12,
+    textAlign: "left",
+  },
+  systemAppIcon: {
+    alignItems: "center",
+    borderRadius: 14,
+    color: "#fff",
+    display: "flex",
+    fontSize: 13,
+    fontWeight: 950,
+    height: 52,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 52,
+  },
+  systemAppIconLarge: {
+    alignItems: "center",
+    borderRadius: 18,
+    color: "#fff",
+    display: "flex",
+    fontSize: 18,
+    fontWeight: 950,
+    height: 72,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 72,
+  },
+  systemAppLogo: {
+    height: "100%",
+    objectFit: "contain",
+    width: "100%",
+  },
+  systemAppMain: {
+    display: "grid",
+    gap: 3,
+    minWidth: 0,
+  },
+  modalOverlay: {
+    alignItems: "center",
+    background: "rgba(15,23,42,0.36)",
+    bottom: 0,
+    display: "flex",
+    justifyContent: "center",
+    left: 0,
+    padding: 18,
+    position: "fixed",
+    right: 0,
+    top: 0,
+    zIndex: 60,
+  },
+  systemAppModal: {
+    background: "#ffffff",
+    border: "1px solid rgba(148, 163, 184, 0.32)",
+    borderRadius: 18,
+    boxShadow: "0 24px 80px rgba(15,23,42,0.24)",
+    display: "grid",
+    gap: 14,
+    maxHeight: "calc(100vh - 36px)",
+    maxWidth: 760,
+    overflow: "auto",
+    padding: 18,
+    width: "100%",
+  },
+  modalHeader: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "space-between",
+  },
+  modalTitle: {
+    fontSize: 20,
+    margin: 0,
+  },
+  iconActionButton: {
+    alignItems: "center",
+    background: "#f8fafc",
+    border: "1px solid rgba(148, 163, 184, 0.24)",
+    borderRadius: 12,
+    color: "#475467",
+    cursor: "pointer",
+    display: "inline-flex",
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  logoEditor: {
+    alignItems: "center",
+    background: "#f8fafc",
+    border: "1px solid rgba(148, 163, 184, 0.22)",
+    borderRadius: 14,
+    display: "flex",
+    gap: 12,
+    justifyContent: "space-between",
+    padding: 12,
+  },
+  hiddenFileInput: {
+    display: "none",
+  },
+  systemAppForm: {
+    display: "grid",
+    gap: 12,
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  },
+  fieldLabel: {
+    color: "#475467",
+    display: "grid",
+    fontSize: 12,
+    fontWeight: 900,
+    gap: 6,
+  },
+  fullWidthField: {
+    gridColumn: "1 / -1",
+  },
+  formInput: {
+    background: "#ffffff",
+    border: "1px solid rgba(148, 163, 184, 0.32)",
+    borderRadius: 12,
+    color: "#162033",
+    font: "inherit",
+    fontWeight: 800,
+    minHeight: 42,
+    outline: "none",
+    padding: "0 11px",
+  },
+  checkboxRow: {
+    alignItems: "center",
+    color: "#475467",
+    display: "flex",
+    fontSize: 13,
+    fontWeight: 900,
+    gap: 8,
+  },
+  modalActions: {
+    display: "flex",
+    gap: 10,
+    justifyContent: "flex-end",
   },
 };

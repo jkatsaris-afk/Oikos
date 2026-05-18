@@ -864,8 +864,10 @@ const styles = {
   menuButton: {
     alignItems: "center",
     background: "#ffffff",
-    border: "1px solid #dbe4f0",
+    borderColor: "#dbe4f0",
     borderRadius: 12,
+    borderStyle: "solid",
+    borderWidth: 1,
     color: "#334155",
     cursor: "pointer",
     display: "flex",

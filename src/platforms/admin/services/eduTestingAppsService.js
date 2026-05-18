@@ -55,12 +55,16 @@ function normalizeTestingApp(row = {}, index = 0) {
 function mergeBuiltInApps(apps = []) {
   const normalizedApps = apps.map(normalizeTestingApp).filter((app) => app.id);
   const appById = new Map(normalizedApps.map((app) => [app.id, app]));
+  const builtInIds = new Set(BUILT_IN_EDU_TESTING_APPS.map((app) => app.id));
 
-  return BUILT_IN_EDU_TESTING_APPS.map((builtIn, index) => ({
-    ...builtIn,
-    ...(appById.get(builtIn.id) || {}),
-    sortOrder: Number(appById.get(builtIn.id)?.sortOrder ?? builtIn.sortOrder ?? index),
-  })).sort((first, second) => first.sortOrder - second.sortOrder || first.name.localeCompare(second.name));
+  return [
+    ...BUILT_IN_EDU_TESTING_APPS.map((builtIn, index) => ({
+      ...builtIn,
+      ...(appById.get(builtIn.id) || {}),
+      sortOrder: Number(appById.get(builtIn.id)?.sortOrder ?? builtIn.sortOrder ?? index),
+    })),
+    ...normalizedApps.filter((app) => !builtInIds.has(app.id)),
+  ].sort((first, second) => first.sortOrder - second.sortOrder || first.name.localeCompare(second.name));
 }
 
 export async function fetchEduTestingAppCatalog() {

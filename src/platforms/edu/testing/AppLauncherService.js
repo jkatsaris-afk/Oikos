@@ -33,7 +33,7 @@ export const defaultTestingApps = [
 
 export function normalizeTestingApp(app = {}, index = 0) {
   const name = String(app.name || "").trim();
-  const launchUrl = String(app.launchUrl || app.url || "").trim();
+  const launchUrl = String(app.launchUrl || app.launch_url || app.url || "").trim();
 
   return {
     id: String(app.id || name || `testing-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"),

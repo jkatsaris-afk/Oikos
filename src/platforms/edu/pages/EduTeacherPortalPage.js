@@ -55,7 +55,20 @@ function formatSeen(value = "") {
 }
 
 function getInitials(value = "") {
-  return String(value || "S").trim().charAt(0).toUpperCase();
+  return String(value || "S")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "S";
+}
+
+function getIconTone(name = "") {
+  const palette = ["#2563eb", "#0f766e", "#e86a1f", "#7c3aed", "#be123c", "#334155"];
+  const index = String(name || "A")
+    .split("")
+    .reduce((total, character) => total + character.charCodeAt(0), 0) % palette.length;
+  return palette[index];
 }
 
 function normalizePin(value = "") {
@@ -501,8 +514,18 @@ export default function EduTeacherPortalPage() {
                 {apps.map((app) => (
                   <div key={app.id} style={styles.appStoreTileWrap}>
                     <button style={styles.appStoreTile} type="button" onClick={() => handleEditApp(app)}>
-                      <span style={{ ...styles.studentAppIcon, background: app.color || "var(--color-primary)" }}>
-                        {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
+                      <span
+                        style={{
+                          ...styles.studentAppIcon,
+                          background: app.logoUrl ? "transparent" : app.color || getIconTone(app.name),
+                          boxShadow: app.logoUrl ? "none" : styles.studentAppIcon.boxShadow,
+                        }}
+                      >
+                        {app.logoUrl ? (
+                          <img src={app.logoUrl} alt="" style={styles.markImage} />
+                        ) : (
+                          getInitials(app.name)
+                        )}
                       </span>
                       <strong>{app.name}</strong>
                       <span>{app.url}</span>
@@ -518,7 +541,15 @@ export default function EduTeacherPortalPage() {
                     </button>
                   </div>
                 ))}
-                {apps.length === 0 ? <div style={styles.muted}>No Student App Store websites yet.</div> : null}
+                {apps.length === 0 ? (
+                  <div style={styles.appShelfEmpty}>
+                    <span style={styles.appShelfEmptyIcon}>
+                      <AppWindow size={20} />
+                    </span>
+                    <strong style={styles.appShelfEmptyTitle}>No apps created yet</strong>
+                    <span style={styles.appShelfEmptyText}>Use Add to create the first classroom website or tool.</span>
+                  </div>
+                ) : null}
               </div>
             </section>
           ) : null}
@@ -874,8 +905,10 @@ const styles = {
   navButton: {
     alignItems: "center",
     background: "rgba(var(--color-primary-rgb),0.08)",
-    border: "1px solid rgba(var(--color-primary-rgb),0.10)",
+    borderColor: "rgba(var(--color-primary-rgb),0.10)",
     borderRadius: 999,
+    borderStyle: "solid",
+    borderWidth: 1,
     color: "var(--color-primary-dark)",
     cursor: "pointer",
     display: "flex",
@@ -1153,6 +1186,38 @@ const styles = {
     overflow: "hidden",
     width: 72,
   },
+  appShelfEmpty: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.56)",
+    border: "1px dashed rgba(15,23,42,0.16)",
+    borderRadius: 18,
+    color: "#64748b",
+    display: "grid",
+    gap: 8,
+    gridColumn: "1 / -1",
+    justifyItems: "center",
+    minHeight: 148,
+    padding: 18,
+    textAlign: "center",
+  },
+  appShelfEmptyIcon: {
+    alignItems: "center",
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    borderRadius: 16,
+    color: "var(--color-primary-dark)",
+    display: "inline-flex",
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  appShelfEmptyTitle: {
+    color: "#0f172a",
+    fontSize: 15,
+  },
+  appShelfEmptyText: {
+    fontSize: 13,
+    fontWeight: 700,
+  },
   tileDeleteButton: {
     alignItems: "center",
     background: "#fff1f2",
@@ -1244,7 +1309,7 @@ const styles = {
   },
   markImage: {
     height: "100%",
-    objectFit: "cover",
+    objectFit: "contain",
     width: "100%",
   },
   detailStack: {

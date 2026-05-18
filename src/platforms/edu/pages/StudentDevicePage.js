@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
+  Battery,
+  BatteryCharging,
+  Check,
   FlaskConical,
   Home,
   Info,
@@ -8,8 +11,11 @@ import {
   LogOut,
   Palette,
   Plus,
+  Search,
   Settings,
   Store,
+  Wifi,
+  WifiOff,
   X,
 } from "lucide-react";
 
@@ -34,6 +40,9 @@ const DESKTOP_SLOT_COUNT = 48;
 const DESKTOP_SLOT_WIDTH = 112;
 const DESKTOP_SLOT_HEIGHT = 130;
 const DESKTOP_SLOT_GAP = 18;
+const SCREEN_CLOSE_LOGOUT_DRIFT_MS = 45000;
+const SCREEN_CLOSE_HIDDEN_LOGOUT_MS = 30000;
+const SCREEN_CLOSE_CHECK_MS = 10000;
 const SETTINGS_TABS = [
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "pin", label: "PIN", icon: KeyRound },
@@ -152,7 +161,7 @@ function normalizeTestingApps(apps = []) {
       ...app,
       id: String(app.id || app.name || `testing-${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
       name: String(app.name || "").trim(),
-      launchUrl: String(app.launchUrl || app.url || "").trim(),
+      launchUrl: String(app.launchUrl || app.launch_url || app.url || "").trim(),
       logoUrl: String(app.logoUrl || app.logo_url || app.iconUrl || app.imageUrl || app.logo || "").trim(),
       sortOrder: Number(app.sortOrder || index),
       isActive: app.isActive !== false,
@@ -160,14 +169,24 @@ function normalizeTestingApps(apps = []) {
     .filter((app) => app.name && app.launchUrl);
 }
 
-function hasTestingAppLogos(apps = []) {
-  return normalizeTestingApps(apps).some((app) => app.logoUrl);
+function mergeTestingAppsForAccount(primaryApps = [], fallbackApps = []) {
+  const primaryTestingApps = normalizeTestingApps(primaryApps);
+  const fallbackTestingApps = normalizeTestingApps(fallbackApps);
+
+  if (primaryTestingApps.length === 0) return fallbackTestingApps;
+
+  const fallbackById = new Map(fallbackTestingApps.map((app) => [app.id, app]));
+  return primaryTestingApps.map((app) => {
+    const fallbackApp = fallbackById.get(app.id);
+    return {
+      ...app,
+      logoUrl: app.logoUrl || fallbackApp?.logoUrl || "",
+    };
+  });
 }
 
 function mergeAccountForStudentDevice(primary = {}, fallback = {}) {
   const deviceBackground = mergeDeviceBackground(primary?.deviceBackground, fallback?.deviceBackground);
-  const primaryTestingApps = normalizeTestingApps(primary?.testingApps);
-  const fallbackTestingApps = normalizeTestingApps(fallback?.testingApps);
   return {
     ...(fallback || {}),
     ...(primary || {}),
@@ -182,9 +201,7 @@ function mergeAccountForStudentDevice(primary = {}, fallback = {}) {
       : Array.isArray(fallback?.deviceDockAppIds)
         ? fallback.deviceDockAppIds
         : [],
-    testingApps: hasTestingAppLogos(primaryTestingApps) || fallbackTestingApps.length === 0
-      ? primaryTestingApps
-      : fallbackTestingApps,
+    testingApps: mergeTestingAppsForAccount(primary?.testingApps, fallback?.testingApps),
   };
 }
 
@@ -228,6 +245,21 @@ function getInitials(name = "A") {
     .join("") || "A";
 }
 
+function getIconTone(name = "") {
+  const palette = [
+    ["#2563eb", "#dbeafe"],
+    ["#0f766e", "#ccfbf1"],
+    ["#e86a1f", "#ffedd5"],
+    ["#7c3aed", "#ede9fe"],
+    ["#be123c", "#ffe4e6"],
+    ["#334155", "#e2e8f0"],
+  ];
+  const index = String(name || "A")
+    .split("")
+    .reduce((total, character) => total + character.charCodeAt(0), 0) % palette.length;
+  return palette[index];
+}
+
 function getDefaultDeviceName() {
   if (typeof window === "undefined") return "Student Chromebook";
   const stored = window.localStorage.getItem("oikos.edu.studentDevice.name");
@@ -239,21 +271,221 @@ function getNetworkInfo() {
     return {
       online: true,
       type: "Unknown",
+      rawType: "",
       effectiveType: "Unknown",
+      rawEffectiveType: "",
       downlink: "Unknown",
+      downlinkMbps: null,
+      downlinkMax: "Unknown",
+      downlinkMaxMbps: null,
+      rtt: "Unknown",
+      rttMs: null,
       saveData: "Off",
+      saveDataEnabled: false,
+      connectionApi: "Unavailable",
     };
   }
 
   const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
+  const hasConnectionApi = Boolean(connection.effectiveType || connection.type || typeof connection.downlink === "number");
 
   return {
     online: navigator.onLine,
     type: connection.type || "Unknown",
+    rawType: connection.type || "",
     effectiveType: connection.effectiveType || "Unknown",
+    rawEffectiveType: connection.effectiveType || "",
     downlink: typeof connection.downlink === "number" ? `${connection.downlink} Mbps` : "Unknown",
+    downlinkMbps: typeof connection.downlink === "number" ? connection.downlink : null,
+    downlinkMax: typeof connection.downlinkMax === "number" ? `${connection.downlinkMax} Mbps` : "Unknown",
+    downlinkMaxMbps: typeof connection.downlinkMax === "number" ? connection.downlinkMax : null,
+    rtt: typeof connection.rtt === "number" ? `${connection.rtt} ms` : "Unknown",
+    rttMs: typeof connection.rtt === "number" ? connection.rtt : null,
     saveData: connection.saveData ? "On" : "Off",
+    saveDataEnabled: Boolean(connection.saveData),
+    connectionApi: hasConnectionApi ? "Available" : "Unavailable",
   };
+}
+
+function getScreenTelemetry() {
+  if (typeof window === "undefined" || typeof window.screen === "undefined") {
+    return {};
+  }
+
+  return {
+    width: window.screen.width || null,
+    height: window.screen.height || null,
+    availableWidth: window.screen.availWidth || null,
+    availableHeight: window.screen.availHeight || null,
+    colorDepth: window.screen.colorDepth || null,
+    pixelDepth: window.screen.pixelDepth || null,
+    viewportWidth: window.innerWidth || null,
+    viewportHeight: window.innerHeight || null,
+    devicePixelRatio: Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : null,
+  };
+}
+
+function getBrowserTelemetry() {
+  if (typeof navigator === "undefined") return {};
+  const timezone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone || "" : "";
+
+  return {
+    userAgent: navigator.userAgent || "",
+    platform: navigator.platform || "",
+    vendor: navigator.vendor || "",
+    language: navigator.language || "",
+    languages: Array.isArray(navigator.languages) ? navigator.languages.slice(0, 6) : [],
+    timezone,
+    hardwareConcurrency: Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : null,
+    deviceMemoryGb: Number.isFinite(navigator.deviceMemory) ? navigator.deviceMemory : null,
+    cookieEnabled: Boolean(navigator.cookieEnabled),
+    doNotTrack: navigator.doNotTrack || "",
+    maxTouchPoints: Number.isFinite(navigator.maxTouchPoints) ? navigator.maxTouchPoints : null,
+  };
+}
+
+function normalizeCandidateAddress(address) {
+  const cleanAddress = String(address || "").trim();
+  if (!cleanAddress || cleanAddress === "0.0.0.0") return "";
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(cleanAddress)) return cleanAddress;
+  if (/^[a-f0-9:]{3,}$/i.test(cleanAddress) && cleanAddress.includes(":")) return cleanAddress;
+  return "";
+}
+
+function discoverLocalIpAddresses() {
+  if (typeof window === "undefined" || typeof window.RTCPeerConnection !== "function") {
+    return Promise.resolve([]);
+  }
+
+  return new Promise((resolve) => {
+    const addresses = new Set();
+    const peerConnection = new window.RTCPeerConnection({ iceServers: [] });
+    let resolved = false;
+
+    function finish() {
+      if (resolved) return;
+      resolved = true;
+      try {
+        peerConnection.close();
+      } catch {
+        // Closing can throw in older browser implementations.
+      }
+      resolve(Array.from(addresses));
+    }
+
+    const timeout = window.setTimeout(finish, 1400);
+    peerConnection.onicecandidate = (event) => {
+      if (!event.candidate) {
+        window.clearTimeout(timeout);
+        finish();
+        return;
+      }
+
+      const candidate = event.candidate.candidate || "";
+      const matches = candidate.match(/(?:\d{1,3}\.){3}\d{1,3}|[a-f0-9:]{3,}/gi) || [];
+      matches.map(normalizeCandidateAddress).filter(Boolean).forEach((address) => addresses.add(address));
+    };
+
+    try {
+      peerConnection.createDataChannel("oikos-device-info");
+      peerConnection.createOffer()
+        .then((offer) => peerConnection.setLocalDescription(offer))
+        .catch(() => {
+          window.clearTimeout(timeout);
+          finish();
+        });
+    } catch {
+      window.clearTimeout(timeout);
+      finish();
+    }
+  });
+}
+
+async function fetchPublicIpAddress() {
+  if (typeof fetch !== "function") return "";
+
+  const controller = typeof AbortController === "function" ? new AbortController() : null;
+  const timeout = typeof window !== "undefined" && controller
+    ? window.setTimeout(() => controller.abort(), 2500)
+    : null;
+
+  try {
+    const response = await fetch("https://api.ipify.org?format=json", {
+      signal: controller?.signal,
+      cache: "no-store",
+    });
+    if (!response.ok) return "";
+    const data = await response.json();
+    return String(data?.ip || "").trim();
+  } catch {
+    return "";
+  } finally {
+    if (timeout) window.clearTimeout(timeout);
+  }
+}
+
+function getDeviceTelemetry({
+  networkInfo,
+  batteryInfo,
+  batteryPercent,
+  localIpAddresses,
+  publicIpAddress,
+}) {
+  return {
+    capturedAt: new Date().toISOString(),
+    publicIpAddress,
+    publicIpStatus: publicIpAddress ? "Available" : "Unavailable",
+    localIpAddresses,
+    localIpStatus: localIpAddresses.length ? "Available" : "Unavailable",
+    network: {
+      online: Boolean(networkInfo.online),
+      type: networkInfo.rawType || "",
+      effectiveType: networkInfo.rawEffectiveType || "",
+      downlinkMbps: networkInfo.downlinkMbps,
+      downlinkMaxMbps: networkInfo.downlinkMaxMbps,
+      rttMs: networkInfo.rttMs,
+      saveData: Boolean(networkInfo.saveDataEnabled),
+      connectionApi: networkInfo.connectionApi,
+    },
+    battery: {
+      supported: Boolean(batteryInfo.supported),
+      charging: Boolean(batteryInfo.supported && batteryInfo.charging),
+      percent: batteryPercent,
+      chargingTimeSeconds: Number.isFinite(batteryInfo.chargingTime) ? batteryInfo.chargingTime : null,
+      dischargingTimeSeconds: Number.isFinite(batteryInfo.dischargingTime) ? batteryInfo.dischargingTime : null,
+    },
+    browser: getBrowserTelemetry(),
+    screen: getScreenTelemetry(),
+    page: {
+      visibilityState: typeof document !== "undefined" ? document.visibilityState || "" : "",
+      url: typeof window !== "undefined" ? window.location.href : "",
+    },
+  };
+}
+
+function formatBatteryTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds === Infinity || seconds < 0) return "Unknown";
+  if (seconds === 0) return "Ready";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
+}
+
+function getInitialBatteryInfo() {
+  return {
+    supported: false,
+    charging: false,
+    level: null,
+    chargingTime: Infinity,
+    dischargingTime: Infinity,
+  };
+}
+
+function isMissingEnrollmentError(error) {
+  const message = String(error?.message || error?.details || "").toLowerCase();
+  return message.includes("device enrollment was not found");
 }
 
 function getAdaptiveDesktopSlotCount() {
@@ -282,12 +514,20 @@ export default function StudentDevicePage() {
   const [activeAppId, setActiveAppId] = useState("");
   const [settingsTab, setSettingsTab] = useState("appearance");
   const [networkInfo, setNetworkInfo] = useState(getNetworkInfo);
+  const [showNetworkMenu, setShowNetworkMenu] = useState(false);
+  const [showBatteryMenu, setShowBatteryMenu] = useState(false);
+  const [batteryInfo, setBatteryInfo] = useState(getInitialBatteryInfo);
+  const [localIpAddresses, setLocalIpAddresses] = useState([]);
+  const [publicIpAddress, setPublicIpAddress] = useState("");
   const [draggedAppId, setDraggedAppId] = useState("");
   const [dragOverAppId, setDragOverAppId] = useState("");
   const [selectedMoveAppId, setSelectedMoveAppId] = useState("");
+  const [storeQuery, setStoreQuery] = useState("");
   const [desktopSlotCount, setDesktopSlotCount] = useState(getAdaptiveDesktopSlotCount);
   const movePressTimerRef = useRef(null);
   const moveSelectionJustSetRef = useRef(false);
+  const screenCloseCheckAtRef = useRef(Date.now());
+  const screenHiddenAtRef = useRef(0);
   const [pinDraft, setPinDraft] = useState({
     currentPin: "",
     nextPin: "",
@@ -325,18 +565,24 @@ export default function StudentDevicePage() {
         } catch (refreshError) {
           if (cancelled) return;
           console.warn("Student device enrollment refresh failed:", refreshError);
-          clearStudentDeviceEnrollment();
           clearStudentDeviceSession();
-          setEnrollment(null);
           setSession(null);
           setApps([]);
           setInstalledAppIds([]);
-          setSchoolCode(cleanRouteSchoolCode);
           setStudentName("");
           setPin("");
           setActiveView("home");
           setActiveAppId("");
-          setError("This device was removed from the organization. Add it again to continue.");
+          if (isMissingEnrollmentError(refreshError)) {
+            clearStudentDeviceEnrollment();
+            setEnrollment(null);
+            setSchoolCode(cleanRouteSchoolCode);
+            setError("This device enrollment was removed from the organization. Add it again to continue.");
+          } else {
+            setEnrollment(cachedEnrollment);
+            setSchoolCode(cachedEnrollment.account?.deviceCode || cleanRouteSchoolCode);
+            setError("Could not refresh device enrollment. This device is still enrolled; sign in when the connection is back.");
+          }
           setBootstrapped(true);
           return;
         }
@@ -370,6 +616,61 @@ export default function StudentDevicePage() {
       window.removeEventListener("online", updateNetworkInfo);
       window.removeEventListener("offline", updateNetworkInfo);
       connection?.removeEventListener?.("change", updateNetworkInfo);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    discoverLocalIpAddresses().then((addresses) => {
+      if (!cancelled) setLocalIpAddresses(addresses);
+    });
+    fetchPublicIpAddress().then((address) => {
+      if (!cancelled) setPublicIpAddress(address);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || typeof navigator.getBattery !== "function") {
+      setBatteryInfo(getInitialBatteryInfo());
+      return undefined;
+    }
+
+    let cancelled = false;
+    let batteryManager = null;
+
+    function updateBatteryInfo() {
+      if (!batteryManager || cancelled) return;
+      setBatteryInfo({
+        supported: true,
+        charging: Boolean(batteryManager.charging),
+        level: Number(batteryManager.level),
+        chargingTime: Number(batteryManager.chargingTime),
+        dischargingTime: Number(batteryManager.dischargingTime),
+      });
+    }
+
+    navigator.getBattery().then((manager) => {
+      if (cancelled) return;
+      batteryManager = manager;
+      updateBatteryInfo();
+      manager.addEventListener("chargingchange", updateBatteryInfo);
+      manager.addEventListener("levelchange", updateBatteryInfo);
+      manager.addEventListener("chargingtimechange", updateBatteryInfo);
+      manager.addEventListener("dischargingtimechange", updateBatteryInfo);
+    }).catch(() => {
+      if (!cancelled) setBatteryInfo(getInitialBatteryInfo());
+    });
+
+    return () => {
+      cancelled = true;
+      if (!batteryManager) return;
+      batteryManager.removeEventListener("chargingchange", updateBatteryInfo);
+      batteryManager.removeEventListener("levelchange", updateBatteryInfo);
+      batteryManager.removeEventListener("chargingtimechange", updateBatteryInfo);
+      batteryManager.removeEventListener("dischargingtimechange", updateBatteryInfo);
     };
   }, []);
 
@@ -410,8 +711,17 @@ export default function StudentDevicePage() {
       app: layout[index] && !globalDockAppIdSet.has(layout[index]) ? appMap.get(layout[index]) || null : null,
     }));
   }, [appMap, desktopSlotCount, globalDockAppIdSet, installedAppIds]);
-  const availableApps = apps.filter((app) => !installedAppIdsWithoutHoles.includes(app.id) && !globalDockAppIdSet.has(app.id));
+  const appStoreApps = useMemo(() => {
+    const cleanQuery = storeQuery.trim().toLowerCase();
+    return apps.filter((app) => {
+      if (globalDockAppIdSet.has(app.id)) return false;
+      if (!cleanQuery) return true;
+      return `${app.name || ""} ${app.description || ""} ${app.source || ""}`.toLowerCase().includes(cleanQuery);
+    });
+  }, [apps, globalDockAppIdSet, storeQuery]);
   const dockApps = globalDockAppIds.map((id) => appMap.get(id)).filter(Boolean).slice(0, 3);
+  const batteryPercent = Number.isFinite(batteryInfo.level) ? Math.round(batteryInfo.level * 100) : null;
+  const networkStatusLabel = networkInfo.online ? "Online" : "Offline";
   const orgThemeColor = session?.account?.brandColor || enrollment?.account?.brandColor || "#2563eb";
   const deviceBackground = getDeviceBackground(session?.account || enrollment?.account || {});
   const loginBackground = getLoginBackground(session?.account || enrollment?.account || {});
@@ -426,15 +736,57 @@ export default function StudentDevicePage() {
   };
   const deviceInfoRows = [
     ["Device Name", deviceName || "Student Chromebook"],
-    ["Device ID", enrollment?.deviceToken || "Not enrolled"],
+    ["Device ID", enrollment?.deviceId || "Not enrolled"],
+    ["Device Token", enrollment?.deviceToken || "Not enrolled"],
     ["Org ID", session?.account?.id || enrollment?.account?.id || "Not connected"],
     ["School Code", session?.account?.deviceCode || enrollment?.account?.deviceCode || "Not set"],
     ["Network", networkInfo.online ? "Online" : "Offline"],
     ["Connection Type", networkInfo.type],
-    ["Effective Type", networkInfo.effectiveType],
     ["Downlink", networkInfo.downlink],
+    ["Max Downlink", networkInfo.downlinkMax],
+    ["Round Trip Time", networkInfo.rtt],
     ["Data Saver", networkInfo.saveData],
+    ["Public IP", publicIpAddress || "Unavailable"],
+    ["Local IP", localIpAddresses.length ? localIpAddresses.join(", ") : "Unavailable"],
+    ["Battery", batteryPercent === null ? "Not available" : `${batteryPercent}%`],
+    ["Battery Charging", batteryInfo.supported ? (batteryInfo.charging ? "Yes" : "No") : "Not available"],
+    ["Time to Full", batteryInfo.supported && batteryInfo.charging ? formatBatteryTime(batteryInfo.chargingTime) : "Not charging"],
+    ["Time Remaining", batteryInfo.supported && !batteryInfo.charging ? formatBatteryTime(batteryInfo.dischargingTime) : "Not discharging"],
   ];
+  const networkInfoRows = [
+    ["Status", networkInfo.online ? "Online" : "Offline"],
+    ["Connection API", networkInfo.connectionApi],
+    ["Connection Type", networkInfo.type],
+    ["Downlink", networkInfo.downlink],
+    ["Max Downlink", networkInfo.downlinkMax],
+    ["Round Trip Time", networkInfo.rtt],
+    ["Data Saver", networkInfo.saveData],
+    ["Public IP", publicIpAddress || "Unavailable"],
+    ["Local IP", localIpAddresses.length ? localIpAddresses.join(", ") : "Unavailable"],
+  ];
+  const batteryStatusLabel = !batteryInfo.supported
+    ? "Not available"
+    : batteryInfo.charging
+      ? "Charging"
+      : "On battery";
+  const batteryInfoRows = [
+    ["Battery API", batteryInfo.supported ? "Available" : "Unavailable"],
+    ["Status", batteryStatusLabel],
+    ["Percent", batteryPercent === null ? "Not available" : `${batteryPercent}%`],
+    ["Raw Level", Number.isFinite(batteryInfo.level) ? batteryInfo.level.toFixed(3) : "Not available"],
+    ["Charging", batteryInfo.supported ? (batteryInfo.charging ? "Yes" : "No") : "Not available"],
+    ["Time to Full", batteryInfo.supported && batteryInfo.charging ? formatBatteryTime(batteryInfo.chargingTime) : "Not charging"],
+    ["Time to Full Seconds", batteryInfo.supported && Number.isFinite(batteryInfo.chargingTime) ? batteryInfo.chargingTime : "Unknown"],
+    ["Time Remaining", batteryInfo.supported && !batteryInfo.charging ? formatBatteryTime(batteryInfo.dischargingTime) : "Not discharging"],
+    ["Time Remaining Seconds", batteryInfo.supported && Number.isFinite(batteryInfo.dischargingTime) ? batteryInfo.dischargingTime : "Unknown"],
+  ];
+  const currentDeviceTelemetry = useCallback(() => getDeviceTelemetry({
+    networkInfo,
+    batteryInfo,
+    batteryPercent,
+    localIpAddresses,
+    publicIpAddress,
+  }), [batteryInfo, batteryPercent, localIpAddresses, networkInfo, publicIpAddress]);
 
   useEffect(() => {
     if (!session?.sessionToken) return undefined;
@@ -447,6 +799,7 @@ export default function StudentDevicePage() {
           activeAppId: "",
           activeUrl: "",
           deviceToken: enrollment?.deviceToken || "",
+          deviceInfo: currentDeviceTelemetry(),
         });
       } catch (heartbeatError) {
         console.warn("Student device heartbeat failed:", heartbeatError);
@@ -456,7 +809,7 @@ export default function StudentDevicePage() {
     beat();
     const timer = window.setInterval(beat, 30000);
     return () => window.clearInterval(timer);
-  }, [session?.sessionToken, deviceName, enrollment?.deviceToken]);
+  }, [session?.sessionToken, deviceName, enrollment?.deviceToken, currentDeviceTelemetry]);
 
   useEffect(() => {
     if (!session?.sessionToken) return undefined;
@@ -473,9 +826,7 @@ export default function StudentDevicePage() {
           saveStudentDeviceEnrollment(nextEnrollment);
         } catch (refreshError) {
           console.warn("Student device enrollment refresh failed:", refreshError);
-          clearStudentDeviceEnrollment();
           clearStudentDeviceSession();
-          setEnrollment(null);
           setSession(null);
           setApps([]);
           setInstalledAppIds([]);
@@ -483,8 +834,16 @@ export default function StudentDevicePage() {
           setActiveAppId("");
           setStudentName("");
           setPin("");
-          setSchoolCode("");
-          setError("This device was removed from the organization. Add it again to continue.");
+          if (isMissingEnrollmentError(refreshError)) {
+            clearStudentDeviceEnrollment();
+            setEnrollment(null);
+            setSchoolCode("");
+            setError("This device enrollment was removed from the organization. Add it again to continue.");
+          } else {
+            setEnrollment(enrollment);
+            setSchoolCode(enrollment.account?.deviceCode || "");
+            setError("Could not refresh device enrollment. This device is still enrolled; sign in when the connection is back.");
+          }
           return;
         }
       }
@@ -604,6 +963,78 @@ export default function StudentDevicePage() {
     setPin("");
   }
 
+  function openDeviceNetworkSettings() {
+    setShowNetworkMenu(false);
+    setShowBatteryMenu(false);
+    setSettingsTab("device");
+    setActiveView("settings");
+  }
+
+  function toggleNetworkMenu() {
+    setShowNetworkMenu((current) => {
+      const next = !current;
+      if (next) setShowBatteryMenu(false);
+      return next;
+    });
+  }
+
+  function toggleBatteryMenu() {
+    setShowBatteryMenu((current) => {
+      const next = !current;
+      if (next) setShowNetworkMenu(false);
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    if (!session?.sessionToken) return undefined;
+
+    screenCloseCheckAtRef.current = Date.now();
+    screenHiddenAtRef.current = document.hidden ? Date.now() : 0;
+
+    function signOutForScreenClose() {
+      handleLogout();
+      setError("Signed out because the Chromebook screen was closed or the device went to sleep.");
+    }
+
+    function checkForSleepResume() {
+      const now = Date.now();
+      const elapsed = now - screenCloseCheckAtRef.current;
+      screenCloseCheckAtRef.current = now;
+
+      if (elapsed > SCREEN_CLOSE_LOGOUT_DRIFT_MS) {
+        signOutForScreenClose();
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        screenHiddenAtRef.current = Date.now();
+        return;
+      }
+
+      const hiddenAt = screenHiddenAtRef.current;
+      screenHiddenAtRef.current = 0;
+      screenCloseCheckAtRef.current = Date.now();
+
+      if (hiddenAt && Date.now() - hiddenAt > SCREEN_CLOSE_HIDDEN_LOGOUT_MS) {
+        signOutForScreenClose();
+      }
+    }
+
+    const timer = window.setInterval(checkForSleepResume, SCREEN_CLOSE_CHECK_MS);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", checkForSleepResume);
+    window.addEventListener("pageshow", checkForSleepResume);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", checkForSleepResume);
+      window.removeEventListener("pageshow", checkForSleepResume);
+    };
+  }, [session?.sessionToken]);
+
   useEffect(() => {
     const idleMinutes = Number(session?.account?.idleLogoutMinutes || 0);
     if (!session?.sessionToken || !Number.isFinite(idleMinutes) || idleMinutes <= 0) {
@@ -683,6 +1114,7 @@ export default function StudentDevicePage() {
           activeAppId: appId,
           activeUrl: appUrl,
           deviceToken: enrollment?.deviceToken || "",
+          deviceInfo: currentDeviceTelemetry(),
         });
       }
     } catch (heartbeatError) {
@@ -889,7 +1321,67 @@ export default function StudentDevicePage() {
           </div>
         </div>
         <div style={styles.topActions}>
-          <button style={styles.topButton} onClick={() => setActiveView("settings")} type="button" title="Settings">
+          <div style={styles.statusMenuWrap}>
+            <button
+              style={styles.statusButton}
+              onClick={toggleNetworkMenu}
+              type="button"
+              title="Network information"
+            >
+              {networkInfo.online ? <Wifi size={18} /> : <WifiOff size={18} />}
+              <span>{networkStatusLabel}</span>
+            </button>
+            {showNetworkMenu ? (
+              <div style={styles.networkMenu}>
+                <div style={styles.networkMenuHeader}>
+                  <strong>Network</strong>
+                  <span>{networkInfo.online ? "Online" : "Offline"}</span>
+                </div>
+                <div style={styles.networkInfoList}>
+                  {networkInfoRows.map(([label, value]) => (
+                    <div key={label} style={styles.networkInfoRow}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+                <button style={styles.networkMenuAction} type="button" onClick={openDeviceNetworkSettings}>
+                  Device Info
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <div style={styles.statusMenuWrap}>
+            <button
+              style={styles.statusButton}
+              onClick={toggleBatteryMenu}
+              type="button"
+              title="Battery information"
+            >
+              {batteryInfo.charging ? <BatteryCharging size={18} /> : <Battery size={18} />}
+              <span>{batteryPercent === null ? "--" : `${batteryPercent}%`}</span>
+            </button>
+            {showBatteryMenu ? (
+              <div style={styles.networkMenu}>
+                <div style={styles.networkMenuHeader}>
+                  <strong>Battery</strong>
+                  <span>{batteryStatusLabel}</span>
+                </div>
+                <div style={styles.networkInfoList}>
+                  {batteryInfoRows.map(([label, value]) => (
+                    <div key={label} style={styles.networkInfoRow}>
+                      <span>{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+                <button style={styles.networkMenuAction} type="button" onClick={openDeviceNetworkSettings}>
+                  Device Info
+                </button>
+              </div>
+            ) : null}
+          </div>
+          <button style={styles.topButton} onClick={() => { setShowNetworkMenu(false); setShowBatteryMenu(false); setActiveView("settings"); }} type="button" title="Settings">
             <Settings size={18} />
           </button>
           <button style={styles.topButton} onClick={handleLogout} type="button" title="Sign out">
@@ -963,8 +1455,18 @@ export default function StudentDevicePage() {
                   }}
                   type="button"
                 >
-                  <span style={styles.tileIcon}>
-                    {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.tileImage} /> : getInitials(app.name)}
+                  <span
+                    style={{
+                      ...styles.tileIcon,
+                      background: app.logoUrl ? "transparent" : getIconTone(app.name)[0],
+                      boxShadow: app.logoUrl ? "none" : styles.tileIcon.boxShadow,
+                    }}
+                  >
+                    {app.logoUrl ? (
+                      <img src={app.logoUrl} alt="" style={styles.tileImage} />
+                    ) : (
+                      getInitials(app.name)
+                    )}
                   </span>
                   <span style={styles.tileLabel}>{app.name}</span>
                 </button>
@@ -1002,22 +1504,53 @@ export default function StudentDevicePage() {
         {activeView === "store" ? (
           <div style={styles.centerPanel}>
             <div style={styles.panelTop}>
-              <h2 style={styles.panelTitle}>App Store</h2>
+              <div>
+                <h2 style={styles.panelTitle}>App Store</h2>
+                <p style={styles.panelSubtitle}>Find apps for your desktop.</p>
+              </div>
               <button style={styles.closeButton} onClick={() => setActiveView("home")} type="button" title="Close">
                 <X size={18} />
               </button>
             </div>
+            <label style={styles.storeSearch}>
+              <Search size={18} />
+              <input
+                aria-label="Search App Store"
+                placeholder="Search apps"
+                style={styles.storeSearchInput}
+                type="search"
+                value={storeQuery}
+                onChange={(event) => setStoreQuery(event.target.value)}
+              />
+            </label>
             <div style={styles.storeGrid}>
-              {availableApps.map((app) => (
-                <button key={app.id} style={styles.storeItem} onClick={() => installApp(app.id)} type="button">
-                  <span style={styles.storeIcon}>
-                    {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.tileImage} /> : getInitials(app.name)}
+              {appStoreApps.map((app) => {
+                const installed = installedAppIdsWithoutHoles.includes(app.id);
+                return (
+                <article key={app.id} style={styles.storeItem}>
+                  <span style={{ ...styles.storeIcon, background: app.logoUrl ? "transparent" : getIconTone(app.name)[0] }}>
+                    {app.logoUrl ? (
+                      <img src={app.logoUrl} alt="" style={styles.tileImage} />
+                    ) : (
+                      getInitials(app.name)
+                    )}
                   </span>
-                  <strong>{app.name}</strong>
-                  <Plus size={18} />
-                </button>
-              ))}
-              {availableApps.length === 0 ? <div style={styles.emptyText}>No more apps available.</div> : null}
+                  <div style={styles.storeItemMain}>
+                    <strong>{app.name}</strong>
+                    <span>{app.isSystem ? "System app" : app.description || "School app"}</span>
+                  </div>
+                  <button
+                    style={installed ? styles.removeStoreButton : styles.addStoreButton}
+                    onClick={() => (installed ? removeApp(app.id) : installApp(app.id))}
+                    type="button"
+                  >
+                    {installed ? <Check size={16} /> : <Plus size={16} />}
+                    {installed ? "Installed" : "Add"}
+                  </button>
+                </article>
+                );
+              })}
+              {appStoreApps.length === 0 ? <div style={styles.emptyText}>No apps matched that search.</div> : null}
             </div>
           </div>
         ) : null}
@@ -1167,8 +1700,12 @@ export default function StudentDevicePage() {
                       <div style={styles.installedList}>
                         {installedApps.map((app) => (
                           <div key={app.id} style={styles.installedRow}>
-                            <span style={{ ...styles.storeIcon, ...styles.installedIcon }}>
-                              {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.tileImage} /> : getInitials(app.name)}
+                            <span style={{ ...styles.storeIcon, ...styles.installedIcon, background: app.logoUrl ? "transparent" : getIconTone(app.name)[0] }}>
+                              {app.logoUrl ? (
+                                <img src={app.logoUrl} alt="" style={styles.tileImage} />
+                              ) : (
+                                getInitials(app.name)
+                              )}
                             </span>
                             <strong>{app.name}</strong>
                             <button style={styles.removeButton} onClick={() => removeApp(app.id)} type="button">
@@ -1217,8 +1754,12 @@ export default function StudentDevicePage() {
         </button>
         {dockApps.map((app) => (
           <button key={app.id} style={{ ...styles.dockButton, ...styles.dockAppButton }} onClick={() => openApp(app.id)} type="button">
-            <span style={styles.dockIcon}>
-              {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.dockImage} /> : getInitials(app.name)}
+            <span style={{ ...styles.dockIcon, background: app.logoUrl ? "transparent" : getIconTone(app.name)[0] }}>
+              {app.logoUrl ? (
+                <img src={app.logoUrl} alt="" style={styles.dockImage} />
+              ) : (
+                getInitials(app.name)
+              )}
             </span>
             <span>{app.name}</span>
           </button>
@@ -1401,6 +1942,72 @@ const styles = {
     justifyContent: "center",
     width: 36,
   },
+  statusButton: {
+    alignItems: "center",
+    background: "rgba(15,23,42,0.06)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 14,
+    color: "#0f172a",
+    cursor: "pointer",
+    display: "inline-flex",
+    font: "inherit",
+    fontSize: 12,
+    fontWeight: 900,
+    gap: 7,
+    height: 36,
+    justifyContent: "center",
+    minWidth: 58,
+    padding: "0 10px",
+  },
+  statusMenuWrap: {
+    position: "relative",
+  },
+  networkMenu: {
+    background: "rgba(255,255,255,0.92)",
+    backdropFilter: "blur(18px) saturate(1.12)",
+    WebkitBackdropFilter: "blur(18px) saturate(1.12)",
+    border: "1px solid rgba(15,23,42,0.10)",
+    borderRadius: 18,
+    boxShadow: "0 18px 46px rgba(15,23,42,0.18)",
+    display: "grid",
+    gap: 12,
+    padding: 12,
+    position: "absolute",
+    right: 0,
+    top: 44,
+    width: 292,
+    zIndex: 45,
+  },
+  networkMenuHeader: {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "space-between",
+  },
+  networkInfoList: {
+    display: "grid",
+    gap: 7,
+  },
+  networkInfoRow: {
+    alignItems: "center",
+    background: "rgba(15,23,42,0.04)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    borderRadius: 12,
+    display: "grid",
+    gap: 8,
+    gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+    padding: "8px 10px",
+  },
+  networkMenuAction: {
+    background: "rgba(var(--color-primary-rgb),0.10)",
+    border: "1px solid rgba(var(--color-primary-rgb),0.12)",
+    borderRadius: 12,
+    color: "var(--color-primary-dark)",
+    cursor: "pointer",
+    font: "inherit",
+    fontSize: 13,
+    fontWeight: 900,
+    minHeight: 36,
+  },
   windowArea: {
     height: "calc(100dvh - 206px)",
     margin: "0 auto",
@@ -1511,7 +2118,7 @@ const styles = {
     overflow: "hidden",
     width: 64,
   },
-  tileImage: { height: "100%", objectFit: "cover", width: "100%" },
+  tileImage: { height: "100%", objectFit: "contain", width: "100%" },
   tileLabel: { fontSize: 13, fontWeight: 800, maxWidth: 96, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   centerPanel: {
     background: "rgba(255,255,255,0.72)",
@@ -1599,6 +2206,7 @@ const styles = {
     padding: 0,
   },
   panelTitle: { fontSize: 18, margin: 0 },
+  panelSubtitle: { color: "#64748b", fontSize: 13, fontWeight: 800, margin: "4px 0 0" },
   closeButton: {
     alignItems: "center",
     background: "rgba(var(--color-primary-rgb),0.10)",
@@ -1611,18 +2219,77 @@ const styles = {
     justifyContent: "center",
     width: 36,
   },
-  storeGrid: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))" },
+  storeSearch: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.78)",
+    border: "1px solid rgba(15,23,42,0.10)",
+    borderRadius: 16,
+    boxSizing: "border-box",
+    color: "#64748b",
+    display: "flex",
+    gap: 10,
+    marginBottom: 14,
+    padding: "0 12px",
+  },
+  storeSearchInput: {
+    background: "transparent",
+    border: 0,
+    color: "#0f172a",
+    flex: 1,
+    font: "inherit",
+    fontSize: 15,
+    fontWeight: 800,
+    minHeight: 46,
+    outline: "none",
+  },
+  storeGrid: { display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))" },
   storeItem: {
     alignItems: "center",
     background: "rgba(255,255,255,0.64)",
     border: "1px solid rgba(15,23,42,0.08)",
     borderRadius: 18,
-    cursor: "pointer",
     display: "grid",
     gap: 8,
     justifyItems: "center",
-    minHeight: 142,
+    minHeight: 178,
     padding: 12,
+  },
+  storeItemMain: {
+    display: "grid",
+    gap: 3,
+    justifyItems: "center",
+    minWidth: 0,
+    textAlign: "center",
+  },
+  addStoreButton: {
+    alignItems: "center",
+    background: "var(--color-primary)",
+    border: 0,
+    borderRadius: 999,
+    color: "#fff",
+    cursor: "pointer",
+    display: "inline-flex",
+    font: "inherit",
+    fontSize: 13,
+    fontWeight: 900,
+    gap: 6,
+    minHeight: 36,
+    padding: "0 14px",
+  },
+  removeStoreButton: {
+    alignItems: "center",
+    background: "rgba(15,23,42,0.08)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 999,
+    color: "#0f172a",
+    cursor: "pointer",
+    display: "inline-flex",
+    font: "inherit",
+    fontSize: 13,
+    fontWeight: 900,
+    gap: 6,
+    minHeight: 36,
+    padding: "0 14px",
   },
   storeIcon: {
     alignItems: "center",
@@ -1900,12 +2567,12 @@ const styles = {
     display: "inline-flex",
     fontSize: 10,
     fontWeight: 900,
-    height: 24,
+    height: 30,
     justifyContent: "center",
     overflow: "hidden",
-    width: 24,
+    width: 30,
   },
-  dockImage: { borderRadius: 10, height: 24, objectFit: "cover", width: 24 },
+  dockImage: { height: "100%", objectFit: "contain", width: "100%" },
   saving: {
     background: "rgba(15,23,42,0.82)",
     borderRadius: 8,

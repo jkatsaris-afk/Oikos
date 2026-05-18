@@ -52,6 +52,7 @@ import {
   saveEduTestingApps,
   sendEduTeacherPasswordReset,
   syncEduChromeGuardPolicy,
+  uploadEduDeviceAppLogo,
   uploadEduDeviceBackgroundImage,
 } from "../services/studentDeviceService";
 
@@ -84,6 +85,96 @@ function normalizeHexColor(value = "") {
       .join("")}`;
   }
   return "";
+}
+
+function getInitials(name = "A") {
+  return String(name || "A")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "A";
+}
+
+function getIconTone(name = "") {
+  const palette = [
+    ["#2563eb", "#dbeafe"],
+    ["#0f766e", "#ccfbf1"],
+    ["#e86a1f", "#ffedd5"],
+    ["#7c3aed", "#ede9fe"],
+    ["#be123c", "#ffe4e6"],
+    ["#334155", "#e2e8f0"],
+  ];
+  const index = String(name || "A")
+    .split("")
+    .reduce((total, character) => total + character.charCodeAt(0), 0) % palette.length;
+  return palette[index];
+}
+
+function formatBoolean(value) {
+  if (value === true) return "Yes";
+  if (value === false) return "No";
+  return "Unknown";
+}
+
+function formatTelemetrySeconds(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "Unknown";
+  if (seconds === 0) return "Ready";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
+}
+
+function formatTelemetryDate(value) {
+  if (!value) return "Not available";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not available";
+  return date.toLocaleString();
+}
+
+function getDeviceTelemetryRows(deviceInfo = {}) {
+  if (!deviceInfo || Object.keys(deviceInfo).length === 0) {
+    return [["Device Report", "No report received yet"]];
+  }
+
+  const network = deviceInfo.network || {};
+  const battery = deviceInfo.battery || {};
+  const browser = deviceInfo.browser || {};
+  const screen = deviceInfo.screen || {};
+  const localIpAddresses = Array.isArray(deviceInfo.localIpAddresses) ? deviceInfo.localIpAddresses : [];
+  const screenSize = screen.width && screen.height ? `${screen.width} x ${screen.height}` : "Unknown";
+  const viewportSize = screen.viewportWidth && screen.viewportHeight ? `${screen.viewportWidth} x ${screen.viewportHeight}` : "Unknown";
+
+  return [
+    ["Public IP", deviceInfo.publicIpAddress || "Unavailable"],
+    ["Public IP Status", deviceInfo.publicIpStatus || "Unavailable"],
+    ["Local IP", localIpAddresses.length ? localIpAddresses.join(", ") : "Unavailable"],
+    ["Local IP Status", deviceInfo.localIpStatus || "Unavailable"],
+    ["Network Online", formatBoolean(network.online)],
+    ["Connection Type", network.type || "Unknown"],
+    ["Downlink", Number.isFinite(network.downlinkMbps) ? `${network.downlinkMbps} Mbps` : "Unknown"],
+    ["Max Downlink", Number.isFinite(network.downlinkMaxMbps) ? `${network.downlinkMaxMbps} Mbps` : "Unknown"],
+    ["Round Trip Time", Number.isFinite(network.rttMs) ? `${network.rttMs} ms` : "Unknown"],
+    ["Data Saver", formatBoolean(network.saveData)],
+    ["Connection API", network.connectionApi || "Unavailable"],
+    ["Battery", Number.isFinite(battery.percent) ? `${battery.percent}%` : "Not available"],
+    ["Battery Charging", battery.supported ? formatBoolean(battery.charging) : "Not available"],
+    ["Time to Full", battery.supported && battery.charging ? formatTelemetrySeconds(battery.chargingTimeSeconds) : "Not charging"],
+    ["Time Remaining", battery.supported && !battery.charging ? formatTelemetrySeconds(battery.dischargingTimeSeconds) : "Not discharging"],
+    ["Browser Platform", browser.platform || "Unknown"],
+    ["Browser Vendor", browser.vendor || "Unknown"],
+    ["Language", browser.language || "Unknown"],
+    ["Timezone", browser.timezone || "Unknown"],
+    ["CPU Cores", Number.isFinite(browser.hardwareConcurrency) ? browser.hardwareConcurrency : "Unknown"],
+    ["Device Memory", Number.isFinite(browser.deviceMemoryGb) ? `${browser.deviceMemoryGb} GB` : "Unknown"],
+    ["Touch Points", Number.isFinite(browser.maxTouchPoints) ? browser.maxTouchPoints : "Unknown"],
+    ["Screen", screenSize],
+    ["Viewport", viewportSize],
+    ["Device Pixel Ratio", Number.isFinite(screen.devicePixelRatio) ? screen.devicePixelRatio : "Unknown"],
+    ["Last Device Report", formatTelemetryDate(deviceInfo.capturedAt)],
+  ];
 }
 
 const EMPTY_TEACHER = {
@@ -232,6 +323,82 @@ function csvRowsToObjects(text = "") {
   }));
 }
 
+function AppShelf({
+  title,
+  subtitle,
+  apps = [],
+  emptyTitle = "No apps yet",
+  emptyText,
+  action = null,
+  onEdit,
+  onDelete,
+  saving = "",
+}) {
+  return (
+    <section style={styles.panel}>
+      <div style={styles.panelHeader}>
+        <div>
+          <h2 style={styles.panelTitle}>{title}</h2>
+          {subtitle ? <div style={styles.rowSub}>{subtitle}</div> : null}
+        </div>
+        {action}
+      </div>
+      <div style={styles.appStoreGrid}>
+        {apps.map((app) => (
+          <div key={app.id} style={styles.appStoreTileWrap}>
+            <button
+              style={{ ...styles.appStoreTile, cursor: onEdit ? "pointer" : "default" }}
+              type="button"
+              onClick={onEdit ? () => onEdit(app) : undefined}
+              disabled={!onEdit}
+            >
+              <span
+                style={{
+                  ...styles.studentAppIcon,
+                  ...styles.defaultAppMark,
+                  background: app.logoUrl ? "transparent" : app.color || getIconTone(app.name)[0],
+                  boxShadow: app.logoUrl ? "none" : styles.studentAppIcon.boxShadow,
+                }}
+              >
+                {app.logoUrl ? (
+                  <img src={app.logoUrl} alt="" style={styles.markImageContain} />
+                ) : (
+                  getInitials(app.name)
+                )}
+              </span>
+              <strong>{app.name}</strong>
+            </button>
+            {onDelete ? (
+              <button
+                style={styles.tileDeleteButton}
+                type="button"
+                disabled={saving === `app:${app.id}`}
+                onClick={() => onDelete(app.id)}
+                title="Delete"
+              >
+                <Trash2 size={17} />
+              </button>
+            ) : null}
+          </div>
+        ))}
+        {apps.length === 0 ? <AppShelfEmptyState title={emptyTitle} text={emptyText} /> : null}
+      </div>
+    </section>
+  );
+}
+
+function AppShelfEmptyState({ title, text }) {
+  return (
+    <div style={styles.appShelfEmpty}>
+      <span style={styles.appShelfEmptyIcon}>
+        <AppWindow size={20} />
+      </span>
+      <strong style={styles.appShelfEmptyTitle}>{title}</strong>
+      {text ? <span style={styles.appShelfEmptyText}>{text}</span> : null}
+    </div>
+  );
+}
+
 function parseBoolean(value = "", fallback = true) {
   const clean = String(value || "").trim().toLowerCase();
   if (!clean) return fallback;
@@ -268,6 +435,7 @@ export default function EduAdminPage() {
   const [dockDraft, setDockDraft] = useState([]);
   const [chromeDraft, setChromeDraft] = useState(EMPTY_CHROME_EXTENSION);
   const [allowedHostDraft, setAllowedHostDraft] = useState("");
+  const [showChromeConfigForm, setShowChromeConfigForm] = useState(false);
   const [showChromeSetupGuide, setShowChromeSetupGuide] = useState(false);
   const [showTestingSetupGuide, setShowTestingSetupGuide] = useState(false);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
@@ -290,14 +458,14 @@ export default function EduAdminPage() {
     ? `${baseStudentDeviceUrl}/${workspace.account.deviceCode}`
     : baseStudentDeviceUrl;
 
-  function getAutomaticAllowedHosts(apps = workspace?.apps || []) {
+  function getAutomaticAllowedHosts(apps = dockApps || []) {
     return [
       extractHost(studentDeviceUrl),
       ...apps.map((app) => extractHost(app.url)),
     ].filter(Boolean);
   }
 
-  function getChromeSettingsWithAppHosts(settings = chromeDraft, apps = workspace?.apps || []) {
+  function getChromeSettingsWithAppHosts(settings = chromeDraft, apps = dockApps || []) {
     return {
       ...settings,
       allowedHosts: Array.from(new Set([...(settings.allowedHosts || []), ...getAutomaticAllowedHosts(apps)])),
@@ -420,18 +588,39 @@ export default function EduAdminPage() {
     [workspace?.students]
   );
 
-  const appMap = useMemo(
-    () => new Map((workspace?.apps || []).map((app) => [app.id, app])),
+  const systemApps = workspace?.systemApps || [];
+  const adminApps = useMemo(
+    () => (workspace?.apps || []).filter((app) => !app.createdByTeacherId),
     [workspace?.apps]
   );
+  const teacherApps = useMemo(
+    () => (workspace?.apps || []).filter((app) => app.createdByTeacherId),
+    [workspace?.apps]
+  );
+  const dockApps = useMemo(
+    () => [...systemApps, ...(workspace?.apps || [])].filter((app) => app.isActive !== false),
+    [systemApps, workspace?.apps]
+  );
+  const appMap = useMemo(
+    () => new Map(dockApps.map((app) => [app.id, app])),
+    [dockApps]
+  );
+  const appInstallAnalytics = workspace?.appInstallAnalytics || [];
 
   const approvedChromeHosts = useMemo(
     () => getChromeSettingsWithAppHosts(chromeDraft).allowedHosts,
-    [chromeDraft, workspace?.apps, studentDeviceUrl]
+    [chromeDraft, dockApps, studentDeviceUrl]
   );
   const automaticChromeHostSet = useMemo(
     () => new Set(getAutomaticAllowedHosts()),
-    [workspace?.apps, studentDeviceUrl]
+    [dockApps, studentDeviceUrl]
+  );
+  const automaticChromeApps = useMemo(
+    () =>
+      dockApps
+        .map((app) => ({ ...app, host: extractHost(app.url) }))
+        .filter((app) => app.host),
+    [dockApps]
   );
 
   const teacherStudentMap = useMemo(() => {
@@ -613,6 +802,25 @@ export default function EduAdminPage() {
       await reload();
     } catch (saveError) {
       setError(saveError?.message || "Could not save website.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleAppLogoUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !workspace?.account?.id) return;
+
+    setSaving("app-logo-upload");
+    setError("");
+    setNotice("");
+    try {
+      const logoUrl = await uploadEduDeviceAppLogo(workspace.account, file);
+      setAppDraft((current) => ({ ...current, logoUrl }));
+      setNotice("App logo uploaded. Save the app to use it.");
+    } catch (uploadError) {
+      setError(uploadError?.message || "Could not upload app logo.");
     } finally {
       setSaving("");
     }
@@ -1079,6 +1287,7 @@ export default function EduAdminPage() {
         },
       }));
       await syncChromePolicyAfterEdit("Chrome guard settings saved.");
+      setShowChromeConfigForm(false);
     } catch (saveError) {
       setError(saveError?.message || "Could not save Chrome guard settings.");
     } finally {
@@ -1386,6 +1595,33 @@ export default function EduAdminPage() {
             placeholder="https://..."
           />
         </label>
+        <div style={styles.logoUploadPanel}>
+          <span
+            style={{
+              ...styles.appMark,
+              ...styles.defaultAppMark,
+              background: appDraft.logoUrl ? "transparent" : getIconTone(appDraft.name)[0],
+              boxShadow: appDraft.logoUrl ? "none" : undefined,
+            }}
+          >
+            {appDraft.logoUrl ? (
+              <img src={appDraft.logoUrl} alt="" style={styles.markImageContain} />
+            ) : (
+              getInitials(appDraft.name || "App")
+            )}
+          </span>
+          <label style={styles.uploadButton}>
+            <Upload size={16} />
+            {saving === "app-logo-upload" ? "Uploading..." : "Upload Logo"}
+            <input
+              style={styles.hiddenFileInput}
+              type="file"
+              accept="image/*"
+              disabled={saving === "app-logo-upload"}
+              onChange={handleAppLogoUpload}
+            />
+          </label>
+        </div>
         <label style={{ ...styles.checkboxLabel, alignSelf: "end" }}>
           <input
             type="checkbox"
@@ -1521,6 +1757,100 @@ export default function EduAdminPage() {
   ];
   const loginBackgroundUsesDevice = loginBackgroundDraft.useDeviceBackground !== false;
   const loginBackgroundPreview = loginBackgroundUsesDevice ? backgroundDraft : loginBackgroundDraft;
+  const chromeConfigurationForm = (
+    <form style={styles.modalPanel} onSubmit={handleSaveChromeExtension}>
+      <div style={styles.panelHeader}>
+        <div>
+          <h2 style={styles.panelTitle}>Filtering Configuration</h2>
+          <div style={styles.rowSub}>Connect Chrome Guard to the Google Admin policy target.</div>
+        </div>
+        <button style={styles.iconButton} type="button" onClick={() => setShowChromeConfigForm(false)} title="Close">
+          <X size={17} />
+        </button>
+      </div>
+      <div style={styles.chromeGrid}>
+        <label style={styles.label}>
+          Student Home URL
+          <input
+            style={styles.input}
+            value={chromeDraft.oikosHomeUrl}
+            onChange={(event) => setChromeDraft((current) => ({ ...current, oikosHomeUrl: event.target.value }))}
+            placeholder={studentDeviceUrl}
+          />
+        </label>
+        <label style={styles.label}>
+          Google Customer ID
+          <input
+            style={styles.input}
+            value={chromeDraft.googleCustomerId}
+            onChange={(event) => setChromeDraft((current) => ({ ...current, googleCustomerId: event.target.value }))}
+            placeholder="C012abcde"
+          />
+        </label>
+        <label style={styles.label}>
+          Google Admin Email
+          <input
+            style={styles.input}
+            value={chromeDraft.googleAdminEmail}
+            onChange={(event) => setChromeDraft((current) => ({ ...current, googleAdminEmail: event.target.value }))}
+            placeholder="admin@school.org"
+          />
+        </label>
+        <label style={styles.label}>
+          Org Unit Path
+          <input
+            style={styles.input}
+            value={chromeDraft.googleOrgUnitPath}
+            onChange={(event) => setChromeDraft((current) => ({ ...current, googleOrgUnitPath: event.target.value }))}
+            placeholder="/Students"
+          />
+        </label>
+        <label style={styles.label}>
+          Extension ID
+          <input
+            style={styles.input}
+            value={chromeDraft.extensionId}
+            onChange={(event) => setChromeDraft((current) => ({ ...current, extensionId: event.target.value }))}
+            placeholder="abcdefghijklmnopabcdefghijklmnop"
+          />
+        </label>
+        <label style={styles.label}>
+          Install URL
+          <input
+            style={styles.input}
+            value={chromeDraft.extensionUpdateUrl}
+            onChange={(event) => setChromeDraft((current) => ({ ...current, extensionUpdateUrl: event.target.value }))}
+            placeholder="https://clients2.google.com/service/update2/crx"
+          />
+        </label>
+        <label style={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={chromeDraft.blockUnknownHosts !== false}
+            onChange={(event) => setChromeDraft((current) => ({ ...current, blockUnknownHosts: event.target.checked }))}
+          />
+          Block unknown sites
+        </label>
+        <label style={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={chromeDraft.overlayEnabled !== false}
+            onChange={(event) => setChromeDraft((current) => ({ ...current, overlayEnabled: event.target.checked }))}
+          />
+          Oikos return bar
+        </label>
+      </div>
+      <div style={styles.actionGroup}>
+        <button style={styles.secondaryButton} type="button" onClick={() => setShowChromeConfigForm(false)}>
+          Cancel
+        </button>
+        <button style={styles.primaryButton} disabled={saving === "chrome-extension"} type="submit">
+          <Save size={16} />
+          {saving === "chrome-extension" ? "Saving..." : "Save Configuration"}
+        </button>
+      </div>
+    </form>
+  );
 
   return (
     <main style={{ ...styles.page, ...(isPhone ? styles.pagePhone : {}) }}>
@@ -1619,36 +1949,62 @@ export default function EduAdminPage() {
           ) : null}
 
           {activeSection === "apps" ? (
-            <section style={styles.panel}>
-              <div style={styles.panelHeader}>
-                <h2 style={styles.panelTitle}>Student App Store</h2>
-                <button style={styles.primaryButton} type="button" onClick={handleAddApp}>
-                  <Plus size={16} />
-                  Add
-                </button>
-              </div>
-              <div style={styles.appStoreGrid}>
-                {workspace.apps.map((app) => (
-                  <div key={app.id} style={styles.appStoreTileWrap}>
-                    <button style={styles.appStoreTile} type="button" onClick={() => handleEditApp(app)}>
-                      <span style={{ ...styles.studentAppIcon, background: app.color || "var(--color-primary)" }}>
-                        {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
-                      </span>
-                      <strong>{app.name}</strong>
-                    </button>
-                    <button
-                      style={styles.tileDeleteButton}
-                      type="button"
-                      disabled={saving === `app:${app.id}`}
-                      onClick={() => handleDeleteApp(app.id)}
-                      title="Delete"
-                    >
-                      <Trash2 size={17} />
-                    </button>
+            <section style={styles.appManagementStack}>
+              <section style={styles.panel}>
+                <div style={styles.panelHeader}>
+                  <div>
+                    <h2 style={styles.panelTitle}>App Install Analytics</h2>
+                    <div style={styles.rowSub}>Counts show apps currently installed on student desktops.</div>
                   </div>
-                ))}
-                {workspace.apps.length === 0 ? <div style={styles.emptyState}>No Student App Store websites yet.</div> : null}
-              </div>
+                </div>
+                <div style={styles.appAnalyticsGrid}>
+                  {appInstallAnalytics.slice(0, 6).map((item) => (
+                    <div key={item.appId} style={styles.appAnalyticsCard}>
+                      <strong>{item.installCount}</strong>
+                      <span>{item.appName}</span>
+                    </div>
+                  ))}
+                  {appInstallAnalytics.length === 0 ? (
+                    <div style={styles.emptyState}>No student app installs have been saved yet.</div>
+                  ) : null}
+                </div>
+              </section>
+
+              <AppShelf
+                title="Global System Apps"
+                subtitle="Platform-managed apps available to every school."
+                apps={systemApps}
+                emptyTitle="No global apps available"
+                emptyText="Enabled platform apps will appear here automatically."
+              />
+
+              <AppShelf
+                title="Admin Created Apps"
+                subtitle="Apps created by this organization’s EDU admins."
+                apps={adminApps}
+                emptyTitle="No apps created yet"
+                emptyText="Use Add to create the first website or tool for this school."
+                onEdit={handleEditApp}
+                onDelete={handleDeleteApp}
+                saving={saving}
+                action={
+                  <button style={styles.primaryButton} type="button" onClick={handleAddApp}>
+                    <Plus size={16} />
+                    Add
+                  </button>
+                }
+              />
+
+              <AppShelf
+                title="Teacher Created Apps"
+                subtitle="Apps created from the teacher portal."
+                apps={teacherApps}
+                emptyTitle="No apps created yet"
+                emptyText="Teacher-created classroom links will appear here."
+                onEdit={handleEditApp}
+                onDelete={handleDeleteApp}
+                saving={saving}
+              />
             </section>
           ) : null}
 
@@ -1665,8 +2021,18 @@ export default function EduAdminPage() {
               <div style={styles.list}>
                 {(workspace.account.testingApps || []).map((app) => (
                   <div key={app.id} style={styles.testingAppRow}>
-                    <div style={{ ...styles.appMark, background: "var(--color-primary)" }}>
-                      {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImageContain} /> : <FlaskConical size={22} />}
+                    <div
+                      style={{
+                        ...styles.appMark,
+                        ...styles.defaultAppMark,
+                        background: app.logoUrl ? "transparent" : getIconTone(app.name)[0],
+                      }}
+                    >
+                      {app.logoUrl ? (
+                        <img src={app.logoUrl} alt="" style={styles.markImageContain} />
+                      ) : (
+                        getInitials(app.name)
+                      )}
                     </div>
                     <div style={styles.rowMain}>
                       <strong>{app.name}</strong>
@@ -2219,7 +2585,23 @@ export default function EduAdminPage() {
                   </span>
                   <span style={styles.devicePaneText}>
                     <strong>Device Settings</strong>
-                    <small>Backgrounds, dock tiles, and Chrome Guard.</small>
+                    <small>Backgrounds, dock tiles, and session security.</small>
+                  </span>
+                </button>
+                <button
+                  style={{
+                    ...styles.devicePaneTile,
+                    ...(devicePane === "filtering" ? styles.devicePaneTileActive : {}),
+                  }}
+                  type="button"
+                  onClick={() => setDevicePane("filtering")}
+                >
+                  <span style={styles.devicePaneIcon}>
+                    <Globe2 size={24} />
+                  </span>
+                  <span style={styles.devicePaneText}>
+                    <strong>Filtering</strong>
+                    <small>Chrome Guard allowed sites and Google policy.</small>
                   </span>
                 </button>
                 <button
@@ -2424,8 +2806,8 @@ export default function EduAdminPage() {
                         {app?.logoUrl ? (
                           <img src={app.logoUrl} alt="" style={styles.dockPreviewImage} />
                         ) : (
-                          <span style={{ ...styles.dockPreviewMark, background: app?.color || "var(--color-primary)" }}>
-                            {(app?.name || "A").charAt(0)}
+                          <span style={{ ...styles.dockPreviewMark, background: app?.color || getIconTone(app?.name)[0] }}>
+                            {getInitials(app?.name || "App")}
                           </span>
                         )}
                         <span>{app?.name || "App"}</span>
@@ -2437,7 +2819,7 @@ export default function EduAdminPage() {
                   <span style={styles.dockPreviewHome}>Store</span>
                 </div>
                 <div style={styles.dockTileGrid}>
-                  {(workspace.apps || []).map((app) => {
+                  {dockApps.map((app) => {
                     const selected = dockDraft.includes(app.id);
                     const disabled = !selected && dockDraft.length >= 3;
                     return (
@@ -2452,17 +2834,27 @@ export default function EduAdminPage() {
                         disabled={disabled || saving === "dock-tiles"}
                         onClick={() => handleToggleDockApp(app.id)}
                       >
-                        <span style={{ ...styles.appMark, background: app.color }}>
-                          {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.markImage} /> : app.name.charAt(0)}
+                        <span
+                          style={{
+                            ...styles.appMark,
+                            ...styles.defaultAppMark,
+                            background: app.logoUrl ? "transparent" : app.color || getIconTone(app.name)[0],
+                          }}
+                        >
+                          {app.logoUrl ? (
+                            <img src={app.logoUrl} alt="" style={styles.markImageContain} />
+                          ) : (
+                            getInitials(app.name)
+                          )}
                         </span>
                         <span style={styles.rowMain}>
                           <strong>{app.name}</strong>
-                          <span style={styles.rowSub}>{selected ? "Shown in dock" : "Available"}</span>
+                          <span style={styles.rowSub}>{selected ? "Shown in dock" : app.isSystem ? "Global system app" : "Available"}</span>
                         </span>
                       </button>
                     );
                   })}
-                  {(workspace.apps || []).length === 0 ? <div style={styles.emptyState}>Add apps before choosing dock tiles.</div> : null}
+                  {dockApps.length === 0 ? <div style={styles.emptyState}>Add apps before choosing dock tiles.</div> : null}
                 </div>
               </section>
               <form style={styles.chromeForm} onSubmit={handleSaveDeviceSecurity}>
@@ -2503,137 +2895,124 @@ export default function EduAdminPage() {
                   Student sessions are also cleared when Oikos OS reloads, so students must sign in again after a refresh or reboot.
                 </div>
               </form>
-              <form style={styles.chromeForm} onSubmit={handleSaveChromeExtension}>
-                <div style={styles.panelHeader}>
-                  <div>
-                    <h3 style={styles.subPanelTitle}>Chrome Guard</h3>
-                    <div style={styles.rowSub}>Managed extension policy for student browsing.</div>
-                  </div>
-                  <button style={styles.primaryButton} disabled={saving === "chrome-extension"} type="submit">
-                    <Save size={16} />
-                    Save Guard
-                  </button>
-                  <button
-                    style={styles.secondaryButton}
-                    type="button"
-                    onClick={() => setShowChromeSetupGuide(true)}
-                  >
-                    Setup Guide
-                  </button>
-                  <button
-                    style={styles.secondaryButton}
-                    disabled={saving === "chrome-policy-sync"}
-                    type="button"
-                    onClick={handleSyncChromePolicy}
-                  >
-                    <RefreshCw size={16} />
-                    Push to Google
-                  </button>
-                </div>
-                <div style={styles.chromeGrid}>
-                  <label style={styles.label}>
-                    Student Home URL
-                    <input
-                      style={styles.input}
-                      value={chromeDraft.oikosHomeUrl}
-                      onChange={(event) => setChromeDraft((current) => ({ ...current, oikosHomeUrl: event.target.value }))}
-                      placeholder={studentDeviceUrl}
-                    />
-                  </label>
-                  <label style={styles.label}>
-                    Google Customer ID
-                    <input
-                      style={styles.input}
-                      value={chromeDraft.googleCustomerId}
-                      onChange={(event) => setChromeDraft((current) => ({ ...current, googleCustomerId: event.target.value }))}
-                      placeholder="C012abcde"
-                    />
-                  </label>
-                  <label style={styles.label}>
-                    Google Admin Email
-                    <input
-                      style={styles.input}
-                      value={chromeDraft.googleAdminEmail}
-                      onChange={(event) => setChromeDraft((current) => ({ ...current, googleAdminEmail: event.target.value }))}
-                      placeholder="admin@school.org"
-                    />
-                  </label>
-                  <label style={styles.label}>
-                    Org Unit Path
-                    <input
-                      style={styles.input}
-                      value={chromeDraft.googleOrgUnitPath}
-                      onChange={(event) => setChromeDraft((current) => ({ ...current, googleOrgUnitPath: event.target.value }))}
-                      placeholder="/Students"
-                    />
-                  </label>
-                  <label style={styles.label}>
-                    Extension ID
-                    <input
-                      style={styles.input}
-                      value={chromeDraft.extensionId}
-                      onChange={(event) => setChromeDraft((current) => ({ ...current, extensionId: event.target.value }))}
-                      placeholder="abcdefghijklmnopabcdefghijklmnop"
-                    />
-                  </label>
-                  <label style={styles.label}>
-                    Install URL
-                    <input
-                      style={styles.input}
-                      value={chromeDraft.extensionUpdateUrl}
-                      onChange={(event) => setChromeDraft((current) => ({ ...current, extensionUpdateUrl: event.target.value }))}
-                      placeholder="https://clients2.google.com/service/update2/crx"
-                    />
-                  </label>
-                  <label style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={chromeDraft.blockUnknownHosts !== false}
-                      onChange={(event) => setChromeDraft((current) => ({ ...current, blockUnknownHosts: event.target.checked }))}
-                    />
-                    Block unknown sites
-                  </label>
-                  <label style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={chromeDraft.overlayEnabled !== false}
-                      onChange={(event) => setChromeDraft((current) => ({ ...current, overlayEnabled: event.target.checked }))}
-                    />
-                    Oikos return bar
-                  </label>
-                </div>
-                <div style={styles.allowedHostTools}>
-                  <input
-                    style={styles.input}
-                    value={allowedHostDraft}
-                    onChange={(event) => setAllowedHostDraft(event.target.value)}
-                    placeholder="clever.com or *.school.org"
-                  />
-                  <button style={styles.secondaryButton} type="button" onClick={() => addAllowedHost(allowedHostDraft)}>
-                    <Plus size={16} />
-                    Add Host
-                  </button>
-                </div>
-                <div style={styles.hostChipList}>
-                  {approvedChromeHosts.map((host) => {
-                    const automatic = automaticChromeHostSet.has(host);
-                    return (
-                    <button
-                      key={host}
-                      style={{ ...styles.hostChip, ...(automatic ? styles.hostChipLocked : {}) }}
-                      type="button"
-                      disabled={automatic}
-                      onClick={() => removeAllowedHost(host)}
-                      title={automatic ? "Added from Oikos or app store" : "Remove host"}
-                    >
-                      {host}
-                      {automatic ? <span style={styles.hostChipTag}>Auto</span> : <X size={14} />}
-                    </button>
-                    );
-                  })}
-                </div>
-              </form>
                 </>
+              ) : null}
+              {devicePane === "filtering" ? (
+                <form style={styles.chromeForm} onSubmit={handleSaveChromeExtension}>
+                  <div style={styles.panelHeader}>
+                    <div>
+                      <h3 style={styles.subPanelTitle}>Filtering</h3>
+                      <div style={styles.rowSub}>Chrome Guard allows Oikos plus every active app automatically.</div>
+                    </div>
+                    <div style={styles.actionGroup}>
+                      <button style={styles.secondaryButton} type="button" onClick={() => setShowChromeConfigForm(true)}>
+                        <Settings size={16} />
+                        Configuration
+                      </button>
+                      <button style={styles.secondaryButton} type="button" onClick={() => setShowChromeSetupGuide(true)}>
+                        Setup Guide
+                      </button>
+                      <button
+                        style={styles.secondaryButton}
+                        disabled={saving === "chrome-policy-sync"}
+                        type="button"
+                        onClick={handleSyncChromePolicy}
+                      >
+                        <RefreshCw size={16} />
+                        Push to Google
+                      </button>
+                      <button style={styles.primaryButton} disabled={saving === "chrome-extension"} type="submit">
+                        <Save size={16} />
+                        {saving === "chrome-extension" ? "Saving..." : "Save Filtering"}
+                      </button>
+                    </div>
+                  </div>
+                  <div style={styles.filteringSummaryGrid}>
+                    <div style={styles.deviceMetricCard}>
+                      <span style={styles.summaryLabel}>Automatic Hosts</span>
+                      <strong style={styles.summaryValue}>{automaticChromeHostSet.size}</strong>
+                    </div>
+                    <div style={styles.deviceMetricCard}>
+                      <span style={styles.summaryLabel}>App Sources</span>
+                      <strong style={styles.summaryValue}>{automaticChromeApps.length}</strong>
+                    </div>
+                    <div style={styles.deviceMetricCard}>
+                      <span style={styles.summaryLabel}>Custom Hosts</span>
+                      <strong style={styles.summaryValue}>
+                        {(chromeDraft.allowedHosts || []).filter((host) => !automaticChromeHostSet.has(host)).length}
+                      </strong>
+                    </div>
+                  </div>
+                  <section style={styles.filteringPanel}>
+                    <div>
+                      <h4 style={styles.filteringTitle}>Automatically Allowed From Apps</h4>
+                      <div style={styles.rowSub}>Any active global, admin-created, or teacher-created app is included in Chrome Guard.</div>
+                    </div>
+                    <div style={styles.filteringAppGrid}>
+                      {automaticChromeApps.map((app) => (
+                        <div key={app.id} style={styles.filteringAppRow}>
+                          <span
+                            style={{
+                              ...styles.appMark,
+                              ...styles.defaultAppMark,
+                              background: app.logoUrl ? "transparent" : app.color || getIconTone(app.name)[0],
+                            }}
+                          >
+                            {app.logoUrl ? (
+                              <img src={app.logoUrl} alt="" style={styles.markImageContain} />
+                            ) : (
+                              getInitials(app.name)
+                            )}
+                          </span>
+                          <span style={styles.rowMain}>
+                            <strong>{app.name}</strong>
+                            <span style={styles.rowSub}>{app.host}</span>
+                          </span>
+                          <span style={styles.hostChipTag}>Auto</span>
+                        </div>
+                      ))}
+                      {automaticChromeApps.length === 0 ? (
+                        <AppShelfEmptyState title="No app hosts yet" text="Active student apps will be allowed here automatically." />
+                      ) : null}
+                    </div>
+                  </section>
+                  <section style={styles.filteringPanel}>
+                    <div>
+                      <h4 style={styles.filteringTitle}>Custom Allowed Hosts</h4>
+                      <div style={styles.rowSub}>Add school domains, learning tools, or wildcard hosts that are not tied to an app.</div>
+                    </div>
+                    <div style={styles.allowedHostTools}>
+                      <input
+                        style={styles.input}
+                        value={allowedHostDraft}
+                        onChange={(event) => setAllowedHostDraft(event.target.value)}
+                        placeholder="clever.com or *.school.org"
+                      />
+                      <button style={styles.secondaryButton} type="button" onClick={() => addAllowedHost(allowedHostDraft)}>
+                        <Plus size={16} />
+                        Add Host
+                      </button>
+                    </div>
+                    <div style={styles.hostChipList}>
+                      {approvedChromeHosts.map((host) => {
+                        const automatic = automaticChromeHostSet.has(host);
+                        return (
+                          <button
+                            key={host}
+                            style={{ ...styles.hostChip, ...(automatic ? styles.hostChipLocked : {}) }}
+                            type="button"
+                            disabled={automatic}
+                            onClick={() => removeAllowedHost(host)}
+                            title={automatic ? "Added from Oikos or app store" : "Remove host"}
+                          >
+                            {host}
+                            {automatic ? <span style={styles.hostChipTag}>Auto</span> : <X size={14} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </form>
               ) : null}
               {devicePane === "devices" ? (
                 selectedDevice ? (
@@ -2673,6 +3052,7 @@ export default function EduAdminPage() {
                         ["Last Seen", formatSeen(selectedDevice.lastSeenAt)],
                         ["Created", selectedDevice.createdAt ? new Date(selectedDevice.createdAt).toLocaleString() : "Not available"],
                         ["Updated", selectedDevice.updatedAt ? new Date(selectedDevice.updatedAt).toLocaleString() : "Not available"],
+                        ...getDeviceTelemetryRows(selectedDevice.deviceInfo),
                       ].map(([label, value]) => (
                         <div key={label} style={styles.deviceDetailRow}>
                           <span>{label}</span>
@@ -2737,6 +3117,13 @@ export default function EduAdminPage() {
         <div style={styles.modalOverlay} role="presentation" onMouseDown={handleCancelAppEdit}>
           <div role="dialog" aria-modal="true" aria-label="Student app form" onMouseDown={(event) => event.stopPropagation()}>
             {appForm}
+          </div>
+        </div>
+      ) : null}
+      {showChromeConfigForm ? (
+        <div style={styles.modalOverlay} role="presentation" onMouseDown={() => setShowChromeConfigForm(false)}>
+          <div role="dialog" aria-modal="true" aria-label="Filtering configuration" onMouseDown={(event) => event.stopPropagation()}>
+            {chromeConfigurationForm}
           </div>
         </div>
       ) : null}
@@ -2977,8 +3364,10 @@ const styles = {
   navButton: {
     alignItems: "center",
     background: "rgba(var(--color-primary-rgb),0.08)",
-    border: "1px solid rgba(var(--color-primary-rgb),0.10)",
+    borderColor: "rgba(var(--color-primary-rgb),0.10)",
     borderRadius: 999,
+    borderStyle: "solid",
+    borderWidth: 1,
     color: "var(--color-primary-dark)",
     cursor: "pointer",
     display: "flex",
@@ -3300,6 +3689,57 @@ const styles = {
     gap: 14,
     gridTemplateColumns: "repeat(auto-fill, minmax(118px, 1fr))",
   },
+  appManagementStack: {
+    display: "grid",
+    gap: 16,
+  },
+  appAnalyticsGrid: {
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  },
+  appAnalyticsCard: {
+    background: "rgba(255,255,255,0.64)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 16,
+    display: "grid",
+    gap: 5,
+    padding: 12,
+  },
+  appShelfEmpty: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.68)",
+    border: "1px dashed rgba(15,23,42,0.18)",
+    borderRadius: 18,
+    color: "#475569",
+    display: "grid",
+    gap: 8,
+    gridColumn: "1 / -1",
+    justifyItems: "center",
+    minHeight: 148,
+    padding: "22px 18px",
+    textAlign: "center",
+  },
+  appShelfEmptyIcon: {
+    alignItems: "center",
+    background: "#eef2ff",
+    border: "1px solid #dbeafe",
+    borderRadius: 16,
+    color: "#2563eb",
+    display: "inline-flex",
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  appShelfEmptyTitle: {
+    color: "#0f172a",
+    fontSize: 15,
+  },
+  appShelfEmptyText: {
+    color: "#64748b",
+    lineHeight: 1.45,
+    maxWidth: 420,
+  },
   appStoreTileWrap: {
     minWidth: 0,
     position: "relative",
@@ -3333,6 +3773,10 @@ const styles = {
     justifyContent: "center",
     overflow: "hidden",
     width: 72,
+  },
+  defaultAppMark: {
+    letterSpacing: 0,
+    textTransform: "uppercase",
   },
   tileDeleteButton: {
     alignItems: "center",
@@ -3529,12 +3973,23 @@ const styles = {
     justifyContent: "center",
     width: 42,
   },
-  markImage: { height: "100%", objectFit: "cover", width: "100%" },
+  markImage: { height: "100%", objectFit: "contain", width: "100%" },
   markImageContain: {
+    display: "block",
     height: "100%",
+    maxHeight: "100%",
+    maxWidth: "100%",
     objectFit: "contain",
-    padding: 6,
     width: "100%",
+  },
+  logoUploadPanel: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.58)",
+    border: "1px solid rgba(15,23,42,0.08)",
+    borderRadius: 16,
+    display: "flex",
+    gap: 12,
+    padding: 10,
   },
   deviceGrid: {
     display: "grid",
@@ -3882,8 +4337,9 @@ const styles = {
   },
   dockPreviewImage: {
     borderRadius: 999,
+    display: "block",
     height: 26,
-    objectFit: "cover",
+    objectFit: "contain",
     width: 26,
   },
   dockPreviewMark: {
@@ -3911,6 +4367,40 @@ const styles = {
     gap: 10,
     gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
     marginBottom: 10,
+  },
+  filteringSummaryGrid: {
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+    marginBottom: 12,
+  },
+  filteringPanel: {
+    background: "rgba(255,255,255,0.58)",
+    border: "1px solid rgba(15,23,42,0.06)",
+    borderRadius: 18,
+    display: "grid",
+    gap: 12,
+    marginTop: 12,
+    padding: 12,
+  },
+  filteringTitle: {
+    fontSize: 14,
+    margin: "0 0 3px",
+  },
+  filteringAppGrid: {
+    display: "grid",
+    gap: 9,
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  },
+  filteringAppRow: {
+    alignItems: "center",
+    background: "rgba(255,255,255,0.68)",
+    border: "1px solid rgba(15,23,42,0.07)",
+    borderRadius: 16,
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "42px minmax(0, 1fr) auto",
+    padding: 10,
   },
   allowedHostTools: {
     display: "grid",

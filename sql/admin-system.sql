@@ -131,3 +131,83 @@ end;
 $$;
 
 grant execute on function public.admin_get_global_users() to authenticated;
+
+create or replace function public.admin_get_platform_organizations(target_platform text)
+returns table (
+  account_id uuid,
+  name text,
+  type text,
+  invite_code text,
+  owner_user_id uuid,
+  created_at timestamptz,
+  member_count integer,
+  members jsonb
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  clean_platform text := lower(btrim(coalesce(target_platform, '')));
+begin
+  if not exists (
+    select 1
+    from public.user_access ua_admin
+    where
+      ua_admin.user_id = auth.uid()
+      and ua_admin.platform = 'admin'
+      and ua_admin.mode = 'default'
+      and ua_admin.has_access = true
+  ) then
+    raise exception 'Admin access required';
+  end if;
+
+  if clean_platform = '' then
+    raise exception 'Platform is required';
+  end if;
+
+  return query
+  select
+    a.id::uuid as account_id,
+    coalesce(a.name, '')::text as name,
+    coalesce(a.type, '')::text as type,
+    coalesce(a.invite_code, '')::text as invite_code,
+    a.owner_user_id::uuid as owner_user_id,
+    a.created_at::timestamptz as created_at,
+    count(am.user_id)::integer as member_count,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'userId', am.user_id,
+          'email', coalesce(p.email, u.email),
+          'fullName', coalesce(p.full_name, u.raw_user_meta_data->>'full_name', u.email),
+          'role', am.role,
+          'status', am.status,
+          'isOwner', am.user_id = a.owner_user_id
+        )
+        order by
+          case am.role when 'owner' then 0 when 'admin' then 1 else 2 end,
+          coalesce(p.full_name, u.raw_user_meta_data->>'full_name', u.email)
+      ) filter (where am.user_id is not null),
+      '[]'::jsonb
+    ) as members
+  from public.accounts a
+  left join public.account_members am
+    on am.account_id = a.id
+  left join auth.users u
+    on u.id = am.user_id
+  left join public.profiles p
+    on p.id = am.user_id
+  where lower(coalesce(a.type, '')::text) = clean_platform
+  group by
+    a.id,
+    a.name,
+    a.type,
+    a.invite_code,
+    a.owner_user_id,
+    a.created_at
+  order by coalesce(a.name, '')::text;
+end;
+$$;
+
+grant execute on function public.admin_get_platform_organizations(text) to authenticated;

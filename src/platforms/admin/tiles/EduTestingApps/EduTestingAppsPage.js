@@ -1,11 +1,28 @@
 import { useEffect, useState } from "react";
-import { FlaskConical, Save, Upload, X } from "lucide-react";
+import { Plus, Save, Upload, X } from "lucide-react";
 
 import {
   fetchEduTestingAppCatalog,
   saveEduTestingAppCatalogEntry,
   uploadEduTestingAppLogo,
 } from "../../services/eduTestingAppsService";
+
+function getInitials(name = "A") {
+  return String(name || "A")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "A";
+}
+
+function getIconTone(name = "") {
+  const palette = ["#2563eb", "#0f766e", "#e86a1f", "#7c3aed", "#be123c", "#334155"];
+  const index = String(name || "A")
+    .split("")
+    .reduce((total, character) => total + character.charCodeAt(0), 0) % palette.length;
+  return palette[index];
+}
 
 export default function EduTestingAppsPage() {
   const [apps, setApps] = useState([]);
@@ -30,6 +47,23 @@ export default function EduTestingAppsPage() {
   useEffect(() => {
     loadApps();
   }, []);
+
+  function handleAddApp() {
+    setError("");
+    setNotice("");
+    setSelectedApp({
+      id: "",
+      name: "",
+      type: "kiosk-pwa",
+      launchUrl: "",
+      launchMode: "new-window",
+      logoUrl: "",
+      description: "",
+      isGloballyEnabled: true,
+      sortOrder: apps.length,
+      isNew: true,
+    });
+  }
 
   async function handleSave(event) {
     event.preventDefault();
@@ -78,9 +112,13 @@ export default function EduTestingAppsPage() {
         <div>
           <h1 style={styles.title}>EDU Testing Apps</h1>
           <p style={styles.subtitle}>
-            Manage the shared TestNav, DRC, and NWEA launcher definitions used across every EDU organization.
+            Manage the shared secure testing launchers used across every EDU organization.
           </p>
         </div>
+        <button style={styles.primaryButton} type="button" onClick={handleAddApp}>
+          <Plus size={16} />
+          Add Testing App
+        </button>
       </section>
 
       {error ? <div style={styles.error}>{error}</div> : null}
@@ -92,8 +130,12 @@ export default function EduTestingAppsPage() {
         {!loading
           ? apps.map((app) => (
               <button key={app.id} style={styles.row} type="button" onClick={() => setSelectedApp(app)}>
-                <div style={styles.mark}>
-                  {app.logoUrl ? <img src={app.logoUrl} alt="" style={styles.logo} /> : <FlaskConical size={24} />}
+                <div style={{ ...styles.mark, background: app.logoUrl ? "transparent" : getIconTone(app.name) }}>
+                  {app.logoUrl ? (
+                    <img src={app.logoUrl} alt="" style={styles.logo} />
+                  ) : (
+                    getInitials(app.name)
+                  )}
                 </div>
                 <div style={styles.rowMain}>
                   <strong>{app.name}</strong>
@@ -111,14 +153,18 @@ export default function EduTestingAppsPage() {
         <div style={styles.overlay} role="presentation" onMouseDown={() => setSelectedApp(null)}>
           <form style={styles.modal} role="dialog" aria-modal="true" onSubmit={handleSave} onMouseDown={(event) => event.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Edit {selectedApp.name}</h2>
+              <h2 style={styles.modalTitle}>{selectedApp.isNew ? "Add Testing App" : `Edit ${selectedApp.name}`}</h2>
               <button style={styles.iconButton} type="button" onClick={() => setSelectedApp(null)} title="Close">
                 <X size={18} />
               </button>
             </div>
             <div style={styles.logoEditor}>
-              <div style={styles.logoPreview}>
-                {selectedApp.logoUrl ? <img src={selectedApp.logoUrl} alt="" style={styles.logo} /> : <FlaskConical size={30} />}
+              <div style={{ ...styles.logoPreview, background: selectedApp.logoUrl ? "transparent" : getIconTone(selectedApp.name) }}>
+                {selectedApp.logoUrl ? (
+                  <img src={selectedApp.logoUrl} alt="" style={styles.logo} />
+                ) : (
+                  getInitials(selectedApp.name)
+                )}
               </div>
               <div style={styles.logoEditorMain}>
                 <strong>Testing App Logo</strong>
@@ -137,6 +183,21 @@ export default function EduTestingAppsPage() {
               </label>
             </div>
             <div style={styles.formGrid}>
+              <label style={styles.label}>
+                App ID
+                <input
+                  style={styles.input}
+                  value={selectedApp.id}
+                  disabled={!selectedApp.isNew}
+                  placeholder="example-assessment"
+                  onChange={(event) =>
+                    setSelectedApp((app) => ({
+                      ...app,
+                      id: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+                    }))
+                  }
+                />
+              </label>
               <label style={styles.label}>
                 Name
                 <input style={styles.input} value={selectedApp.name} onChange={(event) => setSelectedApp((app) => ({ ...app, name: event.target.value }))} />
@@ -243,18 +304,20 @@ const styles = {
   },
   mark: {
     alignItems: "center",
-    background: "#edf2f7",
+    background: "#2563eb",
     borderRadius: 14,
+    color: "#fff",
     display: "flex",
+    fontWeight: 900,
     height: 56,
     justifyContent: "center",
     overflow: "hidden",
     width: 56,
   },
   logo: {
-    height: "76%",
+    height: "100%",
     objectFit: "contain",
-    width: "76%",
+    width: "100%",
   },
   rowMain: {
     display: "grid",
@@ -345,7 +408,10 @@ const styles = {
     background: "#ffffff",
     border: "1px solid rgba(148, 163, 184, 0.22)",
     borderRadius: 16,
+    color: "#fff",
     display: "flex",
+    fontSize: 24,
+    fontWeight: 900,
     height: 72,
     justifyContent: "center",
     overflow: "hidden",
